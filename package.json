@@ -1,0 +1,27 @@
+{
+  "name": "nolimitsfordeafchildren",
+  "private": true,
+  "packageManager": "bun@1.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "repo:lint": "biome check .",
+    "repo:lint:fix": "biome check --write .",
+    "repo:format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.6",
+    "@types/bun": "latest",
+    "turbo": "^2.5.8"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
