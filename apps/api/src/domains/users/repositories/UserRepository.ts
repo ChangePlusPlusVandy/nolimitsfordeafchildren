@@ -5,17 +5,15 @@ import { UserTable } from "@/domains/users/models/entities/UserTable";
 import { eq } from "drizzle-orm";
 
 export interface IUserRepository {
-  getById(id: string): Promise<UserProjection | null>;
+  getById(id: string): Promise<UserProjection | undefined>;
 }
 
 @Service()
 export class UserRepository implements IUserRepository {
-  async getById(id: string): Promise<UserProjection | null> {
-    const user = await db.select().from(UserTable).where(eq(UserTable.id, id));
-    if (user.length === 0) return null;
+  async getById(id: string): Promise<UserProjection | undefined> {
+    const [user] = await db.select().from(UserTable).where(eq(UserTable.id, id));
+    if (user === undefined) return undefined;
 
-    return {
-      id: user[0]!.id,
-    };
+    return user as UserProjection
   }
 }
