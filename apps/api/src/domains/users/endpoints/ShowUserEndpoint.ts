@@ -1,4 +1,4 @@
-import { Get, HttpError, JsonController, Param } from "routing-controllers";
+import { Get, HttpError, JsonController, Param, UseBefore } from "routing-controllers";
 import { Service, Inject } from "typedi";
 import { UserService } from "../services/UserService";
 

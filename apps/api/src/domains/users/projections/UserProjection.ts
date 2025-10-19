@@ -1,3 +1,5 @@
-export interface UserProjection {
-  id: string
+export class UserProjection {
+  constructor(
+    public readonly id: string
+  ) {}
 }

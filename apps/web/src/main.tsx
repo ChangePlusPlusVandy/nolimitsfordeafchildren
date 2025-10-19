@@ -3,13 +3,23 @@ import { createRoot } from 'react-dom/client'
 import './styles/index.css'
 import App from './App.tsx'
 import { BrowserRouter, Route, Routes } from 'react-router'
+import { Auth0Provider } from '@auth0/auth0-react'
+import config from './config.ts'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<App />} />
-      </Routes>
-    </BrowserRouter>
+    <Auth0Provider
+      domain={config.auth0.domain}
+      clientId={config.auth0.clientId}
+      authorizationParams={{
+        redirect_uri: window.location.origin,
+      }}
+    >
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
+        </Routes>
+      </BrowserRouter>
+    </Auth0Provider>
   </StrictMode>,
 )
