@@ -6,6 +6,7 @@ import { BrowserRouter, Route, Routes } from 'react-router'
 import { Auth0Provider } from '@auth0/auth0-react'
 import config from './config.ts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import UserDetailsPage from './domains/users/pages/UserDetailsPage.tsx'
 
 const queryClient = new QueryClient()
 
@@ -21,7 +22,7 @@ createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<App />} />
+            <Route path="/users/:id" element={<UserDetailsPage />} />
           </Routes>
         </BrowserRouter>
       </QueryClientProvider>

@@ -1,9 +1,7 @@
 import { useMutation } from "@tanstack/react-query"
 import { useUserHttpService } from "../services/UserHttpService"
 
-export interface UserDetailsPageProps { }
-
-export default function UserDetailsPage(props: UserDetailsPageProps) {
+export default function UserDetailsPage() {
   const userHttpService = useUserHttpService()
 
   const {
