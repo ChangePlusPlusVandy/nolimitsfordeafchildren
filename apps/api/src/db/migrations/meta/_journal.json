@@ -8,6 +8,13 @@
       "when": 1760890161468,
       "tag": "0000_tranquil_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1760901060967,
+      "tag": "0001_tiny_doomsday",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ export const UserTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     auth0Id: text("auth0_id").notNull().unique(),
+    name: text("name").notNull(),
   }
 )
 
