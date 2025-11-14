@@ -1,13 +1,13 @@
 import { pgTable, text, uuid, timestamp, numeric } from "drizzle-orm/pg-core";
-import { locationTable } from "@/domains/locations/models/entities/LocationTable";
+import { LocationTable } from "@/domains/locations/models/entities/LocationTable";
 import { UserTable } from "@/db/schema";
 
-export const bulletinTable = pgTable(
+export const BulletinTable = pgTable(
     "locations",
     {
         id: uuid("id").primaryKey().defaultRandom(),
         //scope
-        site_id: uuid("site_id").notNull().references(() => locationTable.id),
+        site_id: uuid("site_id").notNull().references(() => LocationTable.id),
         //role_target
         title: text("title").notNull(),
         body: text("body"),
@@ -19,4 +19,4 @@ export const bulletinTable = pgTable(
     }
 )
 
-export type bulletinEntity = typeof bulletinTable.$inferSelect;
+export type BulletinEntity = typeof BulletinTable.$inferSelect;

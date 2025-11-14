@@ -1,6 +1,6 @@
 import { pgTable, text, uuid, timestamp, numeric } from "drizzle-orm/pg-core";
 
-export const locationTable = pgTable(
+export const LocationTable = pgTable(
     "locations",
     {
         id: uuid("id").primaryKey().defaultRandom(),
@@ -20,4 +20,4 @@ export const locationTable = pgTable(
     }
 )
 
-export type locationEntity = typeof locationTable.$inferSelect;
+export type LocationEntity = typeof LocationTable.$inferSelect;
