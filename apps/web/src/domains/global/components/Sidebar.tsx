@@ -18,7 +18,7 @@ import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
 const navItems = [
   {
-    text: "Locations",
+    text: "Site Map",
     to: "/locations",
     icon: <LocationOnIcon />,
     adminOnly: true,
@@ -31,7 +31,7 @@ const navItems = [
     adminOnly: false,
   },
   {
-    text: "My Profile",
+    text: "Profile",
     to: "/my-profile",
     icon: <AccountCircleIcon />,
     adminOnly: false,
