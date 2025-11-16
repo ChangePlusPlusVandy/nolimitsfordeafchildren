@@ -44,7 +44,7 @@ const checkIsAdmin = (user: any) => {
 };
 
 export const Sidebar = () => {
-  const { user, logout } = useAuth0();
+  const { user } = useAuth0();
   const location = useLocation();
   const isAdmin = checkIsAdmin(user);
 
