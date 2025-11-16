@@ -120,9 +120,8 @@ export const Sidebar = () => {
           <List>
             <ListItem disablePadding sx={{ margin: "4px 0" }}>
               <ListItemButton
-                onClick={() =>
-                  logout({ logoutParams: { returnTo: window.location.origin } })
-                }
+                component={Link}
+                to="/login"
                 sx={{ borderRadius: "8px" }}
               >
                 <ListItemIcon sx={{ "& svg": { fontSize: "2.2rem" } }}>
