@@ -4,7 +4,7 @@ import { useUserHttpService } from "../services/UserHttpService"
 export default function InviteUserModal() {
   const userHttpService = useUserHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [userHttpService.key, 'invite'],
     mutationFn: userHttpService.mutations.invite,
   })

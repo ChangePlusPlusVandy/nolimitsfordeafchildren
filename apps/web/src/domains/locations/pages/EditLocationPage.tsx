@@ -4,7 +4,7 @@ import { useLocationHttpService } from "../services/LocationHttpService"
 export default function EditLocationPage() {
   const locationHttpService = useLocationHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [locationHttpService.key, 'update'],
     mutationFn: locationHttpService.mutations.update,
   })

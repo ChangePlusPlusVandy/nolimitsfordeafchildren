@@ -4,7 +4,7 @@ import { useStudentHttpService } from "../services/StudentHttpService"
 export default function LinkTeacherModal() {
   const studentHttpService = useStudentHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [studentHttpService.key, 'linkTeacher'],
     mutationFn: studentHttpService.mutations.linkTeacher,
   })
