@@ -4,7 +4,7 @@ import { useUserHttpService } from "../services/UserHttpService"
 export default function MyProfilePage() {
   const userHttpService = useUserHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [userHttpService.key, 'myProfile'],
     mutationFn: userHttpService.mutations.myProfile,
     onSuccess: (data) => {

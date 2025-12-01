@@ -5,7 +5,7 @@ export default function UserDetailsPage() {
   const userHttpService = useUserHttpService()
 
   const {
-    mutate
+    mutate: _mutate
   } = useMutation({
     mutationKey: [userHttpService.key, 'show'],
     mutationFn: userHttpService.mutations.show,
