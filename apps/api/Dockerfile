@@ -13,6 +13,6 @@ COPY src ./src
 EXPOSE 3000
 
 # Use tsx to run the TypeScript entrypoint directly
-CMD ["node", "--loader=tsx", "src/server.ts"]
+CMD ["node", "--import=tsx", "src/server.ts"]
 
 
