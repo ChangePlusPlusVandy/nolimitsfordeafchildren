@@ -9,8 +9,8 @@
     "test": "echo 'no tests yet'",
     "clean": "rm -rf dist",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:migrate": "NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit migrate",
+    "db:studio": "NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit studio"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
