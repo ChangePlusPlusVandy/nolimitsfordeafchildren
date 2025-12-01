@@ -15,7 +15,7 @@ import { DeleteStudentTeacherController, GetStudentController, GetStudentTeacher
 import { GetParentsChildDetailController, GetParentsMeChildrenController } from "./domains/parents/endpoints/ParentsController";
 import { GetEnrollmentsController, PatchEnrollmentController, PostEnrollmentsController } from "./domains/enrollments/endpoints/EnrollmentsController";
 import { GetAttendanceController, PatchAttendanceController, PostAttendanceController } from "./domains/attendance/endpoints/AttendanceController";
-import { UsersController } from "./domains/users/endpoints/UsersController";
+import { GetUsersController, PostUsersInviteController, PatchUserController } from "./domains/users/endpoints/UsersController";
 import { ProfilesController } from "./domains/profiles/endpoints/ProfilesController";
 import { SchedulesController } from "./domains/schedules/endpoints/SchedulesController";
 import { SitesController } from "./domains/sites/endpoints/SitesController";
@@ -66,7 +66,9 @@ export function buildApplication() {
       GetAttendanceController,
       PostAttendanceController,
       PatchAttendanceController,
-      UsersController,
+      GetUsersController,
+      PostUsersInviteController,
+      PatchUserController,
       ProfilesController,
       SchedulesController,
       SitesController,
