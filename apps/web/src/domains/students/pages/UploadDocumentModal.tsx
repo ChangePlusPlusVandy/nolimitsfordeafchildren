@@ -4,7 +4,7 @@ import { useStudentHttpService } from "../services/StudentHttpService"
 export default function UploadDocumentModal() {
   const studentHttpService = useStudentHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [studentHttpService.key, 'uploadDocument'],
     mutationFn: studentHttpService.mutations.uploadDocument,
   })

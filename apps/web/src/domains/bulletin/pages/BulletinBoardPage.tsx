@@ -4,7 +4,7 @@ import { useBulletinHttpService } from "../services/BulletinHttpService"
 export default function BulletinBoardPage() {
   const bulletinHttpService = useBulletinHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [bulletinHttpService.key, 'index'],
     mutationFn: bulletinHttpService.mutations.index,
     onSuccess: (data) => {
