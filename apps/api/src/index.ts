@@ -24,8 +24,13 @@ import { StudentParentsAdminController } from "./domains/students/endpoints/Stud
 useContainer(Container)
 
 export function buildApplication() {
+  const allowedOrigins = process.env.CORS_ORIGINS?.split(",") || ["http://localhost:5173"];
+  
   const app = createExpressServer({
-    cors: true,
+    cors: {
+      origin: allowedOrigins,
+      credentials: true,
+    },
     controllers: [
       ShowUserEndpoint,
       PostAuthLoginController,
