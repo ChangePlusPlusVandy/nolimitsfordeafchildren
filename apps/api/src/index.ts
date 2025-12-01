@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { createExpressServer, useContainer, type Action } from "routing-controllers";
-import express from "express";
+import express, { type Request, type Response } from "express";
 import Container from "typedi";
 import { ShowUserEndpoint } from "./domains/users/endpoints/ShowUserEndpoint";
 import { PostAuthLoginController, PostAuthLogoutController, PostAuthRefreshController } from "./domains/auth/endpoints/AuthController";
@@ -89,6 +89,10 @@ export function buildApplication() {
   })
 
   app.use(express.json())
+
+  app.get("/health", (req: Request, res: Response) => {
+    res.json({ status: "ok" })
+  })
 
   return app
 }
