@@ -44,9 +44,13 @@ const checkIsAdmin = (user: any) => {
 };
 
 export const Sidebar = () => {
-  const { user } = useAuth0();
+  const { user, logout } = useAuth0();
   const location = useLocation();
   const isAdmin = checkIsAdmin(user);
+
+  const handleLogout = () => {
+    logout({ logoutParams: { returnTo: window.location.origin } });
+  };
 
   return (
     <Drawer
@@ -120,8 +124,7 @@ export const Sidebar = () => {
           <List>
             <ListItem disablePadding sx={{ margin: "4px 0" }}>
               <ListItemButton
-                component={Link}
-                to="/login"
+                onClick={handleLogout}
                 sx={{ borderRadius: "8px" }}
               >
                 <ListItemIcon sx={{ "& svg": { fontSize: "2.2rem" } }}>

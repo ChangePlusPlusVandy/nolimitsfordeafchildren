@@ -6,8 +6,9 @@ import { Auth0Provider } from "@auth0/auth0-react";
 import config from "./config.ts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Layouts
+// Layouts & Guards
 import DashboardLayout from "./domains/global/layouts/DashboardLayout.tsx";
+import AuthGuard from "./domains/global/components/AuthGuard.tsx";
 
 // Pages
 import UserDetailsPage from "./domains/users/pages/UserDetailsPage.tsx";
@@ -26,7 +27,6 @@ import NewTeacherPage from "./domains/teachers/pages/NewTeacherPage.tsx";
 import InviteUserModal from "./domains/users/pages/InviteUserModal.tsx";
 import LinkTeacherModal from "./domains/students/pages/LinkTeacherModal.tsx";
 import UploadDocumentModal from "./domains/students/pages/UploadDocumentModal.tsx";
-import LoginPage from "./domains/global/pages/LoginPage.tsx";
 import TeacherScheduleWizardPage from "./domains/teachers/pages/TeacherScheduleWizardPage.tsx";
 import NewStudentPage from "./domains/students/pages/NewStudentPage.tsx";
 import TeacherStudentDetailsPage from "./domains/teachers/pages/TeacherStudentDetailsPage.tsx";
@@ -39,69 +39,71 @@ createRoot(document.getElementById("root")!).render(
     <Auth0Provider
       domain={config.auth0.domain}
       clientId={config.auth0.clientId}
+      cacheLocation="localstorage"
+      useRefreshTokens={true}
       authorizationParams={{
         redirect_uri: window.location.origin,
-        audience: config.auth0.audience,
+        ...(config.auth0.audience && { audience: config.auth0.audience }),
       }}
     >
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-
-            <Route element={<DashboardLayout />}>
-              <Route path="/" element={<Navigate to="/my-day" replace />} />
-              <Route path="/users" element={<ManageUsersPage />} />
-              <Route path="/users/:id" element={<UserDetailsPage />} />
-              <Route path="/my-profile" element={<MyProfilePage />} />
-              <Route path="/users/invite" element={<InviteUserModal />} />
-              <Route path="/locations" element={<LocationsIndexPage />} />
-              <Route path="/locations/new" element={<NewLocationPage />} />
-              <Route
-                path="/locations/:siteId"
-                element={<LocationDetailsPage />}
-              />
-              <Route
-                path="/locations/:siteId/edit"
-                element={<EditLocationPage />}
-              />
-              <Route
-                path="/teachers"
-                element={<Navigate to="/my-day" replace />}
-              />
-              <Route path="/teachers/new" element={<NewTeacherPage />} />
-              <Route path="/my-day" element={<MyDayPage />} />
-              <Route path="/teachers/:id" element={<TeacherDetailsPage />} />
-              <Route
-                path="/teachers/:id/schedules/new"
-                element={<TeacherScheduleWizardPage />}
-              />
-              <Route
-                path="/teachers/students/:id"
-                element={<TeacherStudentDetailsPage />}
-              />
-              <Route path="/students/new" element={<NewStudentPage />} />
-              <Route path="/students/:id" element={<StudentDetailsPage />} />
-              <Route
-                path="/students/:id/link-teacher"
-                element={<LinkTeacherModal />}
-              />
-              <Route
-                path="/students/:id/upload"
-                element={<UploadDocumentModal />}
-              />
-              <Route
-                path="/parents"
-                element={<Navigate to="/my-students" replace />}
-              />
-              <Route path="/my-students" element={<MyStudentsPage />} />
-              <Route
-                path="/parents/children/:studentId"
-                element={<ChildDetailsPage />}
-              />
-              <Route path="/bulletin" element={<BulletinBoardPage />} />
-            </Route>
-          </Routes>
+          <AuthGuard>
+            <Routes>
+              <Route element={<DashboardLayout />}>
+                <Route path="/" element={<Navigate to="/my-day" replace />} />
+                <Route path="/users" element={<ManageUsersPage />} />
+                <Route path="/users/:id" element={<UserDetailsPage />} />
+                <Route path="/my-profile" element={<MyProfilePage />} />
+                <Route path="/users/invite" element={<InviteUserModal />} />
+                <Route path="/locations" element={<LocationsIndexPage />} />
+                <Route path="/locations/new" element={<NewLocationPage />} />
+                <Route
+                  path="/locations/:siteId"
+                  element={<LocationDetailsPage />}
+                />
+                <Route
+                  path="/locations/:siteId/edit"
+                  element={<EditLocationPage />}
+                />
+                <Route
+                  path="/teachers"
+                  element={<Navigate to="/my-day" replace />}
+                />
+                <Route path="/teachers/new" element={<NewTeacherPage />} />
+                <Route path="/my-day" element={<MyDayPage />} />
+                <Route path="/teachers/:id" element={<TeacherDetailsPage />} />
+                <Route
+                  path="/teachers/:id/schedules/new"
+                  element={<TeacherScheduleWizardPage />}
+                />
+                <Route
+                  path="/teachers/students/:id"
+                  element={<TeacherStudentDetailsPage />}
+                />
+                <Route path="/students/new" element={<NewStudentPage />} />
+                <Route path="/students/:id" element={<StudentDetailsPage />} />
+                <Route
+                  path="/students/:id/link-teacher"
+                  element={<LinkTeacherModal />}
+                />
+                <Route
+                  path="/students/:id/upload"
+                  element={<UploadDocumentModal />}
+                />
+                <Route
+                  path="/parents"
+                  element={<Navigate to="/my-students" replace />}
+                />
+                <Route path="/my-students" element={<MyStudentsPage />} />
+                <Route
+                  path="/parents/children/:studentId"
+                  element={<ChildDetailsPage />}
+                />
+                <Route path="/bulletin" element={<BulletinBoardPage />} />
+              </Route>
+            </Routes>
+          </AuthGuard>
         </BrowserRouter>
       </QueryClientProvider>
     </Auth0Provider>
