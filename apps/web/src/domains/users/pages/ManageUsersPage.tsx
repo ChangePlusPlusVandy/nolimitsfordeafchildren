@@ -19,15 +19,53 @@ import {
   DialogActions,
 } from "@mui/material";
 import { useState, useEffect } from "react";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 
 const dummydata = [
-  { id: 1, type: "Admin", name: "Sarah Kim", location: "New York" },
-  { id: 2, type: "Teacher", name: "Jason Lee", location: "Chicago" },
-  { id: 3, type: "Teacher", name: "Maria Gonzalez", location: "Los Angeles" },
-  { id: 4, type: "Student", name: "John Doe", location: "Houston" },
-  { id: 5, type: "Student", name: "Alice Wong", location: "San Francisco" },
-  { id: 6, type: "Teacher", name: "Bob Smith", location: "Seattle" },
+  {
+    id: 1,
+    type: "Admin",
+    name: "Sarah Kim",
+    location: "New York",
+    status: "Active",
+  },
+  {
+    id: 2,
+    type: "Teacher",
+    name: "Jason Lee",
+    location: "Chicago",
+    status: "Inactive",
+  },
+  {
+    id: 3,
+    type: "Teacher",
+    name: "Maria Gonzalez",
+    location: "Los Angeles",
+    status: "Active",
+  },
+  {
+    id: 4,
+    type: "Student",
+    name: "John Doe",
+    location: "Houston",
+    status: "Active",
+  },
+  {
+    id: 5,
+    type: "Student",
+    name: "Alice Wong",
+    location: "San Francisco",
+    status: "Inactive",
+  },
+  {
+    id: 6,
+    type: "Teacher",
+    name: "Bob Smith",
+    location: "Seattle",
+    status: "Active",
+  },
 ];
+
 export default function ManageUsersPage() {
   // const userHttpService = useUserHttpService();
 
@@ -64,19 +102,59 @@ export default function ManageUsersPage() {
 
   const [rows, setRows] = useState(dummydata);
   const [open, setOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ type: "", name: "", location: "" });
+  const [newUser, setNewUser] = useState({
+    type: "",
+    name: "",
+    location: "",
+    status: "Active",
+  });
 
   const columns = [
     { field: "type", headerName: "Type", flex: 1 },
     { field: "name", headerName: "Name", flex: 1 },
     { field: "location", headerName: "Location", flex: 1 },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      renderCell: (params: any) => {
+        const isActive = params.value === "Active";
+
+        return (
+          <Box
+            sx={{
+              color: isActive ? "#2e7d32" : "#d32f2f",
+              textAlign: "left",
+            }}
+          >
+            {params.value}
+          </Box>
+        );
+      },
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      renderCell: () => {
+        return (
+          <Box
+            sx={{
+              textAlign: "left",
+            }}
+          >
+            Edit | Deactivate
+          </Box>
+        );
+      },
+    },
   ];
 
   const handleOpen = () => setOpen(true);
 
   const handleClose = () => {
     setOpen(false);
-    setNewUser({ type: "", name: "", location: "" });
+    setNewUser({ type: "", name: "", location: "", status: "" });
   };
 
   const addUser = () => {
@@ -88,7 +166,22 @@ export default function ManageUsersPage() {
 
   return (
     <Box sx={{ mr: 6, ml: 6, mt: 4, mb: 4 }}>
-      <h1>Manage Users</h1>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h1>Manage Users</h1>
+        <Button
+          variant="contained"
+          startIcon={<PersonAddIcon />}
+          onClick={handleOpen}
+        >
+          Add User
+        </Button>
+      </Box>
       <br />
       <DataGrid
         rows={rows}
@@ -97,13 +190,7 @@ export default function ManageUsersPage() {
           toolbar: CustomToolbar,
         }}
         showToolbar
-        checkboxSelection
       />
-      <Box sx={{ marginTop: 2 }}>
-        <Button variant="contained" onClick={handleOpen}>
-          Add New User
-        </Button>
-      </Box>
 
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Add New User</DialogTitle>
@@ -116,7 +203,7 @@ export default function ManageUsersPage() {
             }}
           >
             <TextField
-              label="Type"
+              label="Role"
               value={newUser.type}
               onChange={(e) => setNewUser({ ...newUser, type: e.target.value })}
             />
@@ -136,7 +223,7 @@ export default function ManageUsersPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={addUser} variant="contained">
+          <Button onClick={addUser} variant="contained" sx={{ mr: 2 }}>
             Add
           </Button>
         </DialogActions>
