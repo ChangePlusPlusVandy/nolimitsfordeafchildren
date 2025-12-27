@@ -67,7 +67,7 @@ export default function MyProfilePage() {
                 {isEditing ? (
                   <>
                     <TextField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth sx={{ mt: 2 }}/>
-                    <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth sx={{ mt: 2 }} />
+                    <Typography mt={4}>{title}</Typography>
                   </>
                 ) : (
                   <>
