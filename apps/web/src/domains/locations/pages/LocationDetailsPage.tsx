@@ -63,14 +63,14 @@ export default function LocationDetailsPage() {
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 4,justifyContent: "space-between", textAlign: "center" }}>
+      <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between", ml: 12 }}>
         {/* Left side: Teachers */}
         <Box>
-          <Typography color="text.secondary" sx={{ mb: 2, ml: 12 }}>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
             {teachers.length} Teachers Registered
           </Typography>
 
-          <Stack spacing={2} sx={{ ml: 12 }}>
+          <Stack spacing={2}>
             {teachers.map((teacher) => (
               <Card
                 key={teacher}
