@@ -1,4 +1,12 @@
 import * as schema from "./schema";
 import { drizzle } from 'drizzle-orm/node-postgres';
+import pg from 'pg';
 
-export const db = drizzle(process.env.POSTGRES_URI!, { schema });
+const pool = new pg.Pool({
+  connectionString: process.env.POSTGRES_URI!,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+export const db = drizzle(pool, { schema });
