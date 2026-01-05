@@ -38,8 +38,6 @@ export default function PopupSitesPage() {
 
   return (
     <Box className="flex p-4 gap-6 w-full h-screen bg-gray-100">
-      <Box className="w-48 bg-gray-200 rounded-xl p-4">Sidebar</Box>
-
       <Box className="flex flex-col flex-1">
         <Typography variant="h4" className="mb-4 font-semibold">
           Welcome, Elizabeth!
@@ -53,8 +51,8 @@ export default function PopupSitesPage() {
           className="mb-4 w-80"
         />
 
-        <Box className="flex gap-6 flex-1">
-          <Paper className="w-80 p-2 overflow-auto" elevation={3}>
+        <Box className="flex gap-6 flex-1 min-h-0">
+          <Paper className="w-80 p-2 overflow-auto flex-shrink-0" elevation={3}>
             <Typography variant="h6" className="p-2 bg-purple-700 text-white rounded-md">
               Pop-Up Sites
             </Typography>
