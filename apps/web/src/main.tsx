@@ -79,7 +79,7 @@ createRoot(document.getElementById("root")!).render(
                 path="/teachers/students/:id"
                 element={<TeacherStudentDetailsPage />}
               />
-              <Route path="/students/new" element={<NewStudentPage />} />
+              <Route path="/students/new" element={<StudentDetailsPage />} />
               <Route path="/students/:id" element={<StudentDetailsPage />} />
               <Route
                 path="/students/:id/link-teacher"
