@@ -1,19 +1,20 @@
-import { useAuth0 } from "@auth0/auth0-react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { useEffect } from "react";
+import { useAuth } from "../../../auth";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
+  const { authEnabled, isAuthenticated, isLoading, login } = useAuth();
 
   useEffect(() => {
+    if (!authEnabled) return;
     if (!isLoading && !isAuthenticated) {
-      loginWithRedirect();
+      login();
     }
-  }, [isLoading, isAuthenticated, loginWithRedirect]);
+  }, [authEnabled, isAuthenticated, isLoading, login]);
 
   if (isLoading) {
     return (

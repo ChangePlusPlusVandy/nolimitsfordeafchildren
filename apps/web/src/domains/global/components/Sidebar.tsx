@@ -12,8 +12,8 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ArticleIcon from "@mui/icons-material/Article";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useLocation } from "react-router";
+import { useAuth } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
 const navItems = [
@@ -44,12 +44,17 @@ const checkIsAdmin = (user: any) => {
 };
 
 export const Sidebar = () => {
-  const { user, logout } = useAuth0();
+  const { authEnabled, user, logout } = useAuth();
   const location = useLocation();
   const isAdmin = checkIsAdmin(user);
 
   const handleLogout = () => {
-    logout({ logoutParams: { returnTo: window.location.origin } });
+    if (!authEnabled) {
+      window.location.reload();
+      return;
+    }
+
+    logout();
   };
 
   return (

@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nolimitsfordeafchildren-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: database
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d database"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./apps/api
+    container_name: nolimitsfordeafchildren-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "3000"
+      CORS_ORIGINS: "http://localhost:5173"
+      POSTGRES_URI: "postgresql://user:password@db:5432/database"
+      POSTGRES_SSL: "false"
+    ports:
+      - "3000:3000"
+    command: ["sh", "-c", "npm run db:migrate && node --import=tsx src/server.ts"]
+
+  web:
+    build:
+      context: ./apps/web
+    container_name: nolimitsfordeafchildren-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: "http://localhost:3000"
+      VITE_AUTH_DISABLED: "true"
+    ports:
+      - "5173:5173"
+
+volumes:
+  db_data:
