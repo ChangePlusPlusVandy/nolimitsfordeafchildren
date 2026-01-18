@@ -18,15 +18,19 @@ export default function LocationDetailsPage() {
       console.error(error)
     }
   })
-
+  
+  const [isInSession, setIsInSession] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState('Smith Public Library');
-  const [email, setEmail] = useState('lizaperetti@gmail.com')
+  const [email, setEmail] = useState('lizaperetti@gmail.com');
   const [title] = useState('Teacher');
-  const [phoneNumber, setPhoneNumber] = useState('(312) 404-8082')
-  const [address, setAddress] = useState('4181 Baldwin Park Blvd Baldwin Park, CA 91706')
-  const teachers = ["Alex Rodriguez", "Sarah Jones", "Cecily Greene"]
-  
+  const [phoneNumber, setPhoneNumber] = useState('(312) 404-8082');
+  const [address, setAddress] = useState('4181 Baldwin Park Blvd Baldwin Park, CA 91706');
+  const teachers = [
+  { name: "Alex Rodriguez", type: "Preschool"},
+  { name: "Sarah Jones", type: "Teen"},
+  { name: "Cecily Greene", type: "Teen"},
+  ];
   
 
   return (
@@ -63,70 +67,109 @@ export default function LocationDetailsPage() {
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between", ml: 12 }}>
-        {/* Left side: Teachers */}
+      <Box sx={{ display: "flex", gap: 4, ml: 12, mr: 12, mt: 4, alignItems: "flex-start" }}>
         <Box>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            {teachers.length} Teachers Registered
-          </Typography>
+          <Box>
+            {isInSession ? (
+              <>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      <span style={{ color: 'red' }}>Currently In Session</span>
+                    </Typography>
+                <Box
+                  sx={{
+                    backgroundColor: '#b9f6ca', // Light green background
+                    border: '2px solid #2e7d32', // Darker green border
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    width: '100%',
+                    maxWidth: '400px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {/* Header: Class Name */}
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 0.5, color: '#000' }}>
+                    Preschool Lesson
+                  </Typography>
 
-          <Stack spacing={2}>
-            {teachers.map((teacher) => (
-              <Card
-                key={teacher}
-                sx={{
-                  p: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  borderRadius: 4,
-                  backgroundColor: "#e0e0e0",
-                  maxWidth: 1200,
-                  minWidth: 400,
-                  width: "100%",
-                  mx: "auto",
-                }}
-              >
-                <Avatar
-                  src="profile.jpg"
-                  sx={{ width: 56, height: 56, mr: 2 }}
-                />
+                  {/* Subheader: Time and Teacher */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" sx={{ color: '#444' }}>
+                      9:00 - 10:00
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#444' }}>
+                      Alex Rodriguez
+                    </Typography>
+                  </Box>
 
-                <Box>
-                  <Typography variant="h6">{teacher}</Typography>
+                  {/* Attendance Footer */}
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      <span style={{ color: 'red' }}>8/10</span> students present
+                    </Typography>
+                  </Box>
                 </Box>
-              </Card>
-            ))}
-          </Stack>
-        </Box>
-        <Box sx={{ backgroundColor: "#e0e0e0", borderRadius: 3, p: 2,  }}>
-          <Typography variant="h5">Today's Schedule</Typography>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-              {new Date().toLocaleDateString()}
-          </Typography>
-          <Box sx={{ display: "flex", gap: 2, mt: 4}}>
-            {/* Left: Time scale */}
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", pr: 1 }}>
-              {Array.from({ length: 12 }, (_, i) => (
-                <Typography key={i} sx={{ mb: 3, fontSize: 12 }}>
-                  {i + 8}:00
-                </Typography>
-              ))}
-            </Box>
+              </>
+            ):(
+              <>
+              </>
+            )}
+          </Box>
 
-            {/* Right: Schedule block */}
-            <Box sx={{ flexGrow: 1, border: "1px solid #ccc", borderRadius: 2, p: 2 }}>
+          <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between"}}>
+            {/* Left side: Teachers */}
+            <Box>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                {teachers.length} Teachers Registered
+              </Typography>
 
-              {/* Example schedule items but add the for loop part when there are events */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <Card sx={{ p: 1, backgroundColor: "#ff0000" }}>
-                  <Typography color="#ffffff">9:00 - 10:00 AM: Staff Meeting</Typography>
-                </Card>
-                <Card sx={{ p: 1, backgroundColor: "#00ff00" }}>
-                  <Typography color="#ffffff">10:00 - 12:00 PM: Library Open</Typography>
-                </Card>
-              </Box>
+              <Stack spacing={2}>
+                {teachers.map((teacher) => (
+                  <Card
+                    key={teacher.name}
+                    sx={{
+                      p: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      borderRadius: 4,
+                      backgroundColor: "#e0e0e0",
+                      maxWidth: 1200,
+                      minWidth: 400,
+                      width: "100%",
+                      mx: "auto",
+                    }}
+                  >
+                    <Avatar
+                      src="profile.jpg"
+                      sx={{ width: 56, height: 56, mr: 2 }}
+                    />
+                    <Box>
+                      <Typography variant="h6">{teacher.name}</Typography>
+                      <Box
+                        sx={{
+                          backgroundColor: teacher.type === "Preschool" ? "#32CD32" : "#D81B60",
+                          color: "white",
+                          padding: "4px 16px",
+                          borderRadius: "20px", // Makes it an ellipse/pill shape
+                          display: "inline-block",
+                          width: "fit-content",
+                          fontSize: "0.875rem",
+                          fontWeight: "medium"
+                        }}
+                      >
+                        {teacher.type}
+                      </Box>
+                    </Box>
+                  </Card>
+                ))}
+              </Stack>
             </Box>
           </Box>
+        </Box>
+        <Box sx={{ ml: 10 }}>
+          <iframe 
+          src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FChicago&showPrint=0&src=NDMwNWJkMTU0N2ZhZTk3MTQyZTU4OTc1ZTAwODczMWVmOTQ0OGI0NmRmOWUwMTg5NDE4MzcwN2NlZjYwNTRiNUBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&src=ZW4udXNhI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%23e4c441&color=%230b8043" 
+          style={{ border: "solid 1px #777", borderRadius: 10, width: 800, height: 600 }}>
+          </iframe>
         </Box>
       </Box>
     </Box>
