@@ -15,6 +15,13 @@
       "when": 1760901060967,
       "tag": "0001_tiny_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764630930310,
+      "tag": "0002_stormy_charles_xavier",
+      "breakpoints": true
     }
   ]
 }

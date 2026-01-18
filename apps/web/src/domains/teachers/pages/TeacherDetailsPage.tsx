@@ -4,7 +4,7 @@ import { useTeacherHttpService } from "../services/TeacherHttpService"
 export default function TeacherDetailsPage() {
   const teacherHttpService = useTeacherHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [teacherHttpService.key, 'show'],
     mutationFn: teacherHttpService.mutations.show,
     onSuccess: (data) => {

@@ -12,8 +12,8 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ArticleIcon from "@mui/icons-material/Article";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { useAuth0 } from "@auth0/auth0-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
+import { useAuth } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
 const navItems = [
@@ -44,9 +44,18 @@ const checkIsAdmin = (user: any) => {
 };
 
 export const Sidebar = () => {
-  const { user } = useAuth0();
+  const { authEnabled, user, logout } = useAuth();
   const location = useLocation();
   const isAdmin = checkIsAdmin(user);
+
+  const handleLogout = () => {
+    if (!authEnabled) {
+      window.location.reload();
+      return;
+    }
+
+    logout();
+  };
 
   return (
     <Drawer
@@ -120,8 +129,7 @@ export const Sidebar = () => {
           <List>
             <ListItem disablePadding sx={{ margin: "4px 0" }}>
               <ListItemButton
-                component={Link}
-                to="/login"
+                onClick={handleLogout}
                 sx={{ borderRadius: "8px" }}
               >
                 <ListItemIcon sx={{ "& svg": { fontSize: "2.2rem" } }}>

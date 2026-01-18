@@ -19,7 +19,8 @@ import AddDocumentModal from "../components/modals/AddDocumentModal";
 
 export default function StudentDetailsPage() {
   const studentHttpService = useStudentHttpService();
-  useMutation({
+
+  const { mutate: _mutate } = useMutation({
     mutationKey: [studentHttpService.key, "show"],
     mutationFn: studentHttpService.mutations.show,
     onSuccess: (data) => console.log(data),

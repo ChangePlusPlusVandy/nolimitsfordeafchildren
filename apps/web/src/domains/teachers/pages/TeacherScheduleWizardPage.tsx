@@ -4,7 +4,7 @@ import { useTeacherHttpService } from "../services/TeacherHttpService"
 export default function TeacherScheduleWizardPage() {
   const teacherHttpService = useTeacherHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [teacherHttpService.key, 'createSchedule'],
     mutationFn: teacherHttpService.mutations.createSchedule,
   })

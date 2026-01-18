@@ -4,7 +4,7 @@ import { useParentHttpService } from "../services/ParentHttpService"
 export default function MyStudentsPage() {
   const parentHttpService = useParentHttpService()
 
-  const { mutate } = useMutation({
+  const { mutate: _mutate } = useMutation({
     mutationKey: [parentHttpService.key, 'myStudents'],
     mutationFn: parentHttpService.mutations.myStudents,
     onSuccess: (data) => {
