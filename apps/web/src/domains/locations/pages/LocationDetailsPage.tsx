@@ -2,8 +2,10 @@ import { useMutation } from "@tanstack/react-query"
 import { useLocationHttpService } from "../services/LocationHttpService"
 import { Button, Avatar, Box, Stack, Typography, TextField, IconButton, Card } from "@mui/material"
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { ThemeProvider } from '@mui/material/styles';
-import React, { useState } from 'react'
+import React, { useState } from 'react';
+import FullCalendar from '@fullcalendar/react'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
 
 export default function LocationDetailsPage() {
   const locationHttpService = useLocationHttpService()
@@ -32,6 +34,29 @@ export default function LocationDetailsPage() {
   { name: "Cecily Greene", type: "Teen"},
   ];
   
+  const myEvents = [
+    {
+      title: 'Conference',
+      start: '2026-01-18', // Matches Sun 1/18
+      end: '2026-01-20',   // Ends on Mon 1/19 (end date is exclusive in FC)
+      allDay: true
+    },
+    {
+      title: 'Birthday Party',
+      start: '2026-01-20T07:00:00', // Tue 1/20 at 7:00 AM
+      end: '2026-01-20T08:00:00'
+    },
+    {
+      title: 'Meeting',
+      start: '2026-01-19T10:30:00', // Mon 1/19
+      end: '2026-01-19T12:30:00'
+    },
+    {
+      title: 'Lunch',
+      start: '2026-01-19T12:00:00',
+      end: '2026-01-19T13:00:00'
+    }
+  ];
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", mb: 3, gap: 2 }}>
@@ -115,7 +140,7 @@ export default function LocationDetailsPage() {
             )}
           </Box>
 
-          <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between"}}>
+          <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between", mt: 8}}>
             {/* Left side: Teachers */}
             <Box>
               <Typography color="text.secondary" sx={{ mb: 2 }}>
@@ -165,11 +190,21 @@ export default function LocationDetailsPage() {
             </Box>
           </Box>
         </Box>
-        <Box sx={{ ml: 10 }}>
-          <iframe 
-          src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FChicago&showPrint=0&src=NDMwNWJkMTU0N2ZhZTk3MTQyZTU4OTc1ZTAwODczMWVmOTQ0OGI0NmRmOWUwMTg5NDE4MzcwN2NlZjYwNTRiNUBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&src=ZW4udXNhI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%23e4c441&color=%230b8043" 
-          style={{ border: "solid 1px #777", borderRadius: 10, width: 800, height: 600 }}>
-          </iframe>
+        <Box sx={{ ml: 15 }}>
+          <FullCalendar
+            plugins={[ dayGridPlugin, timeGridPlugin ]}
+            initialView="timeGridWeek"                
+            headerToolbar={{
+              left: 'prev,next today',
+              center: 'title',
+              right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            }}
+            events={myEvents}
+            slotMinTime="06:00:00"
+            slotMaxTime="20:00:00"
+            allDaySlot={true}      
+            height="auto"
+          />
         </Box>
       </Box>
     </Box>
