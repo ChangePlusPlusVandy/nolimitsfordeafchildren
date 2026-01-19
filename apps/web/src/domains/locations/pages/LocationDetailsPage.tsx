@@ -1,11 +1,12 @@
-import { useMutation } from "@tanstack/react-query"
-import { useLocationHttpService } from "../services/LocationHttpService"
-import { Button, Avatar, Box, Stack, Typography, TextField, IconButton, Card } from "@mui/material"
+import { useMutation } from "@tanstack/react-query";
+import { useLocationHttpService } from "../services/LocationHttpService";
+import { Button, Avatar, Box, Stack, Typography, TextField, IconButton, Card, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import React, { useState } from 'react';
-import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import { useNavigate } from "react-router-dom";
 
 export default function LocationDetailsPage() {
   const locationHttpService = useLocationHttpService()
@@ -22,16 +23,27 @@ export default function LocationDetailsPage() {
   })
   
   const [isInSession, setIsInSession] = useState(true);
+  let [role, setRole] = useState("teachers");
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState('Smith Public Library');
   const [email, setEmail] = useState('lizaperetti@gmail.com');
   const [title] = useState('Teacher');
   const [phoneNumber, setPhoneNumber] = useState('(312) 404-8082');
   const [address, setAddress] = useState('4181 Baldwin Park Blvd Baldwin Park, CA 91706');
+
   const teachers = [
-  { name: "Alex Rodriguez", type: "Preschool"},
-  { name: "Sarah Jones", type: "Teen"},
-  { name: "Cecily Greene", type: "Teen"},
+  { id: 1, name: "Alex Rodriguez", type: "Preschool"},
+  { id: 2,name: "Sarah Jones", type: "Teen"},
+  { id: 3,name: "Cecily Greene", type: "Teen"},
+  ];
+
+  const students = [
+  { id: 4, name: "Ryan Mccauley", grade: "Preschool", isHere: true},
+  { id: 5,name: "Avash Aryal", grade: "Teen", isHere: true},
+  { id: 6,name: "Roy Won", grade: "Infant", isHere: false},
+  { id: 7, name: "Emily Peng", grade: "Adult", isHere: true},
+  { id: 8,name: "Ashley Lai", grade: "Teen", isHere: false},
+  { id: 9,name: "Nirmal Alla", grade: "Baby", isHere: false},
   ];
   
   const myEvents = [
@@ -58,19 +70,46 @@ export default function LocationDetailsPage() {
     }
   ];
 
+  const handleEditClick = () => {
+    setIsEditing(!isEditing)
+  }
+
+   const handleRoleChange = (
+    event: React.MouseEvent<HTMLElement>,
+    newRole: string,
+  ) => {
+    
+    if (newRole !== null) {
+      setRole(newRole);
+    }
+  };
+
+
+  const navigate = useNavigate();
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", mb: 3, gap: 2 }}>
         
       <Box sx={{ display: "flex", alignItems: "center" }}>
-        <IconButton>
-          <ArrowBackIcon />
+        <IconButton onClick={() => navigate("/locations")}>
+          <ArrowBackIcon/>
         </IconButton>
       </Box>
       
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         {/* Title + location on the left */}
         <Box sx={{ ml: 12 }}>
-          <Typography variant="h4">Smith Public Library</Typography>
+          <Typography variant="h4">
+            {isEditing ? (
+              <>
+                <TextField label="name" value={name} onChange={(e) => setName(e.target.value)} fullWidth />
+              </>
+            ) : (
+              <>
+                <Typography variant="h5">{name}</Typography>
+              </>
+            )}
+          </Typography>
           <Typography color="text.secondary">
             Baldwin Park, CA
           </Typography>
@@ -81,12 +120,25 @@ export default function LocationDetailsPage() {
             variant="contained"
             color="error"
             sx={{ borderRadius: 3 }}
+            onClick={handleEditClick}
           >
-            Edit Details
+            {isEditing ? (
+              <>Save Changes</>
+            ):(
+              <>Edit Details</>
+            )}
           </Button>
           <Box sx={{ maxWidth: 200, mt: 1, alignSelf: "flex-start" }}> 
             <Typography sx={{ whiteSpace: "normal", wordBreak: "break-word", textAlign: "left" }}>
-              {address}
+              {isEditing ? (
+              <>
+                <TextField label="address" value={address} onChange={(e) => setAddress(e.target.value)} fullWidth />
+              </>
+            ) : (
+              <>
+                <Typography>{address}</Typography>
+              </>
+            )}
             </Typography>
           </Box>
         </Box>
@@ -139,53 +191,115 @@ export default function LocationDetailsPage() {
               </>
             )}
           </Box>
+            <ToggleButtonGroup
+                  value={role}
+                  exclusive
+                  onChange={handleRoleChange}
+                  sx={{
+                    borderRadius: "20px",
+                    overflow: "hidden",
+                    mt: 4,
+                  }}
+                >
+                  <ToggleButton value="teachers">
+                    Teachers
+                  </ToggleButton>
+                  <ToggleButton value="students">
+                    Students
+                  </ToggleButton>
+                </ToggleButtonGroup>
 
-          <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between", mt: 8}}>
-            {/* Left side: Teachers */}
+          <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between", mt: 4}}>
             <Box>
               <Typography color="text.secondary" sx={{ mb: 2 }}>
                 {teachers.length} Teachers Registered
               </Typography>
 
               <Stack spacing={2}>
-                {teachers.map((teacher) => (
-                  <Card
-                    key={teacher.name}
-                    sx={{
-                      p: 2,
-                      display: "flex",
-                      alignItems: "center",
-                      borderRadius: 4,
-                      backgroundColor: "#e0e0e0",
-                      maxWidth: 1200,
-                      minWidth: 400,
-                      width: "100%",
-                      mx: "auto",
-                    }}
-                  >
-                    <Avatar
-                      src="profile.jpg"
-                      sx={{ width: 56, height: 56, mr: 2 }}
-                    />
-                    <Box>
-                      <Typography variant="h6">{teacher.name}</Typography>
-                      <Box
-                        sx={{
-                          backgroundColor: teacher.type === "Preschool" ? "#32CD32" : "#D81B60",
-                          color: "white",
-                          padding: "4px 16px",
-                          borderRadius: "20px", // Makes it an ellipse/pill shape
-                          display: "inline-block",
-                          width: "fit-content",
-                          fontSize: "0.875rem",
-                          fontWeight: "medium"
-                        }}
-                      >
-                        {teacher.type}
+                {role === "teachers" &&
+                  teachers.map((teacher) => (
+                    <Card
+                      key={teacher.id}
+                      sx={{
+                        p: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        borderRadius: 4,
+                        backgroundColor: "#e0e0e0",
+                        maxWidth: 1200,
+                        minWidth: 400,
+                        width: "100%",
+                        mx: "auto",
+                      }}
+                    >
+                      <Avatar
+                        src="profile.jpg"
+                        sx={{ width: 56, height: 56, mr: 2 }}
+                      />
+                      <Box>
+                        <Typography
+                          variant="h6"
+                          onClick={() => navigate(`/users/${teacher.id}`)}
+                          sx={{ cursor: "pointer", "&:hover": { color: "#4780c1" }}}
+                        >
+                          {teacher.name}
+                        </Typography>
+                        <Box
+                          sx={{
+                            backgroundColor:
+                            teacher.type === "Preschool" ? "#32CD32" : "#D81B60",
+                            color: "white",
+                            padding: "4px 16px",
+                            borderRadius: "20px",
+                            display: "inline-block",
+                            width: "fit-content",
+                            fontSize: "0.875rem",
+                            fontWeight: "medium",
+                          }}
+                        >
+                          {teacher.type}
+                        </Box>
                       </Box>
-                    </Box>
-                  </Card>
-                ))}
+                    </Card>
+                  ))}
+
+                {role === "students" &&
+                  students.map((student) => (
+                    <Card
+                      key={student.id}
+                      sx={{
+                        p: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        borderRadius: 4,
+                        backgroundColor: student.isHere ? "#4CAF50" : "#B22222",
+                        maxWidth: 1200,
+                        minWidth: 400,
+                        width: "100%",
+                        mx: "auto",
+                      }}
+                    >
+                      <Avatar
+                        src="student.jpg"
+                        sx={{ width: 56, height: 56, mr: 2 }}
+                      />
+                      <Box>
+                        <Typography variant="h6" onClick={() => navigate(`/users/${student.id}`)} sx={{ cursor: "pointer", "&:hover": { color: "#4780c1" }}}>{student.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          <Box sx={{
+                            backgroundColor: student.isHere ? "#32CD32" : "#D81B60",
+                            color: "white",
+                            padding: "4px 16px",
+                            borderRadius: "20px",
+                            display: "inline-block",
+                            width: "fit-content",
+                            fontSize: "0.875rem",
+                            fontWeight: "medium",
+                          }}>{student.grade}</Box>
+                        </Typography>
+                      </Box>
+                    </Card>
+                  ))}
               </Stack>
             </Box>
           </Box>

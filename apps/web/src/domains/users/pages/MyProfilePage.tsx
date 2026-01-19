@@ -56,7 +56,7 @@ export default function MyProfilePage() {
               </>
             ) : (
               <>
-                <Typography variant="h5">Elizabeth Peretti</Typography>
+                <Typography variant="h5">{name}</Typography>
               </>
             )}
 
