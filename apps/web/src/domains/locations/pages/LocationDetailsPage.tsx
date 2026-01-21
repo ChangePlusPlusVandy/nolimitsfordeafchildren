@@ -272,7 +272,7 @@ export default function LocationDetailsPage() {
                         display: "flex",
                         alignItems: "center",
                         borderRadius: 4,
-                        backgroundColor: student.isHere ? "#4CAF50" : "#B22222",
+                        backgroundColor: student.isHere ? "#4CAF50" : "#ce4848",
                         maxWidth: 1200,
                         minWidth: 400,
                         width: "100%",
