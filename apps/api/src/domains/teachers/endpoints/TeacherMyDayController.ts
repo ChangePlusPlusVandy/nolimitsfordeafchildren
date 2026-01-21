@@ -1,19 +1,48 @@
-import { Get, JsonController, QueryParams } from "routing-controllers";
-import { Service, Inject } from "typedi";
+import { Get, JsonController, QueryParams, CurrentUser, Authorized } from "routing-controllers";
+import { Service } from "typedi";
+import Container from "@/container";
 import { TeachersService } from "../services/TeachersService";
+import type { UserEntity } from "@/db/schema";
+import { db } from "@/db";
+import { TeacherProfileTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 @Service()
 @JsonController("/v1")
 export class GetTeachersMeDayController {
-  constructor(
-    @Inject(() => TeachersService)
-    private readonly teachersService: TeachersService
-  ) {}
+  private teachersService: TeachersService;
+  constructor() {
+    this.teachersService = Container.get(TeachersService);
+  }
 
+  /**
+   * Get today's sessions for the current teacher
+   * GET /v1/teachers/me/day
+   */
   @Get("/teachers/me/day")
-  async handle(@QueryParams() query: any) {
-    return await this.teachersService.myDay(query);
+  @Authorized(["teacher", "administrator"])
+  async handle(
+    @QueryParams() query: { date?: string },
+    @CurrentUser({ required: true }) currentUser: UserEntity
+  ) {
+    // Get teacher profile for current user
+    const teacherProfile = await db
+      .select()
+      .from(TeacherProfileTable)
+      .where(eq(TeacherProfileTable.user_id, currentUser.id))
+      .limit(1);
+
+    if (teacherProfile.length === 0) {
+      // If user is an admin without a teacher profile, return empty
+      if (currentUser.role === "administrator") {
+        return { sessions: [] };
+      }
+      throw new Error("Teacher profile not found for current user");
+    }
+
+    return await this.teachersService.myDay({
+      date: query.date,
+      teacher_id: teacherProfile[0]!.id,
+    });
   }
 }
-
-

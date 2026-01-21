@@ -1,16 +1,18 @@
-import { Body, Get, JsonController, Patch, Post, QueryParams, Param } from "routing-controllers";
-import { Service, Inject } from "typedi";
+import { Body, Get, JsonController, Patch, Post, QueryParams, Param, Authorized } from "routing-controllers";
+import { Service } from "typedi";
+import Container from "@/container";
 import { EnrollmentsService } from "../services/EnrollmentsService";
 
 @Service()
 @JsonController("/v1")
 export class GetEnrollmentsController {
-  constructor(
-    @Inject(() => EnrollmentsService)
-    private readonly enrollmentsService: EnrollmentsService
-  ) {}
+  private enrollmentsService: EnrollmentsService;
+  constructor() {
+    this.enrollmentsService = Container.get(EnrollmentsService);
+  }
 
   @Get("/enrollments")
+  @Authorized()
   async handle(@QueryParams() query: any) {
     return await this.enrollmentsService.index(query);
   }
@@ -19,12 +21,13 @@ export class GetEnrollmentsController {
 @Service()
 @JsonController("/v1")
 export class PostEnrollmentsController {
-  constructor(
-    @Inject(() => EnrollmentsService)
-    private readonly enrollmentsService: EnrollmentsService
-  ) {}
+  private enrollmentsService: EnrollmentsService;
+  constructor() {
+    this.enrollmentsService = Container.get(EnrollmentsService);
+  }
 
   @Post("/enrollments")
+  @Authorized(["administrator"])
   async handle(@Body() body: any) {
     return await this.enrollmentsService.create(body);
   }
@@ -33,15 +36,14 @@ export class PostEnrollmentsController {
 @Service()
 @JsonController("/v1")
 export class PatchEnrollmentController {
-  constructor(
-    @Inject(() => EnrollmentsService)
-    private readonly enrollmentsService: EnrollmentsService
-  ) {}
+  private enrollmentsService: EnrollmentsService;
+  constructor() {
+    this.enrollmentsService = Container.get(EnrollmentsService);
+  }
 
   @Patch("/enrollments/:id")
+  @Authorized(["administrator"])
   async handle(@Param("id") id: string, @Body() body: any) {
     return await this.enrollmentsService.update(id, body);
   }
 }
-
-

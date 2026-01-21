@@ -6,144 +6,266 @@ import {
   ListItemIcon,
   ListItemText,
   Box,
+  Divider,
 } from "@mui/material";
 import PeopleIcon from "@mui/icons-material/People";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ArticleIcon from "@mui/icons-material/Article";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
+import TodayIcon from "@mui/icons-material/Today";
+import ChildCareIcon from "@mui/icons-material/ChildCare";
+import SchoolIcon from "@mui/icons-material/School";
+import EventRepeatIcon from "@mui/icons-material/EventRepeat";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { Link, useLocation } from "react-router";
-import { useAuth } from "../../../auth";
+import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
-const navItems = [
+export const DRAWER_WIDTH = 240;
+
+type NavItem = {
+  text: string;
+  to: string;
+  icon: React.ReactNode;
+  roles?: UserRole[]; // If undefined, shown to all roles
+};
+
+const navItems: NavItem[] = [
+  // Admin-only items
   {
     text: "Site Map",
     to: "/locations",
     icon: <LocationOnIcon />,
-    adminOnly: true,
+    roles: ["administrator"],
   },
-  { text: "User List", to: "/users", icon: <PeopleIcon />, adminOnly: true },
+  {
+    text: "Users",
+    to: "/users",
+    icon: <PeopleIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Students",
+    to: "/students",
+    icon: <SchoolIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Make-Ups",
+    to: "/admin/makeup-requests",
+    icon: <EventRepeatIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Schedule Changes",
+    to: "/admin/schedule-change-requests",
+    icon: <SwapHorizIcon />,
+    roles: ["administrator"],
+  },
+  
+  // Teacher items
+  {
+    text: "My Day",
+    to: "/my-day",
+    icon: <TodayIcon />,
+    roles: ["teacher", "administrator"],
+  },
+  
+  // Parent items
+  {
+    text: "My Students",
+    to: "/my-students",
+    icon: <ChildCareIcon />,
+    roles: ["parent"],
+  },
+  
+  // Shared items (all roles)
   {
     text: "Bulletin",
     to: "/bulletin",
     icon: <ArticleIcon />,
-    adminOnly: false,
   },
   {
     text: "Profile",
     to: "/my-profile",
     icon: <AccountCircleIcon />,
-    adminOnly: false,
   },
 ];
 
-// adjust based on role set up later
-const checkIsAdmin = (user: any) => {
-  return user?.role === "Administrator";
-};
+interface SidebarProps {
+  isMobile?: boolean;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
 
-export const Sidebar = () => {
-  const { authEnabled, user, logout } = useAuth();
+export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }: SidebarProps) => {
+  const { authEnabled, user, logout, hasRole } = useAuth();
   const location = useLocation();
-  const isAdmin = checkIsAdmin(user);
 
   const handleLogout = () => {
     if (!authEnabled) {
       window.location.reload();
       return;
     }
-
     logout();
   };
 
+  const handleNavClick = () => {
+    // Close mobile drawer on navigation
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
+  };
+
+  // Filter nav items based on user role
+  const visibleItems = navItems.filter((item) => {
+    if (!item.roles) return true; // Show to all if no roles specified
+    return hasRole(...item.roles);
+  });
+
+  const drawerContent = (
+    <Box sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }} role="presentation">
+      {/* Logo */}
+      <Box sx={{ padding: 2, textAlign: "center", height: 190 }}>
+        <img
+          src={nolimitsLogo}
+          alt="No Limits for Deaf Children Logo"
+          style={{ maxWidth: "100%", maxHeight: "100%" }}
+        />
+      </Box>
+
+      {/* User info */}
+      {user && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Box sx={{ 
+            fontSize: "0.875rem", 
+            fontWeight: 500,
+            color: "text.primary",
+            textOverflow: "ellipsis",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+          }}>
+            {user.name}
+          </Box>
+          <Box sx={{ 
+            fontSize: "0.75rem", 
+            color: "text.secondary",
+            textTransform: "capitalize",
+          }}>
+            {user.role}
+          </Box>
+        </Box>
+      )}
+
+      <Divider sx={{ mx: 1, mb: 1 }} />
+
+      {/* Navigation items */}
+      <List sx={{ padding: "0 8px", flexGrow: 1 }} component="nav" aria-label="Main navigation">
+        {visibleItems.map((item) => {
+          const isActive = location.pathname === item.to || 
+            (item.to !== "/" && location.pathname.startsWith(item.to));
+          
+          return (
+            <ListItem key={item.text} disablePadding sx={{ margin: "4px 0" }}>
+              <ListItemButton
+                component={Link}
+                to={item.to}
+                onClick={handleNavClick}
+                sx={{
+                  borderRadius: "8px",
+                  ...(isActive && {
+                    backgroundColor: "white",
+                    "&:hover": {
+                      backgroundColor: "white",
+                    },
+                  }),
+                }}
+              >
+                <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontSize: "1.1rem",
+                    sx: { pt: 0.5, pb: 0.5 },
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+
+      {/* Logout button at bottom */}
+      <Box sx={{ padding: "0 8px", mb: 2 }}>
+        <Divider sx={{ mb: 1 }} />
+        <List disablePadding>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => {
+                handleNavClick();
+                handleLogout();
+              }}
+              sx={{ borderRadius: "8px" }}
+              aria-label="Logout from application"
+            >
+              <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>
+                <LogoutIcon />
+              </ListItemIcon>
+              <ListItemText
+                primary="Logout"
+                primaryTypographyProps={{ fontSize: "1.1rem" }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
+    </Box>
+  );
+
+  // Mobile: temporary drawer that overlays content
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        anchor="left"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        ModalProps={{
+          keepMounted: true, // Better mobile performance
+        }}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
+            boxSizing: "border-box",
+            backgroundColor: "#D9D9D9",
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+    );
+  }
+
+  // Desktop: permanent drawer
   return (
     <Drawer
       variant="permanent"
       anchor="left"
       sx={{
-        width: 240,
+        width: DRAWER_WIDTH,
         flexShrink: 0,
         "& .MuiDrawer-paper": {
-          width: 240,
+          width: DRAWER_WIDTH,
           boxSizing: "border-box",
           backgroundColor: "#D9D9D9",
           overflowX: "hidden",
         },
       }}
     >
-      <Box sx={{ width: 240 }} role="presentation">
-        <Box sx={{ padding: 2, textAlign: "center", height: 190 }}>
-          <img
-            src={nolimitsLogo}
-            alt="No Limits for Deaf Children Logo"
-            style={{ maxWidth: "100%", maxHeight: "100%" }}
-          />
-        </Box>
-
-        <List sx={{ padding: "0 8px" }}>
-          {navItems.map((item) => {
-            const isActive = location.pathname.startsWith(item.to);
-            if (item.adminOnly && !isAdmin) {
-              return null;
-            }
-            return (
-              <ListItem key={item.text} disablePadding sx={{ margin: "4px 0" }}>
-                <ListItemButton
-                  component={Link}
-                  to={item.to}
-                  sx={{
-                    borderRadius: "8px",
-                    ...(isActive && {
-                      backgroundColor: "white",
-                      "&:hover": {
-                        backgroundColor: "white",
-                      },
-                    }),
-                  }}
-                >
-                  <ListItemIcon sx={{ "& svg": { fontSize: "2.2rem" } }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontSize: "1.3rem",
-                      sx: { pt: 1, pb: 1 },
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-        </List>
-
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: 0,
-            width: "100%",
-            padding: "0 8px",
-          }}
-        >
-          <List>
-            <ListItem disablePadding sx={{ margin: "4px 0" }}>
-              <ListItemButton
-                onClick={handleLogout}
-                sx={{ borderRadius: "8px" }}
-              >
-                <ListItemIcon sx={{ "& svg": { fontSize: "2.2rem" } }}>
-                  <LogoutIcon />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Logout"
-                  primaryTypographyProps={{ fontSize: "1.3rem" }}
-                />
-              </ListItemButton>
-            </ListItem>
-          </List>
-        </Box>
-      </Box>
+      {drawerContent}
     </Drawer>
   );
 };

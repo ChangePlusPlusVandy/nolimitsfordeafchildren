@@ -1,35 +1,58 @@
-import React, { createContext, useContext, useMemo } from "react";
+import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from "react";
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import config from "./config";
+import axios from "axios";
+
+export type UserRole = "administrator" | "teacher" | "parent";
+
+export type AuthUser = {
+  id?: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  picture?: string;
+};
 
 type AuthContextValue = {
   authEnabled: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: any;
+  user: AuthUser | null;
   login: () => Promise<void>;
   logout: () => void;
   getAccessToken: () => Promise<string>;
+  isAdmin: boolean;
+  isTeacher: boolean;
+  isParent: boolean;
+  hasRole: (...roles: UserRole[]) => boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function DevAuthProvider({ children }: { children: React.ReactNode }) {
+  // In dev mode, default to administrator
+  const devUser: AuthUser = {
+    id: "dev-user-id",
+    name: "Dev User",
+    email: "dev@example.com",
+    role: "administrator",
+  };
+
   const value = useMemo<AuthContextValue>(() => {
     return {
       authEnabled: false,
       isAuthenticated: true,
       isLoading: false,
-      user: {
-        name: "Dev User",
-        email: "dev@example.com",
-        role: "Administrator",
-      },
+      user: devUser,
       login: async () => {},
       logout: () => {
         window.location.reload();
       },
       getAccessToken: async () => "",
+      isAdmin: devUser.role === "administrator",
+      isTeacher: devUser.role === "teacher",
+      isParent: devUser.role === "parent",
+      hasRole: (...roles: UserRole[]) => roles.includes(devUser.role),
     };
   }, []);
 
@@ -39,36 +62,103 @@ function DevAuthProvider({ children }: { children: React.ReactNode }) {
 function Auth0Bridge({ children }: { children: React.ReactNode }) {
   const {
     isAuthenticated,
-    isLoading,
-    user,
+    isLoading: auth0Loading,
+    user: auth0User,
     loginWithRedirect,
-    logout,
+    logout: auth0Logout,
     getAccessTokenSilently,
   } = useAuth0();
+
+  const [appUser, setAppUser] = useState<AuthUser | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+
+  // Sync user with backend after Auth0 authentication
+  useEffect(() => {
+    async function syncUser() {
+      if (!isAuthenticated || !auth0User) return;
+
+      setSyncLoading(true);
+      try {
+        const token = await getAccessTokenSilently();
+        
+        // Call backend to ensure user exists and get their role
+        const response = await axios.post(
+          `${config.apiUrl}/v1/auth/callback`,
+          {
+            sub: auth0User.sub,
+            email: auth0User.email,
+            name: auth0User.name,
+            picture: auth0User.picture,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setAppUser({
+          id: response.data.id,
+          name: response.data.name || auth0User.name || auth0User.email || "User",
+          email: response.data.email || auth0User.email || "",
+          role: response.data.role || "parent",
+          picture: auth0User.picture,
+        });
+      } catch (error) {
+        console.error("Failed to sync user with backend:", error);
+        // Fall back to auth0 user data with default role
+        setAppUser({
+          name: auth0User.name || auth0User.email || "User",
+          email: auth0User.email || "",
+          role: "parent",
+          picture: auth0User.picture,
+        });
+      } finally {
+        setSyncLoading(false);
+      }
+    }
+
+    syncUser();
+  }, [isAuthenticated, auth0User, getAccessTokenSilently]);
+
+  const isLoading = auth0Loading || syncLoading;
+
+  const hasRole = useCallback(
+    (...roles: UserRole[]) => {
+      if (!appUser) return false;
+      return roles.includes(appUser.role);
+    },
+    [appUser]
+  );
 
   const value = useMemo<AuthContextValue>(() => {
     return {
       authEnabled: true,
       isAuthenticated,
       isLoading,
-      user,
+      user: appUser,
       login: async () => {
         await loginWithRedirect();
       },
       logout: () => {
-        logout({ logoutParams: { returnTo: window.location.origin } });
+        auth0Logout({ logoutParams: { returnTo: window.location.origin } });
       },
       getAccessToken: async () => {
         return await getAccessTokenSilently();
       },
+      isAdmin: appUser?.role === "administrator",
+      isTeacher: appUser?.role === "teacher",
+      isParent: appUser?.role === "parent",
+      hasRole,
     };
   }, [
     getAccessTokenSilently,
     isAuthenticated,
     isLoading,
     loginWithRedirect,
-    logout,
-    user,
+    auth0Logout,
+    appUser,
+    hasRole,
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -106,4 +196,20 @@ export function useAuth() {
   }
 
   return value;
+}
+
+/**
+ * Hook for role-based access control in components
+ * @example
+ * const { isAllowed } = useRoleAccess("administrator", "teacher");
+ * if (!isAllowed) return <AccessDenied />;
+ */
+export function useRoleAccess(...allowedRoles: UserRole[]) {
+  const { user, hasRole, isLoading } = useAuth();
+  
+  return {
+    isAllowed: hasRole(...allowedRoles),
+    isLoading,
+    userRole: user?.role,
+  };
 }

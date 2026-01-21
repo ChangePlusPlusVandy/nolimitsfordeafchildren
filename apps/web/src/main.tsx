@@ -8,6 +8,7 @@ import { AuthProvider } from "./auth";
 // Layouts & Guards
 import DashboardLayout from "./domains/global/layouts/DashboardLayout.tsx";
 import AuthGuard from "./domains/global/components/AuthGuard.tsx";
+import ErrorBoundary from "./domains/global/components/ErrorBoundary.tsx";
 
 // Pages
 import UserDetailsPage from "./domains/users/pages/UserDetailsPage.tsx";
@@ -17,6 +18,7 @@ import LocationDetailsPage from "./domains/locations/pages/LocationDetailsPage.t
 import MyDayPage from "./domains/teachers/pages/MyDayPage.tsx";
 import TeacherDetailsPage from "./domains/teachers/pages/TeacherDetailsPage.tsx";
 import StudentDetailsPage from "./domains/students/pages/StudentDetailsPage.tsx";
+import StudentsIndexPage from "./domains/students/pages/StudentsIndexPage.tsx";
 import MyStudentsPage from "./domains/parents/pages/MyStudentsPage.tsx";
 import BulletinBoardPage from "./domains/bulletin/pages/BulletinBoardPage.tsx";
 import LocationsIndexPage from "./domains/locations/pages/LocationsIndexPage.tsx";
@@ -25,21 +27,25 @@ import EditLocationPage from "./domains/locations/pages/EditLocationPage.tsx";
 import NewTeacherPage from "./domains/teachers/pages/NewTeacherPage.tsx";
 import InviteUserModal from "./domains/users/pages/InviteUserModal.tsx";
 import LinkTeacherModal from "./domains/students/pages/LinkTeacherModal.tsx";
+import LinkParentModal from "./domains/students/pages/LinkParentModal.tsx";
 import UploadDocumentModal from "./domains/students/pages/UploadDocumentModal.tsx";
 import TeacherScheduleWizardPage from "./domains/teachers/pages/TeacherScheduleWizardPage.tsx";
 import NewStudentPage from "./domains/students/pages/NewStudentPage.tsx";
 import TeacherStudentDetailsPage from "./domains/teachers/pages/TeacherStudentDetailsPage.tsx";
 import ChildDetailsPage from "./domains/parents/pages/ChildDetailsPage.tsx";
+import MakeupRequestsPage from "./domains/admin/pages/MakeupRequestsPage.tsx";
+import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequestsPage.tsx";
 
 const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthGuard>
-            <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <AuthGuard>
+              <Routes>
               <Route element={<DashboardLayout />}>
                 <Route path="/" element={<Navigate to="/my-day" replace />} />
                 <Route path="/users" element={<ManageUsersPage />} />
@@ -71,11 +77,16 @@ createRoot(document.getElementById("root")!).render(
                   path="/teachers/students/:id"
                   element={<TeacherStudentDetailsPage />}
                 />
+                <Route path="/students" element={<StudentsIndexPage />} />
                 <Route path="/students/new" element={<NewStudentPage />} />
                 <Route path="/students/:id" element={<StudentDetailsPage />} />
                 <Route
                   path="/students/:id/link-teacher"
                   element={<LinkTeacherModal />}
+                />
+                <Route
+                  path="/students/:id/link-parent"
+                  element={<LinkParentModal />}
                 />
                 <Route
                   path="/students/:id/upload"
@@ -91,11 +102,16 @@ createRoot(document.getElementById("root")!).render(
                   element={<ChildDetailsPage />}
                 />
                 <Route path="/bulletin" element={<BulletinBoardPage />} />
+                
+                {/* Admin Request Pages */}
+                <Route path="/admin/makeup-requests" element={<MakeupRequestsPage />} />
+                <Route path="/admin/schedule-change-requests" element={<ScheduleChangeRequestsPage />} />
               </Route>
             </Routes>
           </AuthGuard>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </AuthProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </StrictMode>
 );

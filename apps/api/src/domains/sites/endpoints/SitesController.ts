@@ -1,14 +1,15 @@
 import { Get, JsonController, Param, QueryParams } from "routing-controllers";
-import { Service, Inject } from "typedi";
+import { Service } from "typedi";
+import Container from "@/container";
 import { LocationsService } from "../../locations/services/LocationsService";
 
 @Service()
 @JsonController("/v1/sites")
 export class SitesController {
-  constructor(
-    @Inject(() => LocationsService)
-    private readonly locationsService: LocationsService
-  ) {}
+  private locationsService: LocationsService;
+  constructor() {
+    this.locationsService = Container.get(LocationsService);
+  }
 
   @Get("/:siteId/now-next")
   async nowNext(@Param("siteId") siteId: string, @QueryParams() query: any) {

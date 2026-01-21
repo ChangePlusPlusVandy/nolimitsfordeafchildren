@@ -1,14 +1,15 @@
 import { Get, HttpError, JsonController, Param, UseBefore } from "routing-controllers";
-import { Service, Inject } from "typedi";
+import { Service } from "typedi";
+import Container from "@/container";
 import { UserService } from "../services/UserService";
 
 @Service()
 @JsonController("/v1/users")
 export class ShowUserEndpoint {
-  constructor(
-    @Inject(() => UserService)
-    private readonly userService: UserService
-  ) {}
+  private userService: UserService;
+  constructor() {
+    this.userService = Container.get(UserService);
+  }
 
   @Get("/:id")
   async handle(@Param("id") id: string) {

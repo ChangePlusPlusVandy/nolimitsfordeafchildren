@@ -1,4 +1,5 @@
-import { Service, Inject } from "typedi";
+import { Service } from "typedi";
+import Container from "@/container";
 import { UserRepository } from "../repositories/UserRepository";
 import type { UserProjection } from "../projections/UserProjection";
 import type { UserEntity } from "../models/entities/UserTable";
@@ -11,10 +12,10 @@ export interface IUserService {
 
 @Service()
 export class UserService implements IUserService {
-  constructor(
-    @Inject(() => UserRepository)
-    private readonly userRepository: UserRepository
-  ) {}
+  private userRepository: UserRepository;
+  constructor() {
+    this.userRepository = Container.get(UserRepository);
+  }
 
   async getById(id: string): Promise<UserProjection | undefined> {
     return await this.userRepository.getById(id);
