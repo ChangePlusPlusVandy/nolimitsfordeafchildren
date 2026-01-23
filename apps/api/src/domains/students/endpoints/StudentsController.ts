@@ -6,7 +6,7 @@ import {
   Param,
   Patch,
   Post,
-  QueryParams,
+  QueryParam,
   CurrentUser,
   NotFoundError,
   Authorized,
@@ -41,9 +41,14 @@ export class GetStudentsController {
   @Get("/students")
   @Authorized()
   async handle(
-    @QueryParams() query: StudentFilters,
+    @QueryParam("search") search?: string,
+    @QueryParam("site_id") site_id?: string,
+    @QueryParam("is_active") is_active?: boolean,
+    @QueryParam("limit") limit?: number,
+    @QueryParam("cursor") cursor?: string,
     @CurrentUser() user?: CurrentUserType
   ) {
+    const query: StudentFilters = { search, site_id, is_active, limit, cursor };
     const role = user?.role ?? "administrator";
     const userId = user?.id;
     return await this.studentsService.index(query, role, userId);
@@ -121,8 +126,12 @@ export class GetStudentTeachersController {
 
   @Get("/students/:id/teachers")
   @Authorized()
-  async handle(@Param("id") id: string, @QueryParams() query: any) {
-    return await this.studentsService.teachers(id, query);
+  async handle(
+    @Param("id") id: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
+    return await this.studentsService.teachers(id, { page, limit });
   }
 }
 

@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Box,
   Typography,
-  Paper,
   Button,
   List,
   ListItem,
@@ -23,20 +25,28 @@ import {
   FormControlLabel,
   Checkbox,
   Chip,
+  Divider,
+  Stack,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LinkIcon from "@mui/icons-material/Link";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
 import PersonIcon from "@mui/icons-material/Person";
 import { useStudentHttpService, type LinkParentInput } from "../services/StudentHttpService";
 import { useUserHttpService } from "../../users/services/UserHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 
-export default function LinkParentModal() {
-  const { id: studentId } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+interface LinkParentModalProps {
+  open: boolean;
+  onClose: () => void;
+  studentId: string;
+  studentName?: string;
+}
+
+export default function LinkParentModal({ open, onClose, studentId, studentName }: LinkParentModalProps) {
   const queryClient = useQueryClient();
   const studentHttpService = useStudentHttpService();
   const userHttpService = useUserHttpService();
+  const toast = useToast();
 
   const [selectedParent, setSelectedParent] = useState<any | null>(null);
   const [relationship, setRelationship] = useState<string>("mother");
@@ -45,14 +55,15 @@ export default function LinkParentModal() {
   // Fetch student details to show current linked parents
   const { data: student, isLoading: studentLoading, isError: studentError } = useQuery({
     queryKey: [studentHttpService.key, "show", studentId],
-    queryFn: () => studentHttpService.queries.show(studentId!),
-    enabled: !!studentId,
+    queryFn: () => studentHttpService.queries.show(studentId),
+    enabled: open && !!studentId,
   });
 
   // Fetch all parents for the dropdown
   const { data: usersData, isLoading: usersLoading, isError: usersError } = useQuery({
     queryKey: [userHttpService.key, "index", { role: "parent" }],
     queryFn: () => userHttpService.queries.index({ role: "parent", limit: 500 }),
+    enabled: open,
   });
 
   const parents = usersData?.items || [];
@@ -69,9 +80,13 @@ export default function LinkParentModal() {
       studentHttpService.mutations.linkParent(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", studentId] });
+      toast.success("Parent linked successfully");
       setSelectedParent(null);
       setRelationship("mother");
       setIsPrimary(false);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to link parent");
     },
   });
 
@@ -81,16 +96,18 @@ export default function LinkParentModal() {
       studentHttpService.mutations.unlinkParent({ studentId, parentId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", studentId] });
+      toast.success("Parent unlinked successfully");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to unlink parent");
     },
   });
 
   const handleLinkParent = () => {
     if (selectedParent && studentId) {
-      // We need to get the parent profile ID, not the user ID
-      // For now, we'll pass the user ID and handle it in the backend
       linkMutation.mutate({
         studentId,
-        parent_id: selectedParent.id, // This is the user ID, backend will find parent profile
+        parent_id: selectedParent.id,
         relationship,
         is_primary: isPrimary,
       });
@@ -103,53 +120,39 @@ export default function LinkParentModal() {
     }
   };
 
+  const handleClose = () => {
+    setSelectedParent(null);
+    setRelationship("mother");
+    setIsPrimary(false);
+    onClose();
+  };
+
   const isLoading = studentLoading || usersLoading;
 
-  if (isLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Typography variant="h4" component="h1">
-          Link Parent
-        </Typography>
-      </Box>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        Link Parent
+        {studentName && (
+          <Typography variant="body2" color="text.secondary">
+            for {studentName}
+          </Typography>
+        )}
+      </DialogTitle>
+      <DialogContent>
+        {(studentError || usersError) && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Failed to load data. Please try again.
+          </Alert>
+        )}
 
-      {(linkMutation.isError || unlinkMutation.isError) && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {((linkMutation.error || unlinkMutation.error) as Error)?.message ||
-            "An error occurred. Please try again."}
-        </Alert>
-      )}
-
-      {(studentError || usersError) && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load data. Please refresh the page.
-        </Alert>
-      )}
-
-      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3 }}>
         {/* Add Parent Section */}
-        <Paper sx={{ p: 3, flex: 1 }}>
-          <Typography variant="h6" gutterBottom>
-            <LinkIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-            Add Parent
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Search and select a parent to link to this student.
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+            Search and select a parent to link
           </Typography>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Stack spacing={2}>
             <Autocomplete
               value={selectedParent}
               onChange={(_, newValue) => setSelectedParent(newValue)}
@@ -162,13 +165,13 @@ export default function LinkParentModal() {
                   {...params}
                   label="Search Parents"
                   placeholder="Type to search..."
-                  fullWidth
+                  size="small"
                 />
               )}
               renderOption={(props, option) => (
                 <li {...props} key={option.id}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Avatar sx={{ width: 32, height: 32, bgcolor: "warning.main" }}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: "warning.main" }}>
                       <PersonIcon fontSize="small" />
                     </Avatar>
                     <Box>
@@ -182,55 +185,63 @@ export default function LinkParentModal() {
               )}
             />
 
-            <FormControl fullWidth>
-              <InputLabel>Relationship</InputLabel>
-              <Select
-                value={relationship}
-                label="Relationship"
-                onChange={(e) => setRelationship(e.target.value)}
-              >
-                <MenuItem value="mother">Mother</MenuItem>
-                <MenuItem value="father">Father</MenuItem>
-                <MenuItem value="guardian">Guardian</MenuItem>
-                <MenuItem value="grandmother">Grandmother</MenuItem>
-                <MenuItem value="grandfather">Grandfather</MenuItem>
-                <MenuItem value="aunt">Aunt</MenuItem>
-                <MenuItem value="uncle">Uncle</MenuItem>
-                <MenuItem value="foster_parent">Foster Parent</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <FormControl size="small" sx={{ flex: 1 }}>
+                <InputLabel>Relationship</InputLabel>
+                <Select
+                  value={relationship}
+                  label="Relationship"
+                  onChange={(e) => setRelationship(e.target.value)}
+                >
+                  <MenuItem value="mother">Mother</MenuItem>
+                  <MenuItem value="father">Father</MenuItem>
+                  <MenuItem value="guardian">Guardian</MenuItem>
+                  <MenuItem value="grandmother">Grandmother</MenuItem>
+                  <MenuItem value="grandfather">Grandfather</MenuItem>
+                  <MenuItem value="aunt">Aunt</MenuItem>
+                  <MenuItem value="uncle">Uncle</MenuItem>
+                  <MenuItem value="foster_parent">Foster Parent</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
 
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={isPrimary}
-                  onChange={(e) => setIsPrimary(e.target.checked)}
-                />
-              }
-              label="Primary Contact"
-            />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={isPrimary}
+                    onChange={(e) => setIsPrimary(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Primary"
+              />
+            </Box>
 
             <Button
               variant="contained"
-              startIcon={linkMutation.isPending ? <CircularProgress size={20} /> : <LinkIcon />}
+              startIcon={linkMutation.isPending ? <CircularProgress size={16} /> : <LinkIcon />}
               onClick={handleLinkParent}
               disabled={!selectedParent || linkMutation.isPending}
-              fullWidth
             >
               Link Parent
             </Button>
-          </Box>
-        </Paper>
+          </Stack>
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
 
         {/* Currently Linked Parents */}
-        <Paper sx={{ p: 3, flex: 1 }}>
-          <Typography variant="h6" gutterBottom>
-            Currently Linked Parents
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+            Currently Linked Parents ({student?.parents?.length || 0})
           </Typography>
 
-          {student?.parents && student.parents.length > 0 ? (
-            <List>
+          {isLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : student?.parents && student.parents.length > 0 ? (
+            <List dense sx={{ maxHeight: 200, overflow: "auto" }}>
               {student.parents.map((parent) => (
                 <ListItem
                   key={parent.link_id}
@@ -238,16 +249,17 @@ export default function LinkParentModal() {
                     <IconButton
                       edge="end"
                       color="error"
+                      size="small"
                       onClick={() => handleUnlinkParent(parent.parent_id)}
                       disabled={unlinkMutation.isPending}
                     >
-                      <LinkOffIcon />
+                      <LinkOffIcon fontSize="small" />
                     </IconButton>
                   }
                 >
                   <ListItemAvatar>
-                    <Avatar sx={{ bgcolor: "warning.main" }}>
-                      <PersonIcon />
+                    <Avatar sx={{ width: 32, height: 32, bgcolor: "warning.main" }}>
+                      <PersonIcon fontSize="small" />
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText
@@ -261,17 +273,8 @@ export default function LinkParentModal() {
                     }
                     secondary={
                       <>
-                        {parent.relationship && (
-                          <Typography variant="caption" display="block">
-                            {parent.relationship}
-                          </Typography>
-                        )}
+                        {parent.relationship && `${parent.relationship} - `}
                         {parent.email}
-                        {parent.phone && ` - ${parent.phone}`}
-                        <br />
-                        <Typography variant="caption" color="text.secondary">
-                          Linked: {new Date(parent.linked_at).toLocaleDateString()}
-                        </Typography>
                       </>
                     }
                   />
@@ -279,12 +282,15 @@ export default function LinkParentModal() {
               ))}
             </List>
           ) : (
-            <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-              No parents currently linked to this student.
+            <Typography color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
+              No parents currently linked.
             </Typography>
           )}
-        </Paper>
-      </Box>
-    </Box>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose}>Done</Button>
+      </DialogActions>
+    </Dialog>
   );
 }

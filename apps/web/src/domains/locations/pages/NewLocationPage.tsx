@@ -24,6 +24,7 @@ import {
   type CreateLocationPayload,
   type LocationType,
 } from "../services/LocationHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 
 // Common US timezones
 const TIMEZONES = [
@@ -83,11 +84,13 @@ export default function NewLocationPage() {
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   const { mutate, isPending } = useMutation({
     mutationFn: locationHttpService.mutations.create,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [locationHttpService.key] });
+      toast.success("Location created successfully");
       navigate(`/locations/${data.id}`);
     },
     onError: (err: Error) => {

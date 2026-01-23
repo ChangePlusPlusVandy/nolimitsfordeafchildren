@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import {
@@ -11,16 +12,16 @@ import {
   ListItemButton,
   ListItemText,
   Chip,
-  CircularProgress,
   Alert,
   Paper,
+  Skeleton,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import { useLocationHttpService, type LocationMapPin } from "../services/LocationHttpService";
 import { useAuth } from "../../../auth";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { divIcon } from "leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { divIcon, LatLngBounds } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 // Create custom marker icons
@@ -41,6 +42,27 @@ const createMarkerIcon = (isActive: boolean) => {
     popupAnchor: [0, -12],
   });
 };
+
+// Auto-fit map bounds to show all markers
+function FitBoundsToMarkers({
+  pins,
+}: {
+  pins: Array<{ latitude: string; longitude: string }>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (pins.length === 0) return;
+
+    const bounds = new LatLngBounds(
+      pins.map((pin) => [parseFloat(pin.latitude), parseFloat(pin.longitude)] as [number, number])
+    );
+
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }, [map, pins]);
+
+  return null;
+}
 
 export default function LocationsIndexPage() {
   const navigate = useNavigate();
@@ -89,8 +111,34 @@ export default function LocationsIndexPage() {
 
   if (locationsLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box sx={{ p: 3 }}>
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="h4" component="h1">
+            Locations
+          </Typography>
+        </Box>
+        {/* Map Skeleton */}
+        <Paper elevation={2} sx={{ mb: 3, overflow: "hidden", borderRadius: 2 }}>
+          <Skeleton variant="rectangular" height={400} animation="pulse" />
+        </Paper>
+        {/* List Skeleton */}
+        <Card>
+          <CardContent sx={{ p: 0 }}>
+            <Skeleton variant="text" width={150} sx={{ p: 2, pb: 1 }} />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Box key={i} sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
+                <Skeleton variant="circular" width={24} height={24} />
+                <Box sx={{ flex: 1 }}>
+                  <Skeleton variant="text" width="40%" />
+                  <Skeleton variant="text" width="25%" />
+                </Box>
+                <Skeleton variant="rounded" width={100} height={24} />
+                <Skeleton variant="rounded" width={70} height={24} />
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
       </Box>
     );
   }
@@ -125,14 +173,7 @@ export default function LocationsIndexPage() {
       <Paper elevation={2} sx={{ mb: 3, overflow: "hidden", borderRadius: 2 }}>
         <Box sx={{ height: 400, width: "100%" }}>
           {mapLoading ? (
-            <Box
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-              height="100%"
-            >
-              <CircularProgress />
-            </Box>
+            <Skeleton variant="rectangular" height="100%" animation="pulse" />
           ) : (
             <MapContainer
               center={mapCenter}
@@ -170,10 +211,11 @@ export default function LocationsIndexPage() {
                         color={pin.is_active ? "success" : "error"}
                       />
                     </Box>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+                      </Popup>
+                    </Marker>
+                  ))}
+                  <FitBoundsToMarkers pins={validMapPins} />
+                </MapContainer>
           )}
         </Box>
       </Paper>

@@ -7,17 +7,18 @@ import {
   TextField,
   Button,
   Chip,
-  CircularProgress,
   Alert,
   Divider,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
+  Skeleton,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import { useHttpClient } from "../../../plugins/axios";
 import { useAuth } from "../../../auth";
+import { useToast } from "../../global/components/ToastProvider";
 
 interface UserProfile {
   id: string;
@@ -40,6 +41,7 @@ export default function MyProfilePage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
+  const toast = useToast();
 
   // Form state
   const [name, setName] = useState("");
@@ -74,6 +76,10 @@ export default function MyProfilePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["me"] });
       setIsEditing(false);
+      toast.success("Profile updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update profile. Please try again.");
     },
   });
 
@@ -96,8 +102,28 @@ export default function MyProfilePage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-        <CircularProgress />
+      <Box>
+        {/* Header */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <Skeleton variant="text" width={150} height={40} />
+          <Skeleton variant="rounded" width={80} height={36} />
+        </Box>
+        {/* Status chips */}
+        <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+          <Skeleton variant="rounded" width={80} height={32} />
+          <Skeleton variant="rounded" width={70} height={32} />
+        </Box>
+        {/* Form skeleton */}
+        <Paper sx={{ p: 3, maxWidth: 600 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} variant="rounded" height={56} />
+            ))}
+            <Skeleton variant="rectangular" height={1} />
+            <Skeleton variant="text" width={200} />
+            <Skeleton variant="text" width={180} />
+          </Box>
+        </Paper>
       </Box>
     );
   }
@@ -165,18 +191,6 @@ export default function MyProfilePage() {
           variant={displayProfile.is_active ? "filled" : "outlined"}
         />
       </Box>
-
-      {updateMutation.isError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to update profile. Please try again.
-        </Alert>
-      )}
-
-      {updateMutation.isSuccess && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Profile updated successfully.
-        </Alert>
-      )}
 
       <Paper sx={{ p: 3, maxWidth: 600 }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>

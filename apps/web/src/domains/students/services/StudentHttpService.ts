@@ -244,19 +244,6 @@ export function useStudentHttpService() {
         const response = await httpClient.delete(`/v1/students/${studentId}/parents/${parentId}`);
         return response.data;
       },
-
-      /**
-       * Upload a document for a student
-       */
-      uploadDocument: async ({ studentId, ...payload }: { studentId: string; file: File; document_type: string }): Promise<any> => {
-        const formData = new FormData();
-        formData.append("file", payload.file);
-        formData.append("document_type", payload.document_type);
-        const response = await httpClient.post(`/v1/students/${studentId}/documents`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        return response.data;
-      },
     },
   };
 }

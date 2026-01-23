@@ -29,14 +29,56 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function DevAuthProvider({ children }: { children: React.ReactNode }) {
-  // In dev mode, default to administrator
-  const devUser: AuthUser = {
-    id: "dev-user-id",
-    name: "Dev User",
-    email: "dev@example.com",
+/**
+ * Dev user IDs - must match the seed data and API auth middleware
+ */
+const DEV_USER_IDS = {
+  ADMIN: "5126c34f-4393-406c-8683-c9b696c02f38",
+  TEACHER: "cd7c3cb2-a14c-4a94-b320-b64ec164df2e",
+  PARENT: "823e1615-9ec0-483e-910e-6cd27296712d",
+} as const;
+
+// Dev users for testing different roles
+const DEV_USERS: Record<UserRole, AuthUser> = {
+  administrator: {
+    id: DEV_USER_IDS.ADMIN,
+    name: "Dev Admin",
+    email: "admin.dev@gmail.com",
     role: "administrator",
-  };
+  },
+  teacher: {
+    id: DEV_USER_IDS.TEACHER,
+    name: "Dev Teacher",
+    email: "teacher.dev@gmail.com",
+    role: "teacher",
+  },
+  parent: {
+    id: DEV_USER_IDS.PARENT,
+    name: "Dev Parent",
+    email: "parent.dev@gmail.com",
+    role: "parent",
+  },
+};
+
+function DevAuthProvider({ children }: { children: React.ReactNode }) {
+  // Check URL params for role override: ?role=administrator|teacher|parent
+  const urlParams = new URLSearchParams(window.location.search);
+  const roleParam = urlParams.get("role") as UserRole | null;
+  
+  // Store role in sessionStorage so it persists across navigation
+  const storedRole = sessionStorage.getItem("devRole") as UserRole | null;
+  
+  // Priority: URL param > sessionStorage > default (administrator)
+  const activeRole: UserRole = roleParam || storedRole || "administrator";
+  
+  // Update sessionStorage when URL param changes
+  useEffect(() => {
+    if (roleParam && roleParam !== storedRole) {
+      sessionStorage.setItem("devRole", roleParam);
+    }
+  }, [roleParam, storedRole]);
+  
+  const devUser = DEV_USERS[activeRole];
 
   const value = useMemo<AuthContextValue>(() => {
     return {
@@ -46,7 +88,8 @@ function DevAuthProvider({ children }: { children: React.ReactNode }) {
       user: devUser,
       login: async () => {},
       logout: () => {
-        window.location.reload();
+        sessionStorage.removeItem("devRole");
+        window.location.href = "/";
       },
       getAccessToken: async () => "",
       isAdmin: devUser.role === "administrator",
@@ -54,7 +97,7 @@ function DevAuthProvider({ children }: { children: React.ReactNode }) {
       isParent: devUser.role === "parent",
       hasRole: (...roles: UserRole[]) => roles.includes(devUser.role),
     };
-  }, []);
+  }, [devUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

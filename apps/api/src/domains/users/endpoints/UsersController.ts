@@ -5,7 +5,7 @@ import {
   Patch, 
   Post, 
   Delete,
-  QueryParams, 
+  QueryParam, 
   Param,
   Authorized,
   HttpCode,
@@ -31,7 +31,16 @@ export class GetUsersController {
 
   @Get("/users")
   @Authorized(["administrator"])
-  async handle(@QueryParams() query: ListUsersQuery) {
+  async handle(
+    @QueryParam("search") search?: string,
+    @QueryParam("role") role?: "administrator" | "teacher" | "parent",
+    @QueryParam("is_active") is_active?: boolean,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+    @QueryParam("sort") sort?: "name" | "email" | "created_at",
+    @QueryParam("order") order?: "asc" | "desc"
+  ) {
+    const query: ListUsersQuery = { search, role, is_active, page, limit, sort, order };
     return await this.usersService.index(query);
   }
 }

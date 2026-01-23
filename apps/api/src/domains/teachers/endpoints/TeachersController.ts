@@ -1,8 +1,8 @@
-import { Body, Get, JsonController, Param, Patch, Post, QueryParams } from "routing-controllers";
+import { Body, Get, JsonController, Param, Patch, Post, QueryParam } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { Authorized } from "routing-controllers";
-import { TeachersService, type ListTeachersQuery, type CreateTeacherInput, type UpdateTeacherInput } from "../services/TeachersService";
+import { TeachersService, type ListTeachersQuery, type CreateTeacherInput, type UpdateTeacherInput, type AgeGroupSpecialty } from "../services/TeachersService";
 
 @Service()
 @JsonController("/v1")
@@ -14,7 +14,17 @@ export class GetTeachersController {
 
   @Get("/teachers")
   @Authorized(["administrator"])
-  async handle(@QueryParams() query: ListTeachersQuery) {
+  async handle(
+    @QueryParam("search") search?: string,
+    @QueryParam("specialty") specialty?: AgeGroupSpecialty,
+    @QueryParam("site_id") site_id?: string,
+    @QueryParam("is_active") is_active?: boolean,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+    @QueryParam("sort") sort?: "name" | "created_at",
+    @QueryParam("order") order?: "asc" | "desc"
+  ) {
+    const query: ListTeachersQuery = { search, specialty, site_id, is_active, page, limit, sort, order };
     return await this.teachersService.index(query);
   }
 }
@@ -80,7 +90,11 @@ export class GetTeacherStudentsController {
   }
 
   @Get("/teachers/:id/students")
-  async handle(@Param("id") id: string, @QueryParams() query: { page?: number; limit?: number }) {
-    return await this.teachersService.students(id, query);
+  async handle(
+    @Param("id") id: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
+    return await this.teachersService.students(id, { page, limit });
   }
 }

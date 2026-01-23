@@ -6,7 +6,6 @@ import {
   Paper,
   Button,
   Chip,
-  CircularProgress,
   Alert,
   Divider,
   List,
@@ -19,6 +18,7 @@ import {
   CardContent,
   CardHeader,
 } from "@mui/material";
+import { DetailPageSkeleton } from "../../global/components/skeletons";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import PersonIcon from "@mui/icons-material/Person";
@@ -47,11 +47,7 @@ export default function TeacherDetailsPage() {
   });
 
   if (isLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <DetailPageSkeleton sections={2} />;
   }
 
   if (error || !teacher) {

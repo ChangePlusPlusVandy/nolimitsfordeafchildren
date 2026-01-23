@@ -2,9 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Box,
   Typography,
-  Paper,
   TextField,
   FormControl,
   InputLabel,
@@ -13,17 +16,24 @@ import {
   Button,
   Alert,
   CircularProgress,
+  Stack,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import { useStudentHttpService, type CreateStudentInput } from "../services/StudentHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 
-export default function NewStudentPage() {
+interface CreateStudentModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function CreateStudentModal({ open, onClose }: CreateStudentModalProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const studentHttpService = useStudentHttpService();
   const locationHttpService = useLocationHttpService();
+  const toast = useToast();
 
   // Form state
   const [firstName, setFirstName] = useState("");
@@ -46,6 +56,7 @@ export default function NewStudentPage() {
   const { data: locationsData, isLoading: locationsLoading, isError: locationsError } = useQuery({
     queryKey: [locationHttpService.key, "index"],
     queryFn: () => locationHttpService.queries.index(),
+    enabled: open, // Only fetch when modal is open
   });
 
   const locations = Array.isArray(locationsData) 
@@ -56,9 +67,28 @@ export default function NewStudentPage() {
     mutationFn: (data: CreateStudentInput) => studentHttpService.mutations.create(data),
     onSuccess: (student) => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key] });
+      toast.success("Student created successfully");
+      handleClose();
       navigate(`/students/${student.id}`);
     },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to create student");
+    },
   });
+
+  const handleClose = () => {
+    if (!mutation.isPending) {
+      // Reset form state
+      setFirstName("");
+      setLastName("");
+      setInitials("");
+      setDob("");
+      setSiteId("");
+      setCurrentSchool("");
+      setGuardianSummary("");
+      onClose();
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,37 +106,23 @@ export default function NewStudentPage() {
   };
 
   const isValid = firstName.trim() && lastName.trim() && dob && siteId;
+  const isDisabled = mutation.isPending;
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Typography variant="h4" component="h1">
-          New Student
-        </Typography>
-      </Box>
-
-      {mutation.isError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {(mutation.error as Error)?.message || "Failed to create student. Please try again."}
-        </Alert>
-      )}
-
-      {locationsError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load sites. Please refresh the page.
-        </Alert>
-      )}
-
-      <Paper sx={{ p: 3, maxWidth: 600 }}>
-        <form onSubmit={handleSubmit}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <form onSubmit={handleSubmit}>
+        <DialogTitle>New Student</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
               Enter the student's information. Required fields are marked with an asterisk (*).
             </Typography>
+
+            {locationsError && (
+              <Alert severity="error">
+                Failed to load sites. Please try again.
+              </Alert>
+            )}
 
             {/* Name Fields */}
             <Box sx={{ display: "flex", gap: 2 }}>
@@ -118,6 +134,7 @@ export default function NewStudentPage() {
                 fullWidth
                 autoFocus
                 placeholder="John"
+                disabled={isDisabled}
               />
               <TextField
                 label="Last Name"
@@ -126,6 +143,7 @@ export default function NewStudentPage() {
                 required
                 fullWidth
                 placeholder="Doe"
+                disabled={isDisabled}
               />
             </Box>
 
@@ -138,6 +156,7 @@ export default function NewStudentPage() {
               inputProps={{ maxLength: 8 }}
               helperText="Auto-generated from name. Shown in list views for privacy."
               placeholder="JD"
+              disabled={isDisabled}
             />
 
             {/* Date of Birth */}
@@ -151,16 +170,16 @@ export default function NewStudentPage() {
               slotProps={{
                 inputLabel: { shrink: true },
               }}
+              disabled={isDisabled}
             />
 
             {/* Site Dropdown */}
-            <FormControl fullWidth required>
+            <FormControl fullWidth required disabled={isDisabled || locationsLoading}>
               <InputLabel>Site *</InputLabel>
               <Select
                 value={siteId}
                 label="Site *"
                 onChange={(e) => setSiteId(e.target.value)}
-                disabled={locationsLoading}
               >
                 {locationsLoading && (
                   <MenuItem value="" disabled>
@@ -182,6 +201,7 @@ export default function NewStudentPage() {
               onChange={(e) => setCurrentSchool(e.target.value)}
               fullWidth
               placeholder="Enter current school name"
+              disabled={isDisabled}
             />
 
             {/* Guardian Summary */}
@@ -193,23 +213,24 @@ export default function NewStudentPage() {
               multiline
               rows={3}
               placeholder="Brief summary of guardians/family situation"
+              disabled={isDisabled}
             />
-
-            {/* Action Buttons */}
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end", mt: 2 }}>
-              <Button onClick={() => navigate(-1)}>Cancel</Button>
-              <Button
-                type="submit"
-                variant="contained"
-                startIcon={mutation.isPending ? <CircularProgress size={20} /> : <SaveIcon />}
-                disabled={!isValid || mutation.isPending}
-              >
-                Create Student
-              </Button>
-            </Box>
-          </Box>
-        </form>
-      </Paper>
-    </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} disabled={isDisabled}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            startIcon={mutation.isPending ? <CircularProgress size={20} /> : <SaveIcon />}
+            disabled={!isValid || isDisabled}
+          >
+            {mutation.isPending ? "Creating..." : "Create Student"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }

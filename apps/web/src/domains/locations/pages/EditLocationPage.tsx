@@ -19,11 +19,13 @@ import {
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { Skeleton } from "@mui/material";
 import {
   useLocationHttpService,
   type UpdateLocationPayload,
   type LocationType,
 } from "../services/LocationHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 
 // Common US timezones
 const TIMEZONES = [
@@ -68,6 +70,7 @@ export default function EditLocationPage() {
 
   const [formData, setFormData] = useState<FormData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   // Fetch existing location data
   const {
@@ -106,6 +109,7 @@ export default function EditLocationPage() {
       locationHttpService.mutations.update({ id: siteId!, payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [locationHttpService.key] });
+      toast.success("Location updated successfully");
       navigate(`/locations/${siteId}`);
     },
     onError: (err: Error) => {
@@ -188,8 +192,28 @@ export default function EditLocationPage() {
 
   if (locationLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
+        <Box mb={3}>
+          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
+          <Skeleton variant="text" width={200} height={40} />
+        </Box>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Skeleton variant="rectangular" height={56} />
+          <Skeleton variant="rectangular" height={56} />
+          <Skeleton variant="rectangular" height={56} />
+          <Skeleton variant="rectangular" height={56} />
+          <Box display="flex" gap={2}>
+            <Skeleton variant="rectangular" height={56} sx={{ flex: 2 }} />
+            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
+            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
+          </Box>
+          <Skeleton variant="rectangular" height={56} />
+          <Box display="flex" gap={2}>
+            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
+            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
+          </Box>
+          <Skeleton variant="rectangular" height={56} />
+        </Box>
       </Box>
     );
   }
@@ -213,8 +237,16 @@ export default function EditLocationPage() {
 
   if (!formData) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
+        <Box mb={3}>
+          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
+          <Skeleton variant="text" width={200} height={40} />
+        </Box>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Skeleton variant="rectangular" height={56} />
+          <Skeleton variant="rectangular" height={56} />
+          <Skeleton variant="rectangular" height={56} />
+        </Box>
       </Box>
     );
   }

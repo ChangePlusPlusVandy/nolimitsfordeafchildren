@@ -95,6 +95,8 @@ export interface TeacherDetails extends TeacherWithUser {
   schedules: Array<ScheduleEntity & { site: { id: string; name: string } }>;
   students: Array<{
     id: string;
+    first_name: string;
+    last_name: string;
     initials: string;
     site: { id: string; name: string };
   }>;
@@ -319,6 +321,8 @@ export class TeachersService {
 
     const students = studentResults.map((s) => ({
       id: s.id,
+      first_name: s.first_name,
+      last_name: s.last_name,
       initials: s.initials,
       site: {
         id: s.student_site_id,

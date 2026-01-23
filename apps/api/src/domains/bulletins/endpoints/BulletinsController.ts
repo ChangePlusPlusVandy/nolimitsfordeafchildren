@@ -6,7 +6,7 @@ import {
   Param,
   Patch,
   Post,
-  QueryParams,
+  QueryParam,
   Req,
   Authorized,
   NotFoundError,
@@ -22,6 +22,8 @@ import {
   type CreateBulletinInput,
   type UpdateBulletinInput,
   type AddAttachmentInput,
+  type BulletinScope,
+  type BulletinRoleTarget,
 } from "../services/BulletinsService";
 
 /**
@@ -39,12 +41,22 @@ export class GetBulletinsController {
 
   @Get("/bulletins")
   @Authorized()
-  async handle(@Req() req: Request, @QueryParams() query: ListBulletinsQuery) {
+  async handle(
+    @Req() req: Request,
+    @QueryParam("siteId") siteId?: string,
+    @QueryParam("scope") scope?: BulletinScope,
+    @QueryParam("roleTarget") roleTarget?: BulletinRoleTarget,
+    @QueryParam("includeExpired") includeExpired?: boolean,
+    @QueryParam("includeScheduled") includeScheduled?: boolean,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
     const currentUser = req.currentUser;
     if (!currentUser) {
       throw new NotFoundError("User not found");
     }
 
+    const query: ListBulletinsQuery = { siteId, scope, roleTarget, includeExpired, includeScheduled, page, limit };
     return await this.bulletinsService.index(query, currentUser.role, currentUser.id);
   }
 }

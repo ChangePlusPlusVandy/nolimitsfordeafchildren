@@ -18,6 +18,7 @@ import ChildCareIcon from "@mui/icons-material/ChildCare";
 import SchoolIcon from "@mui/icons-material/School";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import ListAltIcon from "@mui/icons-material/ListAlt";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
@@ -71,12 +72,30 @@ const navItems: NavItem[] = [
     icon: <TodayIcon />,
     roles: ["teacher", "administrator"],
   },
+  {
+    text: "Make-Up Sessions",
+    to: "/teachers/makeup-sessions",
+    icon: <EventRepeatIcon />,
+    roles: ["teacher"],
+  },
   
   // Parent items
   {
     text: "My Students",
     to: "/my-students",
     icon: <ChildCareIcon />,
+    roles: ["parent"],
+  },
+  {
+    text: "Schedule Change",
+    to: "/parents/schedule-change",
+    icon: <SwapHorizIcon />,
+    roles: ["parent"],
+  },
+  {
+    text: "My Requests",
+    to: "/parents/my-requests",
+    icon: <ListAltIcon />,
     roles: ["parent"],
   },
   

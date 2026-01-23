@@ -11,9 +11,9 @@ import {
   Box,
   Typography,
   CircularProgress,
-  Alert,
 } from "@mui/material"
 import { useHttpClient } from "../../../plugins/axios"
+import { useToast } from "../../global/components/ToastProvider"
 
 type AbsenceReason = "sick" | "family_emergency" | "transportation" | "schedule_conflict" | "no_show_unknown" | "other"
 
@@ -47,6 +47,7 @@ export default function RequestMakeupModal({
 }: RequestMakeupModalProps) {
   const httpClient = useHttpClient()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const [reason, setReason] = useState<AbsenceReason>("sick")
   const [reasonText, setReasonText] = useState("")
@@ -69,7 +70,11 @@ export default function RequestMakeupModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["parentHttp"] })
       queryClient.invalidateQueries({ queryKey: ["parent-makeup-requests"] })
+      toast.success("Make-up request submitted successfully")
       handleClose()
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to submit request")
     },
   })
 
@@ -98,13 +103,6 @@ export default function RequestMakeupModal({
       <DialogTitle>Request Make-Up Class</DialogTitle>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-          {createMutation.isError && (
-            <Alert severity="error">
-              {(createMutation.error as any)?.response?.data?.message ||
-                "Failed to submit request. Please try again."}
-            </Alert>
-          )}
-
           {missedSession && (
             <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
               <Typography variant="subtitle2" color="text.secondary">

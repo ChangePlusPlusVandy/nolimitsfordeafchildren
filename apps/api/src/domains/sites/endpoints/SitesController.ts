@@ -1,4 +1,4 @@
-import { Get, JsonController, Param, QueryParams } from "routing-controllers";
+import { Get, JsonController, Param, QueryParam } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { LocationsService } from "../../locations/services/LocationsService";
@@ -12,8 +12,8 @@ export class SitesController {
   }
 
   @Get("/:siteId/now-next")
-  async nowNext(@Param("siteId") siteId: string, @QueryParams() query: any) {
-    return await this.locationsService.nowNext(siteId, query);
+  async nowNext(@Param("siteId") siteId: string, @QueryParam("date") date?: string) {
+    return await this.locationsService.nowNext(siteId, { date });
   }
 }
 

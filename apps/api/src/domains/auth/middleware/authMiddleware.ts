@@ -188,24 +188,69 @@ export function createGlobalAuthMiddleware(): Array<(req: Request, res: Response
 }
 
 /**
+ * Dev user IDs - must match the seed data in src/db/seed.ts
+ */
+const DEV_USER_IDS = {
+  ADMIN: "5126c34f-4393-406c-8683-c9b696c02f38",
+  TEACHER: "cd7c3cb2-a14c-4a94-b320-b64ec164df2e",
+  PARENT: "823e1615-9ec0-483e-910e-6cd27296712d",
+} as const;
+
+/**
+ * Dev users for testing different roles
+ */
+const DEV_USERS: Record<string, Partial<UserEntity>> = {
+  administrator: {
+    id: DEV_USER_IDS.ADMIN,
+    auth0Id: "auth0|dev-admin",
+    email: "admin.dev@gmail.com",
+    name: "Dev Admin",
+    phone: null,
+    locale: "en-US",
+    role: "administrator",
+    is_active: true,
+  },
+  teacher: {
+    id: DEV_USER_IDS.TEACHER,
+    auth0Id: "auth0|dev-teacher",
+    email: "teacher.dev@gmail.com",
+    name: "Dev Teacher",
+    phone: null,
+    locale: "en-US",
+    role: "teacher",
+    is_active: true,
+  },
+  parent: {
+    id: DEV_USER_IDS.PARENT,
+    auth0Id: "auth0|dev-parent",
+    email: "parent.dev@gmail.com",
+    name: "Dev Parent",
+    phone: null,
+    locale: "en-US",
+    role: "parent",
+    is_active: true,
+  },
+};
+
+/**
  * Development auth bypass middleware
  * Use when AUTH_DISABLED=true for local development
+ * Supports role switching via X-Dev-Role header
  */
 export function devAuthMiddleware(
   req: Request,
   _res: Response,
   next: NextFunction
 ): void {
+  // Check for role override header: X-Dev-Role: administrator|teacher|parent
+  const roleHeader = req.headers["x-dev-role"] as string | undefined;
+  const role = roleHeader && DEV_USERS[roleHeader] ? roleHeader : "administrator";
+  
+  const devUser = DEV_USERS[role]!;
+  
   // Set a mock user for development
   req.currentUser = {
-    id: "dev-user-id",
-    auth0Id: "dev-auth0-id",
-    email: "dev@example.com",
-    name: "Dev User",
-    phone: null,
-    locale: "en-US",
-    role: "administrator",
-    is_active: true,
+    ...devUser,
     created_at: new Date(),
     updated_at: new Date(),
   } as UserEntity;

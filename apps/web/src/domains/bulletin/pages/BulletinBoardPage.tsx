@@ -9,7 +9,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  CircularProgress,
   Alert,
   Dialog,
   DialogTitle,
@@ -20,6 +19,7 @@ import {
   Link,
   Divider,
 } from "@mui/material";
+import { CardGridSkeleton } from "../../global/components/skeletons";
 import AddIcon from "@mui/icons-material/Add";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import { useAuth } from "../../../auth";
@@ -194,11 +194,7 @@ export default function BulletinBoardPage() {
       )}
 
       {/* Loading state */}
-      {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
+      {isLoading && <CardGridSkeleton count={6} showAvatar={false} />}
 
       {/* Empty state */}
       {data && data.items.length === 0 && (

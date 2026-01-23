@@ -25,6 +25,7 @@ import {
 } from "../services/TeacherHttpService";
 import { useUserHttpService, type User } from "../../users/services/UserHttpService";
 import { useLocationHttpService, type Location } from "../../locations/services/LocationHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 
 export default function NewTeacherPage() {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export default function NewTeacherPage() {
   const teacherHttpService = useTeacherHttpService();
   const userHttpService = useUserHttpService();
   const locationHttpService = useLocationHttpService();
+  const toast = useToast();
 
   // Form state
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -59,6 +61,7 @@ export default function NewTeacherPage() {
     mutationFn: teacherHttpService.mutations.create,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [teacherHttpService.key] });
+      toast.success("Teacher profile created successfully");
       navigate(`/teachers/${data.id}`);
     },
     onError: (err: Error) => {

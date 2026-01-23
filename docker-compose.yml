@@ -47,7 +47,21 @@ services:
       mc alias set local http://minio:9000 minioadmin minioadmin;
       mc mb local/nolimits-dev --ignore-existing;
       mc anonymous set download local/nolimits-dev;
-      echo 'Bucket nolimits-dev created successfully';
+      cat > /tmp/cors.json << 'EOFCORS'
+      {
+        \"CORSRules\": [
+          {
+            \"AllowedOrigins\": [\"*\"],
+            \"AllowedMethods\": [\"GET\", \"PUT\", \"POST\", \"DELETE\", \"HEAD\"],
+            \"AllowedHeaders\": [\"*\"],
+            \"ExposeHeaders\": [\"ETag\", \"x-amz-meta-*\"],
+            \"MaxAgeSeconds\": 3600
+          }
+        ]
+      }
+      EOFCORS
+      mc cors set /tmp/cors.json local/nolimits-dev;
+      echo 'Bucket nolimits-dev created with CORS enabled';
       "
 
 volumes:

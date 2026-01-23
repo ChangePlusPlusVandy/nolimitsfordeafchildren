@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogTitle,
@@ -17,10 +16,10 @@ import {
   LinearProgress,
   Alert,
   Stack,
-  CircularProgress,
 } from "@mui/material";
 import { CloudUpload as CloudUploadIcon } from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
+import { useToast } from "../../global/components/ToastProvider";
 
 type DocumentType = "audiogram" | "iep" | "cv" | "annual_test_result" | "other";
 
@@ -38,7 +37,7 @@ const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-export function UploadDocumentModal({
+export default function UploadDocumentModal({
   open,
   onClose,
   studentId,
@@ -46,6 +45,7 @@ export function UploadDocumentModal({
 }: UploadDocumentModalProps) {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const [documentType, setDocumentType] = useState<DocumentType | "">("");
   const [documentDate, setDocumentDate] = useState("");
@@ -82,7 +82,9 @@ export function UploadDocumentModal({
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["students", studentId, "documents"] });
+      // Invalidate documents query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["documents", "student", studentId] });
+      toast.success("Document uploaded successfully");
       handleClose();
     },
   });
@@ -285,40 +287,5 @@ export function UploadDocumentModal({
         </Button>
       </DialogActions>
     </Dialog>
-  );
-}
-
-/**
- * Route wrapper component for /students/:id/upload
- */
-export default function UploadDocumentPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const httpClient = useHttpClient();
-
-  const { data: student, isLoading } = useQuery({
-    queryKey: ["students", id],
-    queryFn: async () => {
-      const response = await httpClient.get(`/v1/students/${id}`);
-      return response.data as { first_name: string; last_name: string };
-    },
-    enabled: !!id,
-  });
-
-  if (isLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  return (
-    <UploadDocumentModal
-      open={true}
-      onClose={() => navigate(`/students/${id}`)}
-      studentId={id!}
-      studentName={student ? `${student.first_name} ${student.last_name}` : undefined}
-    />
   );
 }

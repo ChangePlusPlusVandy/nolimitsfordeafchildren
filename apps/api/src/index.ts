@@ -15,7 +15,6 @@ import {
 } from "./domains/auth/endpoints/AuthController";
 
 // User Controllers
-import { ShowUserEndpoint } from "./domains/users/endpoints/ShowUserEndpoint";
 import { 
   GetUsersController, 
   GetUserController,
@@ -152,9 +151,6 @@ export function buildApplication() {
     credentials: true,
   }));
   
-  // Parse JSON bodies
-  app.use(express.json());
-  
   // Health check endpoint (no auth required)
   app.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok" });
@@ -174,7 +170,6 @@ export function buildApplication() {
     validation: false,
     controllers: [
       // Auth
-      ShowUserEndpoint,
       PostAuthLoginController,
       PostAuthRefreshController,
       PostAuthLogoutController,
@@ -309,8 +304,8 @@ export function buildApplication() {
       // If auth is disabled, return dev user as fallback
       if (authDisabled) {
         return {
-          id: "dev-user-id",
-          auth0Id: "dev-auth0-id",
+          id: "00000000-0000-0000-0000-000000000000",
+          auth0Id: "dev|00000000000000000000000000000000",
           email: "dev@example.com",
           name: "Dev User",
           phone: null,

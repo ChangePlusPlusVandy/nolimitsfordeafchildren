@@ -1,4 +1,4 @@
-import { Body, Get, JsonController, Param, Patch, Post, QueryParams, Authorized, HttpCode } from "routing-controllers";
+import { Body, Get, JsonController, Param, Patch, Post, QueryParam, Authorized, HttpCode } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { LocationsService } from "../services/LocationsService";
@@ -24,8 +24,8 @@ export class LocationsController {
    * List all locations with optional filtering
    */
   @Get()
-  async index(@QueryParams() query: { is_active?: boolean }) {
-    return await this.locationsService.index(query);
+  async index(@QueryParam("is_active") is_active?: boolean) {
+    return await this.locationsService.index({ is_active });
   }
 
   /**
@@ -54,8 +54,8 @@ export class LocationsController {
    * Returns current and upcoming sessions at a location
    */
   @Get("/:siteId/now-next")
-  async nowNext(@Param("siteId") siteId: string, @QueryParams() query: { date?: string }) {
-    return await this.locationsService.nowNext(siteId, query);
+  async nowNext(@Param("siteId") siteId: string, @QueryParam("date") date?: string) {
+    return await this.locationsService.nowNext(siteId, { date });
   }
 
   /**

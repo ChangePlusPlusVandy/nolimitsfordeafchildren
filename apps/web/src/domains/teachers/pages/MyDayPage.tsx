@@ -1,10 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
   Paper,
-  CircularProgress,
   Alert,
   Card,
   CardContent,
@@ -25,6 +25,7 @@ import {
   Snackbar,
   Stack,
   Divider,
+  Skeleton,
 } from "@mui/material";
 import {
   Check as CheckIcon,
@@ -85,6 +86,7 @@ function getStatusLabel(status: AttendanceStatus | undefined): string {
 }
 
 export default function MyDayPage() {
+  const navigate = useNavigate();
   const teacherHttpService = useTeacherHttpService();
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
@@ -210,8 +212,42 @@ export default function MyDayPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+      <Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <Typography variant="h4" component="h1">
+            My Day
+          </Typography>
+          <Skeleton variant="text" width={200} />
+        </Box>
+        {/* Session cards skeleton */}
+        <Paper sx={{ mb: 3, overflow: "hidden" }}>
+          <Box sx={{ px: 3, py: 2, bgcolor: "grey.100" }}>
+            <Skeleton variant="text" width={150} />
+          </Box>
+          <Divider />
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={2}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} variant="outlined">
+                  <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Skeleton variant="circular" width={48} height={48} />
+                      <Box sx={{ flex: 1 }}>
+                        <Skeleton variant="text" width="40%" />
+                        <Skeleton variant="text" width="25%" />
+                      </Box>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Skeleton variant="rounded" width={80} height={32} />
+                        <Skeleton variant="rounded" width={80} height={32} />
+                        <Skeleton variant="rounded" width={90} height={32} />
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          </Box>
+        </Paper>
       </Box>
     );
   }
@@ -289,18 +325,36 @@ export default function MyDayPage() {
                     >
                       <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                          <Avatar sx={{ bgcolor: "primary.main", width: 48, height: 48 }}>
-                            {session.student_initials}
-                          </Avatar>
+                          <Box 
+                            sx={{ 
+                              display: "flex", 
+                              alignItems: "center", 
+                              gap: 2,
+                              cursor: "pointer",
+                              borderRadius: 1,
+                              p: 0.5,
+                              m: -0.5,
+                              "&:hover": { 
+                                bgcolor: "action.hover",
+                              },
+                            }}
+                            onClick={() => navigate(`/teachers/students/${session.student_id}`)}
+                          >
+                            <Avatar sx={{ bgcolor: "primary.main", width: 48, height: 48 }}>
+                              {session.student_initials}
+                            </Avatar>
 
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="subtitle1" fontWeight="medium">
-                              {session.student_first_name} {session.student_last_name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {formatTime(session.start_time)} - {formatTime(session.end_time)}
-                            </Typography>
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight="medium">
+                                {session.student_first_name} {session.student_last_name}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {formatTime(session.start_time)} - {formatTime(session.end_time)}
+                              </Typography>
+                            </Box>
                           </Box>
+
+                          <Box sx={{ flex: 1 }} />
 
                           {session.attendance ? (
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

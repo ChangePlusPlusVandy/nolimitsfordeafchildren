@@ -1,4 +1,4 @@
-import { Body, Get, JsonController, Param, Post, Delete, QueryParams, CurrentUser, Authorized, HttpCode } from "routing-controllers";
+import { Body, Get, JsonController, Param, Post, Delete, QueryParam, CurrentUser, Authorized, HttpCode } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { 
@@ -7,6 +7,7 @@ import {
   type ConfirmUploadInput,
   type ListDocumentsQuery,
   type EntityType,
+  type DocumentType,
 } from "../services/DocumentsService";
 import type { UserEntity } from "@/db/schema";
 
@@ -69,7 +70,14 @@ export class GetDocumentsController {
    */
   @Get("/documents")
   @Authorized()
-  async handle(@QueryParams() query: ListDocumentsQuery) {
+  async handle(
+    @QueryParam("entity_type") entity_type?: EntityType,
+    @QueryParam("entity_id") entity_id?: string,
+    @QueryParam("document_type") document_type?: DocumentType,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
+    const query: ListDocumentsQuery = { entity_type, entity_id, document_type, page, limit };
     return await this.documentsService.index(query);
   }
 }
@@ -214,8 +222,8 @@ export class GetAudiogramsDueSoonController {
    */
   @Get("/documents/audiograms/due-soon")
   @Authorized(["administrator"])
-  async handle(@QueryParams() query: { days?: number }) {
-    const days = query.days || 30;
-    return await this.documentsService.getAudiogramsDueSoon(days);
+  async handle(@QueryParam("days") days?: number) {
+    const daysValue = days || 30;
+    return await this.documentsService.getAudiogramsDueSoon(daysValue);
   }
 }

@@ -114,7 +114,6 @@ export async function getPresignedUploadUrl(
   contentType: string,
   expiresIn: number = 900
 ): Promise<string> {
-  // @ts-expect-error - requires @aws-sdk/s3-request-presigner package to be installed
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
   
   const command = new PutObjectCommand({
@@ -138,7 +137,6 @@ export async function getPresignedDownloadUrl(
   key: string,
   expiresIn: number = 3600
 ): Promise<string> {
-  // @ts-expect-error - requires @aws-sdk/s3-request-presigner package to be installed
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
   
   const command = new GetObjectCommand({

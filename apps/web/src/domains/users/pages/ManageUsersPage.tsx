@@ -21,17 +21,21 @@ import {
   Chip,
   IconButton,
   InputAdornment,
-  CircularProgress,
   Alert,
 } from "@mui/material";
+import { TableSkeleton } from "../../global/components/skeletons";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useUserHttpService, type UserRole, type ListUsersParams } from "../services/UserHttpService";
+import InviteUserModal from "./InviteUserModal";
 
 export default function ManageUsersPage() {
   const navigate = useNavigate();
   const userHttpService = useUserHttpService();
+
+  // Modal state
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -84,7 +88,7 @@ export default function ManageUsersPage() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate("/users/invite")}
+          onClick={() => setInviteModalOpen(true)}
         >
           Invite User
         </Button>
@@ -137,11 +141,7 @@ export default function ManageUsersPage() {
       )}
 
       {/* Loading state */}
-      {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
+      {isLoading && <TableSkeleton columns={5} rows={10} />}
 
       {/* Users table */}
       {data && (
@@ -211,6 +211,12 @@ export default function ManageUsersPage() {
           />
         </Paper>
       )}
+
+      {/* Invite User Modal */}
+      <InviteUserModal
+        open={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+      />
     </Box>
   );
 }

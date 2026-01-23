@@ -7,7 +7,6 @@ import {
   Paper,
   Button,
   Chip,
-  CircularProgress,
   Alert,
   Table,
   TableBody,
@@ -27,10 +26,12 @@ import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import SchoolIcon from "@mui/icons-material/School";
+import { TableSkeleton } from "../../global/components/skeletons";
 
 import { useStudentHttpService, type StudentFilters } from "../services/StudentHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
 import { useAuth } from "../../../auth";
+import CreateStudentModal from "./CreateStudentModal";
 
 type ActiveFilter = "all" | "active" | "inactive";
 
@@ -39,6 +40,9 @@ export default function StudentsIndexPage() {
   const { isAdmin } = useAuth();
   const studentHttpService = useStudentHttpService();
   const locationHttpService = useLocationHttpService();
+
+  // Modal state
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -74,8 +78,21 @@ export default function StudentsIndexPage() {
 
   if (studentsLoading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-        <CircularProgress />
+      <Box>
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 3,
+          }}
+        >
+          <Typography variant="h4" component="h1">
+            Students
+          </Typography>
+        </Box>
+        <TableSkeleton columns={5} rows={8} />
       </Box>
     );
   }
@@ -108,7 +125,7 @@ export default function StudentsIndexPage() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate("/students/new")}
+            onClick={() => setCreateModalOpen(true)}
           >
             Add Student
           </Button>
@@ -248,6 +265,12 @@ export default function StudentsIndexPage() {
           </Box>
         )}
       </Paper>
+
+      {/* Create Student Modal */}
+      <CreateStudentModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+      />
     </Box>
   );
 }

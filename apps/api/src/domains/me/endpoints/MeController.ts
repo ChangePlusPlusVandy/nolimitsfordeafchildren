@@ -40,6 +40,8 @@ export class GetMeController {
       role: profile.role,
       is_active: profile.is_active,
       created_at: profile.created_at,
+      teacherProfileId: profile.teacherProfileId,
+      parentProfileId: profile.parentProfileId,
     };
   }
 }

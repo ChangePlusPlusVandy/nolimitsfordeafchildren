@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
 import {
@@ -12,7 +12,6 @@ import {
   InputLabel,
   Button,
   Chip,
-  CircularProgress,
   Alert,
   Divider,
   Switch,
@@ -22,16 +21,19 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Skeleton,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import { useUserHttpService, type UserRole, type UpdateUserInput } from "../services/UserHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 
 export default function UserDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const userHttpService = useUserHttpService();
+  const toast = useToast();
 
   // Form state
   const [name, setName] = useState("");
@@ -49,14 +51,14 @@ export default function UserDetailsPage() {
   });
 
   // Initialize form when user data loads
-  useState(() => {
+  useEffect(() => {
     if (user) {
       setName(user.name);
       setEmail(user.email);
       setPhone(user.phone || "");
       setRole(user.role);
     }
-  });
+  }, [user]);
 
   // Update mutation
   const updateMutation = useMutation({
@@ -65,6 +67,10 @@ export default function UserDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [userHttpService.key] });
       setIsEditing(false);
+      toast.success("User updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update user. Please try again.");
     },
   });
 
@@ -74,6 +80,10 @@ export default function UserDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [userHttpService.key] });
       setShowDisableDialog(false);
+      toast.success("User has been disabled");
+    },
+    onError: () => {
+      toast.error("Failed to disable user. Please try again.");
     },
   });
 
@@ -82,6 +92,10 @@ export default function UserDetailsPage() {
     mutationFn: () => userHttpService.mutations.enable(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [userHttpService.key] });
+      toast.success("User has been enabled");
+    },
+    onError: () => {
+      toast.error("Failed to enable user. Please try again.");
     },
   });
 
@@ -106,8 +120,30 @@ export default function UserDetailsPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-        <CircularProgress />
+      <Box>
+        {/* Header */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+          <Skeleton variant="rounded" width={80} height={36} />
+          <Skeleton variant="text" width={200} height={40} />
+        </Box>
+        {/* Status chips */}
+        <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+          <Skeleton variant="rounded" width={100} height={32} />
+          <Skeleton variant="rounded" width={80} height={32} />
+        </Box>
+        {/* Form skeleton */}
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} variant="rounded" height={56} />
+            ))}
+            <Skeleton variant="rectangular" height={1} />
+            <Box>
+              <Skeleton variant="text" width={120} />
+              <Skeleton variant="rounded" width={100} height={38} />
+            </Box>
+          </Box>
+        </Paper>
       </Box>
     );
   }
@@ -173,12 +209,6 @@ export default function UserDetailsPage() {
           variant={user.is_active ? "filled" : "outlined"}
         />
       </Box>
-
-      {updateMutation.isError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to update user. Please try again.
-        </Alert>
-      )}
 
       {/* User form */}
       <Paper sx={{ p: 3 }}>

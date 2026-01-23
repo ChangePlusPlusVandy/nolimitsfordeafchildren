@@ -1,7 +1,7 @@
-import { Body, Get, JsonController, Param, Patch, Post, QueryParams, CurrentUser, Authorized, HttpCode } from "routing-controllers";
+import { Body, Get, JsonController, Param, Patch, Post, QueryParam, CurrentUser, Authorized, HttpCode } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
-import { AttendanceService, type MarkAttendanceInput, type UpdateAttendanceInput, type ListAttendanceQuery } from "../services/AttendanceService";
+import { AttendanceService, type MarkAttendanceInput, type UpdateAttendanceInput, type ListAttendanceQuery, type AttendanceStatus } from "../services/AttendanceService";
 import type { UserEntity } from "@/db/schema";
 
 @Service()
@@ -71,7 +71,18 @@ export class GetAttendanceController {
    */
   @Get("/attendance")
   @Authorized()
-  async handle(@QueryParams() query: ListAttendanceQuery) {
+  async handle(
+    @QueryParam("student_id") student_id?: string,
+    @QueryParam("schedule_id") schedule_id?: string,
+    @QueryParam("teacher_id") teacher_id?: string,
+    @QueryParam("site_id") site_id?: string,
+    @QueryParam("date_from") date_from?: string,
+    @QueryParam("date_to") date_to?: string,
+    @QueryParam("status") status?: AttendanceStatus,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
+    const query: ListAttendanceQuery = { student_id, schedule_id, teacher_id, site_id, date_from, date_to, status, page, limit };
     return await this.attendanceService.index(query);
   }
 }

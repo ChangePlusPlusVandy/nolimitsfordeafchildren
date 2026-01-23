@@ -7,9 +7,9 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Alert,
   Divider,
+  Skeleton,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -37,8 +37,38 @@ export default function LocationDetailsPage() {
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box sx={{ p: 3 }}>
+        {/* Header Skeleton */}
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+          <Box>
+            <Skeleton variant="rounded" width={150} height={36} sx={{ mb: 1 }} />
+            <Skeleton variant="text" width={250} height={40} />
+            <Box display="flex" gap={1} mt={1}>
+              <Skeleton variant="rounded" width={120} height={32} />
+              <Skeleton variant="rounded" width={80} height={32} />
+            </Box>
+          </Box>
+          <Skeleton variant="rounded" width={140} height={36} />
+        </Box>
+        {/* Cards Skeleton */}
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+          <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
+            <CardContent>
+              <Skeleton variant="text" width={100} height={28} sx={{ mb: 2 }} />
+              <Skeleton variant="text" width="80%" />
+              <Skeleton variant="text" width="60%" />
+              <Skeleton variant="text" width="70%" />
+            </CardContent>
+          </Card>
+          <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
+            <CardContent>
+              <Skeleton variant="text" width={80} height={28} sx={{ mb: 2 }} />
+              <Skeleton variant="text" width="50%" />
+              <Skeleton variant="text" width="40%" />
+              <Skeleton variant="text" width="45%" />
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
     );
   }

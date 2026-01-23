@@ -1,4 +1,4 @@
-import { Get, JsonController, QueryParams, CurrentUser, Authorized } from "routing-controllers";
+import { Get, JsonController, QueryParam, CurrentUser, Authorized } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { TeachersService } from "../services/TeachersService";
@@ -22,7 +22,7 @@ export class GetTeachersMeDayController {
   @Get("/teachers/me/day")
   @Authorized(["teacher", "administrator"])
   async handle(
-    @QueryParams() query: { date?: string },
+    @QueryParam("date") date: string | undefined,
     @CurrentUser({ required: true }) currentUser: UserEntity
   ) {
     // Get teacher profile for current user
@@ -41,7 +41,7 @@ export class GetTeachersMeDayController {
     }
 
     return await this.teachersService.myDay({
-      date: query.date,
+      date: date,
       teacher_id: teacherProfile[0]!.id,
     });
   }

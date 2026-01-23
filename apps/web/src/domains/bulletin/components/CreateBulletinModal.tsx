@@ -12,7 +12,6 @@ import {
   FormControl,
   InputLabel,
   Button,
-  Alert,
   CircularProgress,
   Typography,
   List,
@@ -30,6 +29,7 @@ import {
   type BulletinRoleTarget,
 } from "../services/BulletinHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 
 interface CreateBulletinModalProps {
   open: boolean;
@@ -48,6 +48,7 @@ export default function CreateBulletinModal({ open, onClose, onSuccess }: Create
   const queryClient = useQueryClient();
   const bulletinHttpService = useBulletinHttpService();
   const locationHttpService = useLocationHttpService();
+  const toast = useToast();
 
   // Form state
   const [title, setTitle] = useState("");
@@ -81,9 +82,13 @@ export default function CreateBulletinModal({ open, onClose, onSuccess }: Create
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [bulletinHttpService.key] });
+      toast.success("Bulletin created successfully");
       resetForm();
       onSuccess?.();
       onClose();
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to create bulletin");
     },
   });
 
@@ -149,12 +154,6 @@ export default function CreateBulletinModal({ open, onClose, onSuccess }: Create
         <DialogTitle>Create Bulletin</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}>
-            {createMutation.isError && (
-              <Alert severity="error">
-                {(createMutation.error as Error)?.message || "Failed to create bulletin. Please try again."}
-              </Alert>
-            )}
-
             <TextField
               label="Title"
               value={title}

@@ -14,9 +14,10 @@ import {
   ListItemAvatar,
   ListItemText,
   IconButton,
-  CircularProgress,
   Alert,
 } from "@mui/material";
+import { DetailPageSkeleton } from "../../global/components/skeletons";
+import { useToast } from "../../global/components/ToastProvider";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -32,6 +33,10 @@ import SiblingAvatars from "../components/SiblingAvatars";
 import AddSiblingModal from "../components/AddSiblingModal";
 import SessionNotes from "../components/SessionNotes";
 import AssessmentHistory from "../components/AssessmentHistory";
+import LinkTeacherModal from "./LinkTeacherModal";
+import LinkParentModal from "./LinkParentModal";
+import UploadDocumentModal from "./UploadDocumentModal";
+import DocumentList from "../components/DocumentList";
 
 export default function StudentDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,10 +44,14 @@ export default function StudentDetailsPage() {
   const queryClient = useQueryClient();
   const studentHttpService = useStudentHttpService();
   const { isAdmin, isTeacher } = useAuth();
+  const toast = useToast();
 
   // Modal states
   const [siblingModalOpen, setSiblingModalOpen] = useState(false);
   const [editingSibling, setEditingSibling] = useState<Sibling | null>(null);
+  const [linkTeacherModalOpen, setLinkTeacherModalOpen] = useState(false);
+  const [linkParentModalOpen, setLinkParentModalOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   // Fetch student details
   const { data: student, isLoading, error } = useQuery({
@@ -58,6 +67,10 @@ export default function StudentDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
       setSiblingModalOpen(false);
+      toast.success("Sibling added successfully");
+    },
+    onError: () => {
+      toast.error("Failed to add sibling. Please try again.");
     },
   });
 
@@ -68,6 +81,10 @@ export default function StudentDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
       setEditingSibling(null);
+      toast.success("Sibling updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update sibling. Please try again.");
     },
   });
 
@@ -76,6 +93,10 @@ export default function StudentDetailsPage() {
     mutationFn: (siblingId: string) => studentHttpService.mutations.removeSibling(siblingId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
+      toast.success("Sibling removed");
+    },
+    onError: () => {
+      toast.error("Failed to remove sibling. Please try again.");
     },
   });
 
@@ -108,11 +129,7 @@ export default function StudentDetailsPage() {
   };
 
   if (isLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <DetailPageSkeleton sections={4} />;
   }
 
   if (error || !student) {
@@ -327,7 +344,7 @@ export default function StudentDetailsPage() {
                 <Button
                   size="small"
                   startIcon={<LinkIcon />}
-                  onClick={() => navigate(`/students/${id}/link-teacher`)}
+                  onClick={() => setLinkTeacherModalOpen(true)}
                 >
                   Link Teacher
                 </Button>
@@ -368,7 +385,7 @@ export default function StudentDetailsPage() {
                 <Button
                   size="small"
                   startIcon={<LinkIcon />}
-                  onClick={() => navigate(`/students/${id}/link-parent`)}
+                  onClick={() => setLinkParentModalOpen(true)}
                 >
                   Link Parent
                 </Button>
@@ -411,7 +428,7 @@ export default function StudentDetailsPage() {
             )}
           </Paper>
 
-          {/* Documents Section (Placeholder) */}
+          {/* Documents Section */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
               <Typography variant="h6">
@@ -422,15 +439,17 @@ export default function StudentDetailsPage() {
                 <Button
                   size="small"
                   startIcon={<PersonAddIcon />}
-                  onClick={() => navigate(`/students/${id}/upload`)}
+                  onClick={() => setUploadModalOpen(true)}
                 >
                   Upload
                 </Button>
               )}
             </Box>
-            <Typography color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-              Document management coming soon
-            </Typography>
+            <DocumentList
+              studentId={id!}
+              canDelete={isAdmin}
+              onUploadClick={() => setUploadModalOpen(true)}
+            />
           </Paper>
 
           {/* Session Notes */}
@@ -468,6 +487,30 @@ export default function StudentDetailsPage() {
           title="Edit Sibling"
         />
       )}
+
+      {/* Link Teacher Modal */}
+      <LinkTeacherModal
+        open={linkTeacherModalOpen}
+        onClose={() => setLinkTeacherModalOpen(false)}
+        studentId={id!}
+        studentName={student ? `${student.first_name} ${student.last_name}` : undefined}
+      />
+
+      {/* Link Parent Modal */}
+      <LinkParentModal
+        open={linkParentModalOpen}
+        onClose={() => setLinkParentModalOpen(false)}
+        studentId={id!}
+        studentName={student ? `${student.first_name} ${student.last_name}` : undefined}
+      />
+
+      {/* Upload Document Modal */}
+      <UploadDocumentModal
+        open={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        studentId={id!}
+        studentName={student ? `${student.first_name} ${student.last_name}` : undefined}
+      />
     </Box>
   );
 }

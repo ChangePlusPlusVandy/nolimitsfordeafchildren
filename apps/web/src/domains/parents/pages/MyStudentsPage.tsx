@@ -73,7 +73,7 @@ function ChildCard({ child }: { child: LinkedChild }) {
         </Badge>
       )}
       <CardActionArea 
-        onClick={() => navigate(`/parent/children/${child.id}`)}
+        onClick={() => navigate(`/parents/children/${child.id}`)}
         sx={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "stretch" }}
       >
         <CardContent sx={{ flexGrow: 1 }}>

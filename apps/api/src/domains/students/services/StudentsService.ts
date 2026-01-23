@@ -581,13 +581,40 @@ export class StudentsService {
 
   /**
    * Link a parent to a student (admin only)
+   * @param studentId - The student's ID
+   * @param parentUserId - The parent's USER ID (not parent_profile.id)
+   * @param relationship - Relationship type (mother, father, guardian, etc.)
+   * @param isPrimary - Whether this is the primary parent
    */
   async linkParent(
     studentId: string,
-    parentId: string,
+    parentUserId: string,
     relationship?: string,
     isPrimary?: boolean
   ): Promise<{ ok: boolean; link_id: string }> {
+    // Look up the parent profile for this user
+    let parentProfileId: string;
+    const parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, parentUserId))
+      .limit(1);
+
+    if (!parentProfile || parentProfile.length === 0) {
+      // Defensive: Create parent profile if missing (e.g., role was changed but profile wasn't created)
+      const [newProfile] = await db
+        .insert(ParentProfileTable)
+        .values({ user_id: parentUserId })
+        .returning({ id: ParentProfileTable.id });
+
+      if (!newProfile) {
+        throw new Error("Failed to create parent profile");
+      }
+      parentProfileId = newProfile.id;
+    } else {
+      parentProfileId = parentProfile[0]!.id;
+    }
+
     // Check if already linked
     const existing = await db
       .select()
@@ -595,7 +622,7 @@ export class StudentsService {
       .where(
         and(
           eq(ParentStudentLinkTable.student_id, studentId),
-          eq(ParentStudentLinkTable.parent_id, parentId),
+          eq(ParentStudentLinkTable.parent_id, parentProfileId),
           isNull(ParentStudentLinkTable.revoked_at)
         )
       )
@@ -609,7 +636,7 @@ export class StudentsService {
       .insert(ParentStudentLinkTable)
       .values({
         student_id: studentId,
-        parent_id: parentId,
+        parent_id: parentProfileId,
         relationship,
         is_primary: isPrimary ?? false,
       })
@@ -625,15 +652,31 @@ export class StudentsService {
   /**
    * Unlink a parent from a student (admin only)
    * Soft delete by setting revoked_at
+   * @param studentId - The student's ID
+   * @param parentUserId - The parent's USER ID (not parent_profile.id)
    */
-  async unlinkParent(studentId: string, parentId: string): Promise<{ ok: boolean }> {
+  async unlinkParent(studentId: string, parentUserId: string): Promise<{ ok: boolean }> {
+    // Look up the parent profile for this user
+    const parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, parentUserId))
+      .limit(1);
+
+    if (!parentProfile || parentProfile.length === 0) {
+      // No parent profile exists, nothing to unlink
+      return { ok: true };
+    }
+
+    const parentProfileId = parentProfile[0]!.id;
+
     await db
       .update(ParentStudentLinkTable)
       .set({ revoked_at: new Date() })
       .where(
         and(
           eq(ParentStudentLinkTable.student_id, studentId),
-          eq(ParentStudentLinkTable.parent_id, parentId),
+          eq(ParentStudentLinkTable.parent_id, parentProfileId),
           isNull(ParentStudentLinkTable.revoked_at)
         )
       );

@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { eq, and, or, lte, gte, desc, isNull, sql } from "drizzle-orm";
+import { eq, and, or, lte, gte, desc, isNull, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   BulletinTable,
@@ -248,7 +248,7 @@ export class BulletinsService {
         .select()
         .from(BulletinAttachmentTable)
         .where(
-          sql`${BulletinAttachmentTable.bulletin_id} = ANY(${bulletinIds})`
+          inArray(BulletinAttachmentTable.bulletin_id, bulletinIds)
         );
 
       // Group attachments by bulletin_id
