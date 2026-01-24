@@ -6,8 +6,9 @@ WORKDIR /usr/src/app
 COPY package.json ./
 RUN npm install
 
-# Copy source and tsconfig for path/ts features
+# Copy source and configs for runtime + migrations
 COPY tsconfig.json ./tsconfig.json
+COPY drizzle.config.ts ./drizzle.config.ts
 COPY src ./src
 
 EXPOSE 3000

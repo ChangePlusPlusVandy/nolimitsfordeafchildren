@@ -1,4 +1,5 @@
-import 'reflect-metadata';
+import "dotenv/config";
+import "reflect-metadata";
 import { buildApplication } from ".";
 
 const PORT = Number(process.env.PORT) || 3000;

@@ -1,21 +1,21 @@
-import { useAuth0 } from '@auth0/auth0-react'
-import axios from 'axios'
+import axios from "axios";
+import { useAuth } from "../auth";
 
 export function useHttpClient() {
-  const auth = useAuth0()
+  const auth = useAuth();
   const instance = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
-  })
+  });
 
-  instance.interceptors.request.use(async (config) => {
-    const token = await auth.getAccessTokenSilently()
+  instance.interceptors.request.use(async (requestConfig) => {
+    const token = await auth.getAccessToken();
 
     if (token) {
-     config.headers.Authorization = `Bearer ${token}`
+      requestConfig.headers.Authorization = `Bearer ${token}`;
     }
 
-    return config
-  })
+    return requestConfig;
+  });
 
-  return instance
+  return instance;
 }
