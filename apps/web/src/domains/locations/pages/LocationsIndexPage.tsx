@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Box, Typography, TextField, Accordion, AccordionSummary, AccordionDetails, List, ListItem, Paper } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { MapContainer, TileLayer, useMap, Marker, Popup } from "react-leaflet";
 
 // Define the data structure types
 type PersonList = string[];
@@ -80,7 +81,16 @@ export default function PopupSitesPage() {
 
           <Paper className="flex-1 rounded-xl" elevation={3}>
             <Box className="w-full h-full flex items-center justify-center text-gray-500">
-              Map Placeholder
+              <MapContainer>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker position={[51.505, -0.09]}>
+                  <Popup>
+                    A pop up
+                  </Popup>
+                </Marker>
+              </MapContainer>
             </Box>
           </Paper>
         </Box>
