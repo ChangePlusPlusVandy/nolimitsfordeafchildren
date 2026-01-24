@@ -34,68 +34,66 @@ import ChildDetailsPage from "./domains/parents/pages/ChildDetailsPage.tsx";
 const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthGuard>
-            <Routes>
-              <Route element={<DashboardLayout />}>
-                <Route path="/" element={<Navigate to="/my-day" replace />} />
-                <Route path="/users" element={<ManageUsersPage />} />
-                <Route path="/users/:id" element={<UserDetailsPage />} />
-                <Route path="/my-profile" element={<MyProfilePage />} />
-                <Route path="/users/invite" element={<InviteUserModal />} />
-                <Route path="/locations" element={<LocationsIndexPage />} />
-                <Route path="/locations/new" element={<NewLocationPage />} />
-                <Route
-                  path="/locations/:siteId"
-                  element={<LocationDetailsPage />}
-                />
-                <Route
-                  path="/locations/:siteId/edit"
-                  element={<EditLocationPage />}
-                />
-                <Route
-                  path="/teachers"
-                  element={<Navigate to="/my-day" replace />}
-                />
-                <Route path="/teachers/new" element={<NewTeacherPage />} />
-                <Route path="/my-day" element={<MyDayPage />} />
-                <Route path="/teachers/:id" element={<TeacherDetailsPage />} />
-                <Route
-                  path="/teachers/:id/schedules/new"
-                  element={<TeacherScheduleWizardPage />}
-                />
-                <Route
-                  path="/teachers/students/:id"
-                  element={<TeacherStudentDetailsPage />}
-                />
-                <Route path="/students/new" element={<NewStudentPage />} />
-                <Route path="/students/:id" element={<StudentDetailsPage />} />
-                <Route
-                  path="/students/:id/link-teacher"
-                  element={<LinkTeacherModal />}
-                />
-                <Route
-                  path="/students/:id/upload"
-                  element={<UploadDocumentModal />}
-                />
-                <Route
-                  path="/parents"
-                  element={<Navigate to="/my-students" replace />}
-                />
-                <Route path="/my-students" element={<MyStudentsPage />} />
-                <Route
-                  path="/parents/children/:studentId"
-                  element={<ChildDetailsPage />}
-                />
-                <Route path="/bulletin" element={<BulletinBoardPage />} />
-              </Route>
-            </Routes>
-          </AuthGuard>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </AuthProvider>
-  </StrictMode>
+  <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthGuard>
+          <Routes>
+            <Route element={<DashboardLayout />}>
+              <Route path="/" element={<Navigate to="/my-day" replace />} />
+              <Route path="/users" element={<ManageUsersPage />} />
+              <Route path="/users/:id" element={<UserDetailsPage />} />
+              <Route path="/my-profile" element={<MyProfilePage />} />
+              <Route path="/users/invite" element={<InviteUserModal />} />
+              <Route path="/locations" element={<LocationsIndexPage />} />
+              <Route path="/locations/new" element={<NewLocationPage />} />
+              <Route
+                path="/locations/:siteId"
+                element={<LocationDetailsPage />}
+              />
+              <Route
+                path="/locations/:siteId/edit"
+                element={<EditLocationPage />}
+              />
+              <Route
+                path="/teachers"
+                element={<Navigate to="/my-day" replace />}
+              />
+              <Route path="/teachers/new" element={<NewTeacherPage />} />
+              <Route path="/my-day" element={<MyDayPage />} />
+              <Route path="/teachers/:id" element={<TeacherDetailsPage />} />
+              <Route
+                path="/teachers/:id/schedules/new"
+                element={<TeacherScheduleWizardPage />}
+              />
+              <Route
+                path="/teachers/students/:id"
+                element={<TeacherStudentDetailsPage />}
+              />
+              <Route path="/students/new" element={<NewStudentPage />} />
+              <Route path="/students/:id" element={<StudentDetailsPage />} />
+              <Route
+                path="/students/:id/link-teacher"
+                element={<LinkTeacherModal />}
+              />
+              <Route
+                path="/students/:id/upload"
+                element={<UploadDocumentModal />}
+              />
+              <Route
+                path="/parents"
+                element={<Navigate to="/my-students" replace />}
+              />
+              <Route path="/my-students" element={<MyStudentsPage />} />
+              <Route
+                path="/parents/children/:studentId"
+                element={<ChildDetailsPage />}
+              />
+              <Route path="/bulletin" element={<BulletinBoardPage />} />
+            </Route>
+          </Routes>
+        </AuthGuard>
+      </BrowserRouter>
+    </QueryClientProvider>
+  </AuthProvider>
 );
