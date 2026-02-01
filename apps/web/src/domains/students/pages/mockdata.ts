@@ -16,7 +16,7 @@ export type AttendanceSummary = {
   percentage: string;
 };
 
-export type Teacher = { id: string; name: string };
+export type Teacher = { id: string; name: string; subject: string };
 export type Note = { id: string; author: string; text: string; date: string };
 export type Bulletin = {
   id: string;

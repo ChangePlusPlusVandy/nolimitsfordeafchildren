@@ -1,4 +1,3 @@
-import React from "react";
 import type { Teacher } from "../pages/mockdata";
 import Button from "./Button";
 
@@ -25,6 +24,9 @@ const TeacherAssignments = ({
         <div>
           <div style={{ fontWeight: 600, color: "#111827" }}>
             {teacher.name}
+          </div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>
+            {teacher.subject}
           </div>
         </div>
         <Button
