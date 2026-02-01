@@ -1,47 +1,130 @@
-import { Body, Get, JsonController, Param, Patch, Post, QueryParams } from "routing-controllers";
-import { Service, Inject } from "typedi";
-import { AttendanceService } from "../services/AttendanceService";
+import { Body, Get, JsonController, Param, Patch, Post, QueryParam, CurrentUser, Authorized, HttpCode } from "routing-controllers";
+import { Service } from "typedi";
+import Container from "@/container";
+import { AttendanceService, type MarkAttendanceInput, type UpdateAttendanceInput, type ListAttendanceQuery, type AttendanceStatus } from "../services/AttendanceService";
+import type { UserEntity } from "@/db/schema";
 
 @Service()
 @JsonController("/v1")
 export class PostAttendanceController {
-  constructor(
-    @Inject(() => AttendanceService)
-    private readonly attendanceService: AttendanceService
-  ) {}
+  private attendanceService: AttendanceService;
+  constructor() {
+    this.attendanceService = Container.get(AttendanceService);
+  }
 
+  /**
+   * Mark attendance for a student session
+   * POST /v1/attendance
+   */
   @Post("/attendance")
-  async handle(@Body() body: any) {
-    return await this.attendanceService.create(body);
+  @Authorized(["teacher", "administrator"])
+  @HttpCode(201)
+  async handle(
+    @Body() body: Omit<MarkAttendanceInput, "marked_by">,
+    @CurrentUser({ required: true }) currentUser: UserEntity
+  ) {
+    return await this.attendanceService.mark({
+      ...body,
+      marked_by: currentUser.id,
+    });
   }
 }
 
 @Service()
 @JsonController("/v1")
 export class PatchAttendanceController {
-  constructor(
-    @Inject(() => AttendanceService)
-    private readonly attendanceService: AttendanceService
-  ) {}
+  private attendanceService: AttendanceService;
+  constructor() {
+    this.attendanceService = Container.get(AttendanceService);
+  }
 
+  /**
+   * Update an attendance record
+   * PATCH /v1/attendance/:id
+   */
   @Patch("/attendance/:id")
-  async handle(@Param("id") id: string, @Body() body: any) {
-    return await this.attendanceService.update(id, body);
+  @Authorized(["teacher", "administrator"])
+  async handle(
+    @Param("id") id: string,
+    @Body() body: UpdateAttendanceInput,
+    @CurrentUser({ required: true }) currentUser: UserEntity
+  ) {
+    const result = await this.attendanceService.update(id, body, currentUser.id);
+    if (!result) {
+      throw new Error("Attendance record not found");
+    }
+    return result;
   }
 }
 
 @Service()
 @JsonController("/v1")
 export class GetAttendanceController {
-  constructor(
-    @Inject(() => AttendanceService)
-    private readonly attendanceService: AttendanceService
-  ) {}
+  private attendanceService: AttendanceService;
+  constructor() {
+    this.attendanceService = Container.get(AttendanceService);
+  }
 
+  /**
+   * List attendance records with filters
+   * GET /v1/attendance
+   */
   @Get("/attendance")
-  async handle(@QueryParams() query: any) {
+  @Authorized()
+  async handle(
+    @QueryParam("student_id") student_id?: string,
+    @QueryParam("schedule_id") schedule_id?: string,
+    @QueryParam("teacher_id") teacher_id?: string,
+    @QueryParam("site_id") site_id?: string,
+    @QueryParam("date_from") date_from?: string,
+    @QueryParam("date_to") date_to?: string,
+    @QueryParam("status") status?: AttendanceStatus,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
+    const query: ListAttendanceQuery = { student_id, schedule_id, teacher_id, site_id, date_from, date_to, status, page, limit };
     return await this.attendanceService.index(query);
   }
 }
 
+@Service()
+@JsonController("/v1")
+export class GetAttendanceShowController {
+  private attendanceService: AttendanceService;
+  constructor() {
+    this.attendanceService = Container.get(AttendanceService);
+  }
 
+  /**
+   * Get a single attendance record
+   * GET /v1/attendance/:id
+   */
+  @Get("/attendance/:id")
+  @Authorized()
+  async handle(@Param("id") id: string) {
+    const result = await this.attendanceService.show(id);
+    if (!result) {
+      throw new Error("Attendance record not found");
+    }
+    return result;
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class GetStudentAttendanceSummaryController {
+  private attendanceService: AttendanceService;
+  constructor() {
+    this.attendanceService = Container.get(AttendanceService);
+  }
+
+  /**
+   * Get attendance summary for a student
+   * GET /v1/students/:id/attendance/summary
+   */
+  @Get("/students/:id/attendance/summary")
+  @Authorized()
+  async handle(@Param("id") studentId: string) {
+    return await this.attendanceService.getSummary(studentId);
+  }
+}

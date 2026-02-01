@@ -17,35 +17,53 @@ services:
       timeout: 5s
       retries: 20
 
-  api:
-    build:
-      context: ./apps/api
-    container_name: nolimitsfordeafchildren-api
+  minio:
+    image: minio/minio:latest
+    container_name: nolimitsfordeafchildren-minio
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PORT: "3000"
-      CORS_ORIGINS: "http://localhost:5173"
-      POSTGRES_URI: "postgresql://user:password@db:5432/database"
-      POSTGRES_SSL: "false"
     ports:
-      - "3000:3000"
-    command: ["sh", "-c", "npm run db:migrate && node --import=tsx src/server.ts"]
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  web:
-    build:
-      context: ./apps/web
-    container_name: nolimitsfordeafchildren-web
-    restart: unless-stopped
+  minio-init:
+    image: minio/mc:latest
+    container_name: nolimitsfordeafchildren-minio-init
     depends_on:
-      - api
-    environment:
-      VITE_API_URL: "http://localhost:3000"
-      VITE_AUTH_DISABLED: "true"
-    ports:
-      - "5173:5173"
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb local/nolimits-dev --ignore-existing;
+      mc anonymous set download local/nolimits-dev;
+      cat > /tmp/cors.json << 'EOFCORS'
+      {
+        \"CORSRules\": [
+          {
+            \"AllowedOrigins\": [\"*\"],
+            \"AllowedMethods\": [\"GET\", \"PUT\", \"POST\", \"DELETE\", \"HEAD\"],
+            \"AllowedHeaders\": [\"*\"],
+            \"ExposeHeaders\": [\"ETag\", \"x-amz-meta-*\"],
+            \"MaxAgeSeconds\": 3600
+          }
+        ]
+      }
+      EOFCORS
+      mc cors set /tmp/cors.json local/nolimits-dev;
+      echo 'Bucket nolimits-dev created with CORS enabled';
+      "
 
 volumes:
   db_data:
+  minio_data:

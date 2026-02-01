@@ -1,33 +1,50 @@
-import { Get, JsonController, Param } from "routing-controllers";
-import { Service, Inject } from "typedi";
+import { Get, JsonController, Param, CurrentUser, Authorized } from "routing-controllers";
+import { Service } from "typedi";
+import Container from "@/container";
 import { ParentsService } from "../services/ParentsService";
+import type { UserEntity } from "@/db/schema";
 
 @Service()
 @JsonController("/v1")
 export class GetParentsMeChildrenController {
-  constructor(
-    @Inject(() => ParentsService)
-    private readonly parentsService: ParentsService
-  ) {}
+  private parentsService: ParentsService;
+  constructor() {
+    this.parentsService = Container.get(ParentsService);
+  }
 
+  /**
+   * Get children linked to the current parent
+   * GET /v1/parents/me/children
+   */
   @Get("/parents/me/children")
-  async handle() {
-    return await this.parentsService.myChildren();
+  @Authorized(["parent"])
+  async handle(@CurrentUser({ required: true }) currentUser: UserEntity) {
+    return await this.parentsService.myChildren(currentUser.id);
   }
 }
 
 @Service()
 @JsonController("/v1")
 export class GetParentsChildDetailController {
-  constructor(
-    @Inject(() => ParentsService)
-    private readonly parentsService: ParentsService
-  ) {}
+  private parentsService: ParentsService;
+  constructor() {
+    this.parentsService = Container.get(ParentsService);
+  }
 
+  /**
+   * Get detailed view of a specific child
+   * GET /v1/parents/children/:studentId
+   */
   @Get("/parents/children/:studentId")
-  async handle(@Param("studentId") studentId: string) {
-    return await this.parentsService.childDetail(studentId);
+  @Authorized(["parent"])
+  async handle(
+    @Param("studentId") studentId: string,
+    @CurrentUser({ required: true }) currentUser: UserEntity
+  ) {
+    const result = await this.parentsService.childDetail(currentUser.id, studentId);
+    if (!result) {
+      throw new Error("Student not found or access denied");
+    }
+    return result;
   }
 }
-
-

@@ -1,323 +1,241 @@
-import { useLocationHttpService } from "../services/LocationHttpService";
-import { Button, Avatar, Box, Stack, Typography, TextField, IconButton, Card, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
+import { useParams, useNavigate } from "react-router";
+import {
+  Box,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Alert,
+  Divider,
+  Skeleton,
+} from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import VideocamIcon from "@mui/icons-material/Videocam";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import { useLocationHttpService } from "../services/LocationHttpService";
+import { useAuth } from "../../../auth";
 
 export default function LocationDetailsPage() {
-  useLocationHttpService()
-  
-  const [isInSession] = useState(true);
-  const [role, setRole] = useState("teachers");
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState("Smith Public Library");
-  const [address, setAddress] = useState(
-    "4181 Baldwin Park Blvd Baldwin Park, CA 91706"
-  );
-
-  const teachers = [
-  { id: 1, name: "Alex Rodriguez", type: "Preschool"},
-  { id: 2,name: "Sarah Jones", type: "Teen"},
-  { id: 3,name: "Cecily Greene", type: "Teen"},
-  ];
-
-  const students = [
-  { id: 4, name: "Ryan Mccauley", grade: "Preschool", isHere: true},
-  { id: 5,name: "Avash Aryal", grade: "Teen", isHere: true},
-  { id: 6,name: "Roy Won", grade: "Infant", isHere: false},
-  { id: 7, name: "Emily Peng", grade: "Adult", isHere: true},
-  { id: 8,name: "Ashley Lai", grade: "Teen", isHere: false},
-  { id: 9,name: "Nirmal Alla", grade: "Baby", isHere: false},
-  ];
-  
-  const myEvents = [
-    {
-      title: "Conference",
-      start: "2026-01-18", // Matches Sun 1/18
-      end: "2026-01-20", // Ends on Mon 1/19 (end date is exclusive in FC)
-      allDay: true,
-    },
-    {
-      title: "Birthday Party",
-      start: "2026-01-20T07:00:00", // Tue 1/20 at 7:00 AM
-      end: "2026-01-20T08:00:00",
-    },
-    {
-      title: "Meeting",
-      start: "2026-01-19T10:30:00", // Mon 1/19
-      end: "2026-01-19T12:30:00",
-    },
-    {
-      title: "Lunch",
-      start: "2026-01-19T12:00:00",
-      end: "2026-01-19T13:00:00",
-    },
-  ];
-
-  const handleEditClick = () => {
-    setIsEditing(!isEditing)
-  }
-
-  const handleRoleChange = (_event: React.MouseEvent<HTMLElement>, newRole: string) => {
-    if (newRole !== null) {
-      setRole(newRole);
-    }
-  };
-
-
+  const { siteId } = useParams<{ siteId: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const locationHttpService = useLocationHttpService();
 
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", mb: 3, gap: 2 }}>
-        
-      <Box sx={{ display: "flex", alignItems: "center" }}>
-        <IconButton onClick={() => navigate("/locations")}>
-          <ArrowBackIcon/>
-        </IconButton>
-      </Box>
-      
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        {/* Title + location on the left */}
-        <Box sx={{ ml: 12 }}>
-          <Typography variant="h4">
-            {isEditing ? (
-              <>
-                <TextField label="name" value={name} onChange={(e) => setName(e.target.value)} fullWidth />
-              </>
-            ) : (
-              <>
-                <Typography variant="h5">{name}</Typography>
-              </>
-            )}
-          </Typography>
-          <Typography color="text.secondary">
-            Baldwin Park, CA
-          </Typography>
-        </Box>
-        <Box>
-          {/* Button floats to the right */}
-          <Button
-            variant="contained"
-            color="error"
-            sx={{ borderRadius: 3 }}
-            onClick={handleEditClick}
-          >
-            {isEditing ? (
-              <>Save Changes</>
-            ):(
-              <>Edit Details</>
-            )}
-          </Button>
-          <Box sx={{ maxWidth: 200, mt: 1, alignSelf: "flex-start" }}> 
-            <Typography sx={{ whiteSpace: "normal", wordBreak: "break-word", textAlign: "left" }}>
-              {isEditing ? (
-              <>
-                <TextField label="address" value={address} onChange={(e) => setAddress(e.target.value)} fullWidth />
-              </>
-            ) : (
-              <>
-                <Typography>{address}</Typography>
-              </>
-            )}
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+  const {
+    data: location,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: [locationHttpService.key, "show", siteId],
+    queryFn: () => locationHttpService.queries.show(siteId!),
+    enabled: !!siteId,
+  });
 
-      <Box sx={{ display: "flex", gap: 4, ml: 12, mr: 12, mt: 4, alignItems: "flex-start" }}>
-        <Box>
+  if (isLoading) {
+    return (
+      <Box sx={{ p: 3 }}>
+        {/* Header Skeleton */}
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
           <Box>
-            {isInSession ? (
-              <>
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                      <span style={{ color: 'red' }}>Currently In Session</span>
-                    </Typography>
-                <Box
-                  sx={{
-                    backgroundColor: '#b9f6ca', // Light green background
-                    border: '2px solid #2e7d32', // Darker green border
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    width: '100%',
-                    maxWidth: '400px',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  {/* Header: Class Name */}
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 0.5, color: '#000' }}>
-                    Preschool Lesson
-                  </Typography>
-
-                  {/* Subheader: Time and Teacher */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#444' }}>
-                      9:00 - 10:00
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#444' }}>
-                      Alex Rodriguez
-                    </Typography>
-                  </Box>
-
-                  {/* Attendance Footer */}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                      <span style={{ color: 'red' }}>8/10</span> students present
-                    </Typography>
-                  </Box>
-                </Box>
-              </>
-            ):(
-              <>
-              </>
-            )}
-          </Box>
-            <ToggleButtonGroup
-                  value={role}
-                  exclusive
-                  onChange={handleRoleChange}
-                  sx={{
-                    borderRadius: "20px",
-                    overflow: "hidden",
-                    mt: 4,
-                  }}
-                >
-                  <ToggleButton value="teachers">
-                    Teachers
-                  </ToggleButton>
-                  <ToggleButton value="students">
-                    Students
-                  </ToggleButton>
-                </ToggleButtonGroup>
-
-          <Box sx={{ display: "flex", gap: 4 ,justifyContent: "space-between", mt: 4}}>
-            <Box>
-              <Typography color="text.secondary" sx={{ mb: 2 }}>
-                {teachers.length} Teachers Registered
-              </Typography>
-
-              <Stack spacing={2}>
-                {role === "teachers" &&
-                  teachers.map((teacher) => (
-                    <Card
-                      key={teacher.id}
-                      sx={{
-                        p: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        borderRadius: 4,
-                        backgroundColor: "#e0e0e0",
-                        maxWidth: 1200,
-                        minWidth: 400,
-                        width: "100%",
-                        mx: "auto",
-                      }}
-                    >
-                      <Avatar
-                        src="profile.jpg"
-                        sx={{ width: 56, height: 56, mr: 2 }}
-                      />
-                      <Box>
-                        <Typography
-                          variant="h6"
-                          onClick={() => navigate(`/users/${teacher.id}`)}
-                          sx={{ cursor: "pointer", "&:hover": { color: "#4780c1" }}}
-                        >
-                          {teacher.name}
-                        </Typography>
-                        <Box
-                          sx={{
-                            backgroundColor:
-                            teacher.type === "Preschool" ? "#32CD32" : "#D81B60",
-                            color: "white",
-                            padding: "4px 16px",
-                            borderRadius: "20px",
-                            display: "inline-block",
-                            width: "fit-content",
-                            fontSize: "0.875rem",
-                            fontWeight: "medium",
-                          }}
-                        >
-                          {teacher.type}
-                        </Box>
-                      </Box>
-                    </Card>
-                  ))}
-
-                {role === "students" &&
-                  students.map((student) => (
-                    <Card
-                      key={student.id}
-                      sx={{
-                        p: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        borderRadius: 4,
-                        backgroundColor: student.isHere ? "#4CAF50" : "#ce4848",
-                        maxWidth: 1200,
-                        minWidth: 400,
-                        width: "100%",
-                        mx: "auto",
-                      }}
-                    >
-                      <Avatar
-                        src="student.jpg"
-                        sx={{ width: 56, height: 56, mr: 2 }}
-                      />
-                      <Box>
-                        <Typography variant="h6" onClick={() => navigate(`/users/${student.id}`)} sx={{ cursor: "pointer", "&:hover": { color: "#4780c1" }}}>{student.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          <Box sx={{
-                            backgroundColor: student.isHere ? "#32CD32" : "#D81B60",
-                            color: "white",
-                            padding: "4px 16px",
-                            borderRadius: "20px",
-                            display: "inline-block",
-                            width: "fit-content",
-                            fontSize: "0.875rem",
-                            fontWeight: "medium",
-                          }}>{student.grade}</Box>
-                        </Typography>
-                      </Box>
-                    </Card>
-                  ))}
-              </Stack>
+            <Skeleton variant="rounded" width={150} height={36} sx={{ mb: 1 }} />
+            <Skeleton variant="text" width={250} height={40} />
+            <Box display="flex" gap={1} mt={1}>
+              <Skeleton variant="rounded" width={120} height={32} />
+              <Skeleton variant="rounded" width={80} height={32} />
             </Box>
           </Box>
+          <Skeleton variant="rounded" width={140} height={36} />
         </Box>
-        <Box sx={{ ml: 15 }}>
-          <Box
-            sx={{
-              border: "1px solid #e0e0e0",
-              borderRadius: 2,
-              padding: 2,
-              minWidth: 320,
-              backgroundColor: "#fafafa",
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Upcoming Events
-            </Typography>
-            <Stack spacing={1}>
-              {myEvents.map((event) => (
-                <Box
-                  key={`${event.title}-${event.start}`}
-                  sx={{
-                    padding: 1,
-                    borderRadius: 1,
-                    backgroundColor: "#fff",
-                    border: "1px solid #eee",
-                  }}
-                >
-                  <Typography variant="subtitle1">{event.title}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {event.start} {event.end ? `– ${event.end}` : ""}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
+        {/* Cards Skeleton */}
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+          <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
+            <CardContent>
+              <Skeleton variant="text" width={100} height={28} sx={{ mb: 2 }} />
+              <Skeleton variant="text" width="80%" />
+              <Skeleton variant="text" width="60%" />
+              <Skeleton variant="text" width="70%" />
+            </CardContent>
+          </Card>
+          <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
+            <CardContent>
+              <Skeleton variant="text" width={80} height={28} sx={{ mb: 2 }} />
+              <Skeleton variant="text" width="50%" />
+              <Skeleton variant="text" width="40%" />
+              <Skeleton variant="text" width="45%" />
+            </CardContent>
+          </Card>
         </Box>
       </Box>
+    );
+  }
+
+  if (error || !location) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          {error ? "Failed to load location details." : "Location not found."}
+        </Alert>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/locations")}
+          sx={{ mt: 2 }}
+        >
+          Back to Locations
+        </Button>
+      </Box>
+    );
+  }
+
+  const formatAddress = () => {
+    const parts = [
+      location.address_line1,
+      location.address_line2,
+      `${location.city}, ${location.state} ${location.postal_code}`,
+      location.country !== "USA" ? location.country : null,
+    ].filter(Boolean);
+    return parts;
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+        <Box>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate("/locations")}
+            sx={{ mb: 1 }}
+          >
+            Back to Locations
+          </Button>
+          <Typography variant="h4" component="h1" gutterBottom>
+            {location.name}
+          </Typography>
+          <Box display="flex" gap={1} flexWrap="wrap">
+            <Chip
+              label={
+                location.type === "education_center"
+                  ? "Education Center"
+                  : "Pop-up"
+              }
+              color={location.type === "education_center" ? "primary" : "secondary"}
+            />
+            <Chip
+              label={location.is_active ? "Active" : "Inactive"}
+              color={location.is_active ? "success" : "error"}
+            />
+          </Box>
+        </Box>
+        {isAdmin && (
+          <Button
+            variant="contained"
+            startIcon={<EditIcon />}
+            onClick={() => navigate(`/locations/${siteId}/edit`)}
+          >
+            Edit Location
+          </Button>
+        )}
+      </Box>
+
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+        {/* Address Card */}
+        <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
+          <CardContent>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <LocationOnIcon color="primary" />
+              <Typography variant="h6">Address</Typography>
+            </Box>
+            <Box>
+              {formatAddress().map((line, index) => (
+                <Typography key={index} variant="body1">
+                  {line}
+                </Typography>
+              ))}
+            </Box>
+            {location.latitude && location.longitude && (
+              <Box mt={2}>
+                <Typography variant="body2" color="text.secondary">
+                  Coordinates: {location.latitude}, {location.longitude}
+                </Typography>
+                <Button
+                  size="small"
+                  href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ mt: 1 }}
+                >
+                  View on Google Maps
+                </Button>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Details Card */}
+        <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
+          <CardContent>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <AccessTimeIcon color="primary" />
+              <Typography variant="h6">Details</Typography>
+            </Box>
+            <Box display="flex" flexDirection="column" gap={1}>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Timezone
+                </Typography>
+                <Typography variant="body1">{location.timezone}</Typography>
+              </Box>
+              <Divider sx={{ my: 1 }} />
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Created
+                </Typography>
+                <Typography variant="body1">
+                  {new Date(location.created_at).toLocaleDateString()}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Last Updated
+                </Typography>
+                <Typography variant="body1">
+                  {new Date(location.updated_at).toLocaleDateString()}
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Zoom Link Card */}
+        {location.zoom_link && (
+          <Card sx={{ flex: "1 1 100%", minWidth: 300 }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <VideocamIcon color="primary" />
+                <Typography variant="h6">Virtual Meeting</Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                href={location.zoom_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                startIcon={<VideocamIcon />}
+              >
+                Join Zoom Meeting
+              </Button>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {location.zoom_link}
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
     </Box>
-  )
+  );
 }
+
+

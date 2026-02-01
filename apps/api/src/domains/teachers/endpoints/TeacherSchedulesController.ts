@@ -1,17 +1,20 @@
 import { Body, JsonController, Param, Patch, Post } from "routing-controllers";
-import { Service, Inject } from "typedi";
-import { TeachersService } from "../services/TeachersService";
+import { Service } from "typedi";
+import Container from "@/container";
+import { Authorized } from "routing-controllers";
+import { TeachersService, type CreateScheduleInput, type UpdateScheduleInput } from "../services/TeachersService";
 
 @Service()
 @JsonController("/v1")
 export class PostTeacherSchedulesController {
-  constructor(
-    @Inject(() => TeachersService)
-    private readonly teachersService: TeachersService
-  ) {}
+  private teachersService: TeachersService;
+  constructor() {
+    this.teachersService = Container.get(TeachersService);
+  }
 
   @Post("/teachers/:id/schedules")
-  async handle(@Param("id") id: string, @Body() body: any) {
+  @Authorized(["administrator"])
+  async handle(@Param("id") id: string, @Body() body: CreateScheduleInput) {
     return await this.teachersService.createSchedule(id, body);
   }
 }
@@ -19,15 +22,18 @@ export class PostTeacherSchedulesController {
 @Service()
 @JsonController("/v1")
 export class PatchSchedulesController {
-  constructor(
-    @Inject(() => TeachersService)
-    private readonly teachersService: TeachersService
-  ) {}
+  private teachersService: TeachersService;
+  constructor() {
+    this.teachersService = Container.get(TeachersService);
+  }
 
   @Patch("/schedules/:scheduleId")
-  async handle(@Param("scheduleId") scheduleId: string, @Body() body: any) {
-    return await this.teachersService.updateSchedule(scheduleId, body);
+  @Authorized(["administrator"])
+  async handle(@Param("scheduleId") scheduleId: string, @Body() body: UpdateScheduleInput) {
+    const schedule = await this.teachersService.updateSchedule(scheduleId, body);
+    if (!schedule) {
+      throw new Error("Schedule not found");
+    }
+    return schedule;
   }
 }
-
-

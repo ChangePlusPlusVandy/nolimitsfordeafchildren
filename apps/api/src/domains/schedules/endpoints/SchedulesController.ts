@@ -1,26 +1,59 @@
-import { Body, Get, JsonController, Post, QueryParams } from "routing-controllers";
-import { Service, Inject } from "typedi";
-import { SchedulesService } from "../services/SchedulesService";
+import { Body, Get, JsonController, Param, Post, QueryParam, Authorized } from "routing-controllers";
+import { Service } from "typedi";
+import Container from "@/container";
+import { 
+  SchedulesService, 
+  type ListSchedulesQuery, 
+  type AvailableSchedulesQuery,
+  type ConflictCheckInput 
+} from "../services/SchedulesService";
 
 @Service()
 @JsonController("/v1/schedules")
 export class SchedulesController {
-  constructor(
-    @Inject(() => SchedulesService)
-    private readonly schedulesService: SchedulesService
-  ) {}
+  private schedulesService: SchedulesService;
+  constructor() {
+    this.schedulesService = Container.get(SchedulesService);
+  }
 
   @Get("/")
-  async index(@QueryParams() query: any) {
+  @Authorized()
+  async index(
+    @QueryParam("teacher_id") teacher_id?: string,
+    @QueryParam("site_id") site_id?: string,
+    @QueryParam("is_active") is_active?: boolean,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
+    const query: ListSchedulesQuery = { teacher_id, site_id, is_active, page, limit };
     return await this.schedulesService.index(query);
   }
 
+  @Get("/available")
+  @Authorized(["parent", "administrator"])
+  async available(
+    @QueryParam("site_id") site_id?: string,
+    @QueryParam("day_of_week_mask") day_of_week_mask?: number,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number
+  ) {
+    const query: AvailableSchedulesQuery = { site_id, day_of_week_mask, page, limit };
+    return await this.schedulesService.getAvailable(query);
+  }
+
+  @Get("/:id")
+  @Authorized()
+  async show(@Param("id") id: string) {
+    const schedule = await this.schedulesService.show(id);
+    if (!schedule) {
+      throw new Error("Schedule not found");
+    }
+    return schedule;
+  }
+
   @Post("/conflicts/check")
-  async checkConflicts(@Body() body: any) {
+  @Authorized(["administrator"])
+  async checkConflicts(@Body() body: ConflictCheckInput) {
     return await this.schedulesService.checkConflicts(body);
   }
 }
-
-
-
-

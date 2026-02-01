@@ -1,128 +1,342 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import {
   Box,
   Typography,
+  Button,
+  Card,
+  CardContent,
   TextField,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  InputAdornment,
   List,
   ListItem,
+  ListItemButton,
+  ListItemText,
+  Chip,
+  Alert,
   Paper,
+  Skeleton,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import AddIcon from "@mui/icons-material/Add";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import SearchIcon from "@mui/icons-material/Search";
+import { useLocationHttpService, type LocationMapPin } from "../services/LocationHttpService";
+import { useAuth } from "../../../auth";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { divIcon, LatLngBounds } from "leaflet";
+import "leaflet/dist/leaflet.css";
 
-type PersonList = string[];
-type Sites = Record<string, PersonList>;
-type StateData = Record<string, Sites>;
+// Create custom marker icons
+const createMarkerIcon = (isActive: boolean) => {
+  const color = isActive ? "#22c55e" : "#ef4444"; // green-500 / red-500
+  return divIcon({
+    className: "custom-marker",
+    html: `<div style="
+      background-color: ${color};
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    "></div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+  });
+};
 
-
-export default function PopupSitesPage() {
-  const [search, setSearch] = useState<string>("");
-  const [mounted, setMounted] = useState(false);
+// Auto-fit map bounds to show all markers
+function FitBoundsToMarkers({
+  pins,
+}: {
+  pins: Array<{ latitude: string; longitude: string }>;
+}) {
+  const map = useMap();
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (pins.length === 0) return;
 
-  const data: StateData = {
-    California: {
-      "Smith Public Library": ["Kevin Morales (10)", "Sara Jones (12)"],
-    },
-    Colorado: {
-      "Boulder Community Center": [],
-      "Greenville Children Center": [],
-      "Denver Public Library": [],
-    },
-    "New Mexico": {},
-    Utah: {},
-    Vermont: {},
-    Washington: {},
-    Wyoming: {},
+    const bounds = new LatLngBounds(
+      pins.map((pin) => [parseFloat(pin.latitude), parseFloat(pin.longitude)] as [number, number])
+    );
+
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }, [map, pins]);
+
+  return null;
+}
+
+export default function LocationsIndexPage() {
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const locationHttpService = useLocationHttpService();
+  const [search, setSearch] = useState("");
+
+  // Fetch all locations for the list
+  const {
+    data: locations,
+    isLoading: locationsLoading,
+    error: locationsError,
+  } = useQuery({
+    queryKey: [locationHttpService.key, "index"],
+    queryFn: locationHttpService.queries.index,
+  });
+
+  // Fetch map data (optimized for pins)
+  const {
+    data: mapPins,
+    isLoading: mapLoading,
+  } = useQuery({
+    queryKey: [locationHttpService.key, "mapData"],
+    queryFn: locationHttpService.queries.mapData,
+  });
+
+  // Filter pins with valid coordinates
+  const validMapPins = (mapPins ?? []).filter(
+    (pin): pin is LocationMapPin & { latitude: string; longitude: string } =>
+      pin.latitude !== null && pin.longitude !== null
+  );
+
+  // Calculate map center (average of all pins, or default to US center)
+  const mapCenter: [number, number] =
+    validMapPins.length > 0
+      ? [
+          validMapPins.reduce((sum, pin) => sum + parseFloat(pin.latitude), 0) /
+            validMapPins.length,
+          validMapPins.reduce((sum, pin) => sum + parseFloat(pin.longitude), 0) /
+            validMapPins.length,
+        ]
+      : [39.8283, -98.5795]; // Geographic center of US
+
+  const handleLocationClick = (id: string) => {
+    navigate(`/locations/${id}`);
   };
 
-  const filteredData = Object.entries(data).reduce<StateData>((acc, [state, sites]) => {
-    const filteredSites = Object.entries(sites).filter(([site]) =>
-      site.toLowerCase().includes(search.toLowerCase())
+  if (locationsLoading) {
+    return (
+      <Box sx={{ p: 3 }}>
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="h4" component="h1">
+            Locations
+          </Typography>
+        </Box>
+        {/* Map Skeleton */}
+        <Paper elevation={2} sx={{ mb: 3, overflow: "hidden", borderRadius: 2 }}>
+          <Skeleton variant="rectangular" height={400} animation="pulse" />
+        </Paper>
+        {/* List Skeleton */}
+        <Card>
+          <CardContent sx={{ p: 0 }}>
+            <Skeleton variant="text" width={150} sx={{ p: 2, pb: 1 }} />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Box key={i} sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
+                <Skeleton variant="circular" width={24} height={24} />
+                <Box sx={{ flex: 1 }}>
+                  <Skeleton variant="text" width="40%" />
+                  <Skeleton variant="text" width="25%" />
+                </Box>
+                <Skeleton variant="rounded" width={100} height={24} />
+                <Skeleton variant="rounded" width={70} height={24} />
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+      </Box>
     );
-    if (
-      filteredSites.length > 0 ||
-      state.toLowerCase().includes(search.toLowerCase())
-    ) {
-      acc[state] = Object.fromEntries(filteredSites);
-    }
-    return acc;
-  }, {});
+  }
+
+  if (locationsError) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        Failed to load locations. Please try again.
+      </Alert>
+    );
+  }
+
+  const filteredLocations = (locations ?? []).filter((location) => {
+    if (!search.trim()) return true;
+    const query = search.toLowerCase();
+    return (
+      location.name.toLowerCase().includes(query) ||
+      location.city.toLowerCase().includes(query) ||
+      location.state.toLowerCase().includes(query)
+    );
+  });
 
   return (
-    <Box className="flex p-4 gap-6 w-full h-screen bg-gray-100">
-      <Box className="flex flex-col flex-1 min-h-0">
-        <Typography variant="h4" className="mb-4 font-semibold">
-          Welcome, Elizabeth!
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" component="h1">
+          Locations
         </Typography>
-
-        <TextField
-          placeholder="Search here..."
-          variant="outlined"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 w-80"
-        />
-
-        <Box
-          className="flex gap-6 flex-1 min-h-0"
-          style={{ height: "calc(100vh - 200px)" }}
-        >
-          <Paper className="w-80 p-2 overflow-auto flex-shrink-0" elevation={3}>
-            <Typography variant="h6" className="p-2 bg-purple-700 text-white rounded-md">
-              Pop-Up Sites
-            </Typography>
-
-            {Object.entries(filteredData).map(([state, sites]) => (
-              <Accordion key={state}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}> {state} </AccordionSummary>
-                <AccordionDetails>
-                  {Object.entries(sites).map(([site, people]) => (
-                    <Accordion key={site}>
-                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>{site}</AccordionSummary>
-                      <AccordionDetails>
-                        <List>
-                          {people.map((p) => (
-                            <ListItem key={p}>{p}</ListItem>
-                          ))}
-                        </List>
-                      </AccordionDetails>
-                    </Accordion>
-                  ))}
-                </AccordionDetails>
-              </Accordion>
-            ))}
-          </Paper>
-
-          <Paper
-            className="flex-1 overflow-hidden"
-            elevation={3}
-            style={{ minHeight: 0 }}
-          >
-            {mounted && (
-              <Box
-                sx={{
-                  height: "100%",
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "#f3f4f6",
-                }}
-              >
-                <Typography color="text.secondary">
-                  Map placeholder
-                </Typography>
-              </Box>
-            )}
-          </Paper>
+        <Box display="flex" gap={2} alignItems="center">
+          <TextField
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search locations..."
+            size="small"
+            sx={{ minWidth: 240 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {isAdmin && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate("/locations/new")}
+            >
+              Add Location
+            </Button>
+          )}
         </Box>
       </Box>
+
+      {/* Map Section */}
+      <Paper elevation={2} sx={{ mb: 3, overflow: "hidden", borderRadius: 2 }}>
+        <Box sx={{ height: 400, width: "100%" }}>
+          {mapLoading ? (
+            <Skeleton variant="rectangular" height="100%" animation="pulse" />
+          ) : (
+            <MapContainer
+              center={mapCenter}
+              zoom={4}
+              style={{ height: "100%", width: "100%" }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {validMapPins.map((pin) => (
+                <Marker
+                  key={pin.id}
+                  position={[parseFloat(pin.latitude), parseFloat(pin.longitude)]}
+                  icon={createMarkerIcon(pin.is_active)}
+                  eventHandlers={{
+                    click: () => handleLocationClick(pin.id),
+                  }}
+                >
+                  <Popup>
+                    <Box sx={{ minWidth: 150 }}>
+                      <Typography variant="subtitle2" fontWeight="bold">
+                        {pin.name}
+                      </Typography>
+                      <Chip
+                        label={pin.type === "education_center" ? "Education Center" : "Pop-up"}
+                        size="small"
+                        color={pin.type === "education_center" ? "primary" : "secondary"}
+                        sx={{ mt: 0.5, mb: 0.5 }}
+                      />
+                      <br />
+                      <Chip
+                        label={pin.is_active ? "Active" : "Inactive"}
+                        size="small"
+                        color={pin.is_active ? "success" : "error"}
+                      />
+                    </Box>
+                      </Popup>
+                    </Marker>
+                  ))}
+                  <FitBoundsToMarkers pins={validMapPins} />
+                </MapContainer>
+          )}
+        </Box>
+      </Paper>
+
+      {/* Legend */}
+      <Box display="flex" gap={2} mb={2}>
+        <Box display="flex" alignItems="center" gap={0.5}>
+          <Box
+            sx={{
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              bgcolor: "#22c55e",
+              border: "2px solid white",
+              boxShadow: 1,
+            }}
+          />
+          <Typography variant="body2">Active</Typography>
+        </Box>
+        <Box display="flex" alignItems="center" gap={0.5}>
+          <Box
+            sx={{
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              bgcolor: "#ef4444",
+              border: "2px solid white",
+              boxShadow: 1,
+            }}
+          />
+          <Typography variant="body2">Inactive</Typography>
+        </Box>
+      </Box>
+
+      {/* Locations List */}
+      <Card>
+        <CardContent sx={{ p: 0 }}>
+          <Typography variant="h6" sx={{ p: 2, pb: 1 }}>
+            All Locations ({filteredLocations.length})
+          </Typography>
+          <List disablePadding>
+            {filteredLocations.map((location, index) => (
+              <ListItem
+                key={location.id}
+                disablePadding
+                divider={index < filteredLocations.length - 1}
+              >
+                <ListItemButton onClick={() => handleLocationClick(location.id)}>
+                  <LocationOnIcon
+                    sx={{
+                      mr: 2,
+                      color: location.is_active ? "success.main" : "error.main",
+                    }}
+                  />
+                  <ListItemText
+                    primary={location.name}
+                    secondary={`${location.city}, ${location.state}`}
+                  />
+                  <Box display="flex" gap={1} alignItems="center">
+                    <Chip
+                      label={
+                        location.type === "education_center"
+                          ? "Education Center"
+                          : "Pop-up"
+                      }
+                      size="small"
+                      color={
+                        location.type === "education_center" ? "primary" : "secondary"
+                      }
+                      variant="outlined"
+                    />
+                    <Chip
+                      label={location.is_active ? "Active" : "Inactive"}
+                      size="small"
+                      color={location.is_active ? "success" : "error"}
+                      variant="outlined"
+                    />
+                  </Box>
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+          {(locations?.length ?? 0) === 0 && (
+            <Box p={3} textAlign="center">
+              <Typography color="text.secondary">
+                No locations found. {isAdmin && "Click 'Add Location' to create one."}
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
     </Box>
   );
 }

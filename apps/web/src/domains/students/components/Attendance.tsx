@@ -1,4 +1,3 @@
-import React from "react";
 import type { AttendanceSummary } from "../pages/mockdata";
 
 function Attendance({ summary }: { summary: AttendanceSummary }) {
