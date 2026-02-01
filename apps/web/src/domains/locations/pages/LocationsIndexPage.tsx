@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import {
@@ -7,6 +7,8 @@ import {
   Button,
   Card,
   CardContent,
+  TextField,
+  InputAdornment,
   List,
   ListItem,
   ListItemButton,
@@ -18,6 +20,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
+import SearchIcon from "@mui/icons-material/Search";
 import { useLocationHttpService, type LocationMapPin } from "../services/LocationHttpService";
 import { useAuth } from "../../../auth";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -68,6 +71,7 @@ export default function LocationsIndexPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const locationHttpService = useLocationHttpService();
+  const [search, setSearch] = useState("");
 
   // Fetch all locations for the list
   const {
@@ -151,6 +155,16 @@ export default function LocationsIndexPage() {
     );
   }
 
+  const filteredLocations = (locations ?? []).filter((location) => {
+    if (!search.trim()) return true;
+    const query = search.toLowerCase();
+    return (
+      location.name.toLowerCase().includes(query) ||
+      location.city.toLowerCase().includes(query) ||
+      location.state.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -158,15 +172,31 @@ export default function LocationsIndexPage() {
         <Typography variant="h4" component="h1">
           Locations
         </Typography>
-        {isAdmin && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate("/locations/new")}
-          >
-            Add Location
-          </Button>
-        )}
+        <Box display="flex" gap={2} alignItems="center">
+          <TextField
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search locations..."
+            size="small"
+            sx={{ minWidth: 240 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {isAdmin && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate("/locations/new")}
+            >
+              Add Location
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* Map Section */}
@@ -254,14 +284,14 @@ export default function LocationsIndexPage() {
       <Card>
         <CardContent sx={{ p: 0 }}>
           <Typography variant="h6" sx={{ p: 2, pb: 1 }}>
-            All Locations ({locations?.length ?? 0})
+            All Locations ({filteredLocations.length})
           </Typography>
           <List disablePadding>
-            {(locations ?? []).map((location, index) => (
+            {filteredLocations.map((location, index) => (
               <ListItem
                 key={location.id}
                 disablePadding
-                divider={index < (locations?.length ?? 0) - 1}
+                divider={index < filteredLocations.length - 1}
               >
                 <ListItemButton onClick={() => handleLocationClick(location.id)}>
                   <LocationOnIcon
@@ -310,5 +340,3 @@ export default function LocationsIndexPage() {
     </Box>
   );
 }
-
-
