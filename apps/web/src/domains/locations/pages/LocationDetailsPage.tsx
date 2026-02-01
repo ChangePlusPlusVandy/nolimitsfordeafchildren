@@ -1,35 +1,19 @@
-import { useMutation } from "@tanstack/react-query";
 import { useLocationHttpService } from "../services/LocationHttpService";
 import { Button, Avatar, Box, Stack, Typography, TextField, IconButton, Card, ToggleButton, ToggleButtonGroup } from "@mui/material";
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import React, { useState } from 'react';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function LocationDetailsPage() {
-  const locationHttpService = useLocationHttpService()
-
-  const { mutate: _mutate } = useMutation({
-    mutationKey: [locationHttpService.key, 'show'],
-    mutationFn: locationHttpService.mutations.show,
-    onSuccess: (data) => {
-      console.log(data)
-    },
-    onError: (error) => {
-      console.error(error)
-    }
-  })
+  useLocationHttpService()
   
-  const [isInSession, setIsInSession] = useState(true);
-  let [role, setRole] = useState("teachers");
+  const [isInSession] = useState(true);
+  const [role, setRole] = useState("teachers");
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState('Smith Public Library');
-  const [email, setEmail] = useState('lizaperetti@gmail.com');
-  const [title] = useState('Teacher');
-  const [phoneNumber, setPhoneNumber] = useState('(312) 404-8082');
-  const [address, setAddress] = useState('4181 Baldwin Park Blvd Baldwin Park, CA 91706');
+  const [name, setName] = useState("Smith Public Library");
+  const [address, setAddress] = useState(
+    "4181 Baldwin Park Blvd Baldwin Park, CA 91706"
+  );
 
   const teachers = [
   { id: 1, name: "Alex Rodriguez", type: "Preschool"},
@@ -48,37 +32,33 @@ export default function LocationDetailsPage() {
   
   const myEvents = [
     {
-      title: 'Conference',
-      start: '2026-01-18', // Matches Sun 1/18
-      end: '2026-01-20',   // Ends on Mon 1/19 (end date is exclusive in FC)
-      allDay: true
+      title: "Conference",
+      start: "2026-01-18", // Matches Sun 1/18
+      end: "2026-01-20", // Ends on Mon 1/19 (end date is exclusive in FC)
+      allDay: true,
     },
     {
-      title: 'Birthday Party',
-      start: '2026-01-20T07:00:00', // Tue 1/20 at 7:00 AM
-      end: '2026-01-20T08:00:00'
+      title: "Birthday Party",
+      start: "2026-01-20T07:00:00", // Tue 1/20 at 7:00 AM
+      end: "2026-01-20T08:00:00",
     },
     {
-      title: 'Meeting',
-      start: '2026-01-19T10:30:00', // Mon 1/19
-      end: '2026-01-19T12:30:00'
+      title: "Meeting",
+      start: "2026-01-19T10:30:00", // Mon 1/19
+      end: "2026-01-19T12:30:00",
     },
     {
-      title: 'Lunch',
-      start: '2026-01-19T12:00:00',
-      end: '2026-01-19T13:00:00'
-    }
+      title: "Lunch",
+      start: "2026-01-19T12:00:00",
+      end: "2026-01-19T13:00:00",
+    },
   ];
 
   const handleEditClick = () => {
     setIsEditing(!isEditing)
   }
 
-   const handleRoleChange = (
-    event: React.MouseEvent<HTMLElement>,
-    newRole: string,
-  ) => {
-    
+  const handleRoleChange = (_event: React.MouseEvent<HTMLElement>, newRole: string) => {
     if (newRole !== null) {
       setRole(newRole);
     }
@@ -305,24 +285,39 @@ export default function LocationDetailsPage() {
           </Box>
         </Box>
         <Box sx={{ ml: 15 }}>
-          <FullCalendar
-            plugins={[ dayGridPlugin, timeGridPlugin ]}
-            initialView="timeGridWeek"                
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+          <Box
+            sx={{
+              border: "1px solid #e0e0e0",
+              borderRadius: 2,
+              padding: 2,
+              minWidth: 320,
+              backgroundColor: "#fafafa",
             }}
-            events={myEvents}
-            slotMinTime="06:00:00"
-            slotMaxTime="20:00:00"
-            allDaySlot={true}      
-            height="auto"
-          />
+          >
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Upcoming Events
+            </Typography>
+            <Stack spacing={1}>
+              {myEvents.map((event) => (
+                <Box
+                  key={`${event.title}-${event.start}`}
+                  sx={{
+                    padding: 1,
+                    borderRadius: 1,
+                    backgroundColor: "#fff",
+                    border: "1px solid #eee",
+                  }}
+                >
+                  <Typography variant="subtitle1">{event.title}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {event.start} {event.end ? `– ${event.end}` : ""}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
         </Box>
       </Box>
     </Box>
   )
 }
-
-
