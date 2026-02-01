@@ -26,10 +26,12 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@alloc/quick-lru": "^5.2.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.5",
-    "@mui/material": "^7.3.5",
+    "@mui/icons-material": "^7.3.6",
+    "@mui/material": "^7.3.6",
+    "@mui/x-data-grid": "^8.20.0",
     "react-router-dom": "^7.9.6"
   }
 }
