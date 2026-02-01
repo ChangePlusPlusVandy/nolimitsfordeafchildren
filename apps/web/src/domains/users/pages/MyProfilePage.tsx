@@ -1,28 +1,16 @@
-import { useMutation } from "@tanstack/react-query"
 import { useUserHttpService } from "../services/UserHttpService"
 import { Button, Avatar, Box, Stack, Typography, TextField } from "@mui/material"
 import Grid from '@mui/material/Grid2';
-import React, { useState } from 'react'
+import { useState } from "react"
 
 
 export default function MyProfilePage() {
-  const userHttpService = useUserHttpService()
-
-  const { mutate: _mutate } = useMutation({
-    mutationKey: [userHttpService.key, 'myProfile'],
-    mutationFn: userHttpService.mutations.myProfile,
-    onSuccess: (data) => {
-      console.log(data)
-    },
-    onError: (error) => {
-      console.error(error)
-    }
-  })
+  useUserHttpService()
   
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState('Liza Peretti');
   const [email, setEmail] = useState('lizaperetti@gmail.com')
-  const [title, setTitle] = useState('Teacher');
+  const [title] = useState("Teacher");
   const [phoneNumber, setPhoneNumber] = useState('(312) 404-8082')
   const [address, setAddress] = useState('Baldwin Park, CA')
 
@@ -108,5 +96,3 @@ export default function MyProfilePage() {
     </Box>
   )
 }
-
-
