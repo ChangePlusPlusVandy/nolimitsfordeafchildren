@@ -1,35 +1,21 @@
 import { useState, useEffect } from "react";
-import { Box, Typography, TextField, Accordion, AccordionSummary, AccordionDetails, List, ListItem, Paper } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
-  MapContainer,
-  TileLayer,
-  AttributionControl,
-  Popup,
-  Marker,
-  useMap
-} from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+  Box,
+  Typography,
+  TextField,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  List,
+  ListItem,
+  Paper,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 type PersonList = string[];
 type Sites = Record<string, PersonList>;
 type StateData = Record<string, Sites>;
 
-const center: [number, number] = [36.1447, -86.8027];
-
-function MapResizer() {
-  const map = useMap();
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [map]);
-  
-  return null;
-}
 
 export default function PopupSitesPage() {
   const [search, setSearch] = useState<string>("");
@@ -59,7 +45,10 @@ export default function PopupSitesPage() {
     const filteredSites = Object.entries(sites).filter(([site]) =>
       site.toLowerCase().includes(search.toLowerCase())
     );
-    if (filteredSites.length > 0 || state.toLowerCase().includes(search.toLowerCase())) {
+    if (
+      filteredSites.length > 0 ||
+      state.toLowerCase().includes(search.toLowerCase())
+    ) {
       acc[state] = Object.fromEntries(filteredSites);
     }
     return acc;
@@ -80,7 +69,10 @@ export default function PopupSitesPage() {
           className="mb-4 w-80"
         />
 
-        <Box className="flex gap-6 flex-1 min-h-0" style={{ height: 'calc(100vh - 200px)' }}>
+        <Box
+          className="flex gap-6 flex-1 min-h-0"
+          style={{ height: "calc(100vh - 200px)" }}
+        >
           <Paper className="w-80 p-2 overflow-auto flex-shrink-0" elevation={3}>
             <Typography variant="h6" className="p-2 bg-purple-700 text-white rounded-md">
               Pop-Up Sites
@@ -107,28 +99,26 @@ export default function PopupSitesPage() {
             ))}
           </Paper>
 
-          <Paper className="flex-1 overflow-hidden" elevation={3} style={{ minHeight: 0 }}>
+          <Paper
+            className="flex-1 overflow-hidden"
+            elevation={3}
+            style={{ minHeight: 0 }}
+          >
             {mounted && (
-              <MapContainer
-                center={center}
-                zoom={13}
-                style={{ height: "100%", width: "100%" }}
-                scrollWheelZoom={true}
+              <Box
+                sx={{
+                  height: "100%",
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#f3f4f6",
+                }}
               >
-                <MapResizer />
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <AttributionControl
-                  position="bottomright"
-                  prefix={false}
-                />
-                <Marker position={center}>
-                  <Popup>
-                    Example popup
-                  </Popup>
-                </Marker>
-              </MapContainer>
+                <Typography color="text.secondary">
+                  Map placeholder
+                </Typography>
+              </Box>
             )}
           </Paper>
         </Box>
