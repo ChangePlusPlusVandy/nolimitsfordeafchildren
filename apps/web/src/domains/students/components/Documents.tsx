@@ -1,4 +1,3 @@
-import React from "react";
 import type { Document } from "../pages/mockdata";
 import Button from "./Button";
 
@@ -22,7 +21,7 @@ const Documents = ({ documents }: { documents: Document[] }) => (
             By {doc.uploadedBy} on {doc.uploadedDate}
           </div>
         </div>
-        <Button color="#2563eb" variant="outline">
+        <Button color="#2563eb" variant="outline" onClick={() => {}}>
           Download
         </Button>
       </div>

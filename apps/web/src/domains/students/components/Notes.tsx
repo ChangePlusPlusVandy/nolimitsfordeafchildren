@@ -1,4 +1,3 @@
-import React from "react";
 import type { Note } from "../pages/mockdata";
 
 const Notes = ({ notes }: { notes: Note[] }) => (
