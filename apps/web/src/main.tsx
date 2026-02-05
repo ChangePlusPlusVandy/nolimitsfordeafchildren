@@ -8,6 +8,8 @@ import { AuthProvider } from "./auth";
 // Layouts & Guards
 import DashboardLayout from "./domains/global/layouts/DashboardLayout.tsx";
 import AuthGuard from "./domains/global/components/AuthGuard.tsx";
+import RoleBasedRedirect from "./domains/global/components/RoleBasedRedirect.tsx";
+import RoleGuard from "./domains/global/components/RoleGuard.tsx";
 import ErrorBoundary from "./domains/global/components/ErrorBoundary.tsx";
 import { ToastProvider } from "./domains/global/components/ToastProvider.tsx";
 
@@ -54,7 +56,7 @@ createRoot(document.getElementById("root")!).render(
                   <CssBaseline />
                   <Routes>
                     <Route element={<DashboardLayout />}>
-                      <Route path="/" element={<Navigate to="/my-day" replace />} />
+                      <Route path="/" element={<RoleBasedRedirect />} />
                       <Route path="/users" element={<ManageUsersPage />} />
                       <Route path="/users/:id" element={<UserDetailsPage />} />
                       <Route path="/my-profile" element={<MyProfilePage />} />
@@ -73,7 +75,14 @@ createRoot(document.getElementById("root")!).render(
                         element={<Navigate to="/my-day" replace />}
                       />
                       <Route path="/teachers/new" element={<NewTeacherPage />} />
-                      <Route path="/my-day" element={<MyDayPage />} />
+                      <Route
+                        path="/my-day"
+                        element={
+                          <RoleGuard allowedRoles={["teacher", "administrator"]}>
+                            <MyDayPage />
+                          </RoleGuard>
+                        }
+                      />
                       <Route path="/teachers/:id" element={<TeacherDetailsPage />} />
                       <Route
                         path="/teachers/:id/edit"
