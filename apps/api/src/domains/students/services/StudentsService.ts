@@ -299,6 +299,7 @@ export class StudentsService {
         parent_name: UserTable.name,
         parent_email: UserTable.email,
         parent_phone: UserTable.phone,
+        user_id: UserTable.id,
       })
       .from(ParentStudentLinkTable)
       .innerJoin(
@@ -340,6 +341,7 @@ export class StudentsService {
       parents: parentLinks.map((p) => ({
         link_id: p.link_id,
         parent_id: p.parent_id,
+        user_id: p.user_id,
         name: p.parent_name,
         email: p.parent_email,
         phone: p.parent_phone,
