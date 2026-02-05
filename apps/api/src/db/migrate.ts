@@ -8,10 +8,6 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const shouldUseSsl =
-  process.env.POSTGRES_SSL === "true" ||
-  (process.env.POSTGRES_URI?.includes("sslmode=require") ?? false);
-
 /**
  * Run database migrations
  * This function is safe to call on every app start - it will only run pending migrations
@@ -19,15 +15,13 @@ const shouldUseSsl =
 export async function runMigrations(): Promise<void> {
   console.log("Running database migrations...");
   
+  // Always use SSL with rejectUnauthorized: false for DigitalOcean managed databases
+  // DO uses self-signed certificates that Node.js won't trust by default
   const pool = new pg.Pool({
     connectionString: process.env.POSTGRES_URI,
-    ...(shouldUseSsl
-      ? {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        }
-      : {}),
+    ssl: {
+      rejectUnauthorized: false,
+    },
   });
 
   const db = drizzle(pool);
