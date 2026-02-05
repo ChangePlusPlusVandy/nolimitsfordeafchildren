@@ -2,6 +2,10 @@ FROM node:22-alpine
 
 WORKDIR /usr/src/app
 
+# Required for DigitalOcean managed database SSL connections
+# DO uses self-signed certificates that Node.js won't trust by default
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
+
 # Install dependencies
 COPY package.json ./
 RUN npm install
