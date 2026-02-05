@@ -111,20 +111,15 @@ VITE_AUTH0_AUDIENCE=https://api.nolimits.local
 | `db` | 5432 | PostgreSQL 16 database |
 | `minio` | 9000, 9001 | MinIO S3-compatible storage |
 | `minio-init` | - | One-time bucket initialization |
-| `api` | 3000 | Backend API server |
-| `web` | 5173 | Frontend dev server |
 
 ### Common Commands
 
 ```bash
-# Start everything (full stack in Docker)
-docker-compose up -d
-
-# Start only infrastructure (recommended for local dev)
+# Start infrastructure (recommended for local dev)
 docker-compose up db minio minio-init -d
 
 # View logs
-docker-compose logs -f api
+docker-compose logs -f db
 
 # Stop all services
 docker-compose down
@@ -132,6 +127,26 @@ docker-compose down
 # Stop and remove volumes (reset data)
 docker-compose down -v
 ```
+
+## Production Deployment
+
+The application is designed to deploy on DigitalOcean (or similar platforms):
+
+| Component | Service | Notes |
+|-----------|---------|-------|
+| **API** | App Platform (Web Service) | Docker build from `apps/api/Dockerfile` |
+| **Web** | App Platform (Static Site) | Build: `npm run build`, Output: `dist/` |
+| **Database** | Managed PostgreSQL | PostgreSQL 16 recommended |
+| **File Storage** | Spaces (S3-compatible) | For document uploads |
+
+### Deployment Notes
+
+- **API**: Uses the Dockerfile at `apps/api/Dockerfile` with tsx runtime
+- **Web**: No Dockerfile needed - use static site hosting with:
+  - Source Directory: `apps/web`
+  - Build Command: `npm install && npm run build`
+  - Output Directory: `dist`
+- **Migrations**: Run `npm run db:migrate` with production `POSTGRES_URI` after first deployment
 
 ## Database Commands
 

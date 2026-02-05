@@ -1,19 +1,22 @@
-FROM node:22-alpine AS base
+FROM node:22-alpine
 
 WORKDIR /usr/src/app
 
-# Install dependencies (including devDeps for tsx runtime)
-COPY package.json ./
-RUN npm install
+# Install dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci --include=dev
 
 # Copy source and configs for runtime + migrations
-COPY tsconfig.json ./tsconfig.json
-COPY drizzle.config.ts ./drizzle.config.ts
+COPY tsconfig.json ./
+COPY drizzle.config.ts ./
 COPY src ./src
 
+# Expose API port
 EXPOSE 3000
 
-# Use tsx to run the TypeScript entrypoint directly
+# Health check for container orchestration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Run with tsx for TypeScript execution
 CMD ["node", "--import=tsx", "src/server.ts"]
-
-
