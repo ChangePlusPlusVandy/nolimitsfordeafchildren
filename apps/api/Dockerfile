@@ -3,8 +3,8 @@ FROM node:22-alpine
 WORKDIR /usr/src/app
 
 # Install dependencies
-COPY package.json package-lock.json* ./
-RUN npm ci --include=dev
+COPY package.json ./
+RUN npm install
 
 # Copy source and configs for runtime + migrations
 COPY tsconfig.json ./
