@@ -10,7 +10,8 @@
     "clean": "rm -rf dist",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit migrate",
-    "db:studio": "NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit studio"
+    "db:studio": "NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit studio",
+    "db:migrate:run": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx src/db/migrate.ts"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
