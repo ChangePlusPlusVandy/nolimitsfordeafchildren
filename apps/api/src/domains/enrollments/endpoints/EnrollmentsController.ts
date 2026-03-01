@@ -1,4 +1,13 @@
-import { Body, Get, JsonController, Patch, Post, QueryParam, Param, Authorized } from "routing-controllers";
+import {
+  Body,
+  Get,
+  JsonController,
+  Patch,
+  Post,
+  QueryParam,
+  Param,
+  Authorized,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { EnrollmentsService } from "../services/EnrollmentsService";
@@ -18,7 +27,7 @@ export class GetEnrollmentsController {
     @QueryParam("schedule_id") schedule_id?: string,
     @QueryParam("is_active") is_active?: boolean,
     @QueryParam("page") page?: number,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     return await this.enrollmentsService.index({ student_id, schedule_id, is_active, page, limit });
   }

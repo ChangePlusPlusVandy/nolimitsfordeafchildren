@@ -55,7 +55,7 @@ export function useUserHttpService() {
 
   return {
     key: "users",
-    
+
     queries: {
       /**
        * List users with filtering and pagination
@@ -64,7 +64,7 @@ export function useUserHttpService() {
         const response = await httpClient.get("/v1/users", { params });
         return response.data;
       },
-      
+
       /**
        * Get a single user by ID
        */
@@ -73,7 +73,7 @@ export function useUserHttpService() {
         return response.data;
       },
     },
-    
+
     mutations: {
       /**
        * Invite a new user
@@ -82,7 +82,7 @@ export function useUserHttpService() {
         const response = await httpClient.post("/v1/users/invite", payload);
         return response.data;
       },
-      
+
       /**
        * Update a user
        */
@@ -90,7 +90,7 @@ export function useUserHttpService() {
         const response = await httpClient.patch(`/v1/users/${id}`, data);
         return response.data;
       },
-      
+
       /**
        * Disable (soft delete) a user
        */
@@ -98,7 +98,7 @@ export function useUserHttpService() {
         const response = await httpClient.delete(`/v1/users/${id}`);
         return response.data;
       },
-      
+
       /**
        * Re-enable a disabled user
        */

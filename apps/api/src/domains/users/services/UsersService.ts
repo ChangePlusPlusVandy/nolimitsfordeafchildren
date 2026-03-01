@@ -1,11 +1,11 @@
 import { Service } from "typedi";
 import { eq, ilike, or, desc, asc, and, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { 
-  UserTable, 
+import {
+  UserTable,
   TeacherProfileTable,
   ParentProfileTable,
-  type UserEntity, 
+  type UserEntity,
   type UserInsert,
 } from "@/db/schema";
 
@@ -58,10 +58,7 @@ export class UsersService {
 
     if (query.search) {
       conditions.push(
-        or(
-          ilike(UserTable.name, `%${query.search}%`),
-          ilike(UserTable.email, `%${query.search}%`)
-        )
+        or(ilike(UserTable.name, `%${query.search}%`), ilike(UserTable.email, `%${query.search}%`)),
       );
     }
 
@@ -80,16 +77,17 @@ export class UsersService {
       .select({ count: sql<number>`count(*)::int` })
       .from(UserTable)
       .where(whereClause);
-    
+
     const total = countResult[0]?.count || 0;
 
     // Determine sort column and order
-    const sortColumn = query.sort === "email" 
-      ? UserTable.email 
-      : query.sort === "created_at" 
-        ? UserTable.created_at 
-        : UserTable.name;
-    
+    const sortColumn =
+      query.sort === "email"
+        ? UserTable.email
+        : query.sort === "created_at"
+          ? UserTable.created_at
+          : UserTable.name;
+
     const orderFn = query.order === "desc" ? desc : asc;
 
     // Get paginated results
@@ -114,11 +112,7 @@ export class UsersService {
    * Get a single user by ID
    */
   async show(id: string): Promise<UserEntity | null> {
-    const users = await db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.id, id))
-      .limit(1);
+    const users = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
 
     return users[0] ?? null;
   }
@@ -159,10 +153,7 @@ export class UsersService {
       is_active: true,
     };
 
-    const result = await db
-      .insert(UserTable)
-      .values(newUser)
-      .returning();
+    const result = await db.insert(UserTable).values(newUser).returning();
 
     const user = result[0]!;
 
@@ -245,11 +236,7 @@ export class UsersService {
   /**
    * Handle profile table changes when role changes
    */
-  private async handleRoleChange(
-    userId: string,
-    oldRole: string,
-    newRole: string
-  ): Promise<void> {
+  private async handleRoleChange(userId: string, oldRole: string, newRole: string): Promise<void> {
     // If becoming a teacher, create teacher profile if not exists
     if (newRole === "teacher") {
       const existing = await db

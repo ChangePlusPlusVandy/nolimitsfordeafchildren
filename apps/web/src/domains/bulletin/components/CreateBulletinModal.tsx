@@ -44,7 +44,11 @@ interface PendingAttachment {
   mime_type?: string;
 }
 
-export default function CreateBulletinModal({ open, onClose, onSuccess }: CreateBulletinModalProps) {
+export default function CreateBulletinModal({
+  open,
+  onClose,
+  onSuccess,
+}: CreateBulletinModalProps) {
   const queryClient = useQueryClient();
   const bulletinHttpService = useBulletinHttpService();
   const locationHttpService = useLocationHttpService();
@@ -72,12 +76,12 @@ export default function CreateBulletinModal({ open, onClose, onSuccess }: Create
   const createMutation = useMutation({
     mutationFn: async (data: CreateBulletinInput) => {
       const bulletin = await bulletinHttpService.mutations.create(data);
-      
+
       // Add attachments if any
       for (const attachment of pendingAttachments) {
         await bulletinHttpService.mutations.addAttachment(bulletin.id, attachment);
       }
-      
+
       return bulletin;
     },
     onSuccess: () => {
@@ -252,7 +256,7 @@ export default function CreateBulletinModal({ open, onClose, onSuccess }: Create
               <Typography variant="subtitle2" gutterBottom>
                 Attachments
               </Typography>
-              
+
               {pendingAttachments.length > 0 && (
                 <List dense sx={{ mb: 2 }}>
                   {pendingAttachments.map((attachment, index) => (
@@ -301,7 +305,11 @@ export default function CreateBulletinModal({ open, onClose, onSuccess }: Create
                   Add
                 </Button>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 0.5, display: "block" }}
+              >
                 Enter the URL and display name for each attachment
               </Typography>
             </Box>

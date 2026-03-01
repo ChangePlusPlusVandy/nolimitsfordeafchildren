@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogTitle,
@@ -11,23 +11,29 @@ import {
   Box,
   Typography,
   CircularProgress,
-} from "@mui/material"
-import { useHttpClient } from "../../../plugins/axios"
-import { useToast } from "../../global/components/ToastProvider"
+} from "@mui/material";
+import { useHttpClient } from "../../../plugins/axios";
+import { useToast } from "../../global/components/ToastProvider";
 
-type AbsenceReason = "sick" | "family_emergency" | "transportation" | "schedule_conflict" | "no_show_unknown" | "other"
+type AbsenceReason =
+  | "sick"
+  | "family_emergency"
+  | "transportation"
+  | "schedule_conflict"
+  | "no_show_unknown"
+  | "other";
 
 interface MissedSession {
-  schedule_id: string
-  date: string
-  reason: string | null
+  schedule_id: string;
+  date: string;
+  reason: string | null;
 }
 
 interface RequestMakeupModalProps {
-  open: boolean
-  onClose: () => void
-  studentId: string
-  missedSession: MissedSession | null
+  open: boolean;
+  onClose: () => void;
+  studentId: string;
+  missedSession: MissedSession | null;
 }
 
 const REASON_OPTIONS: { value: AbsenceReason; label: string }[] = [
@@ -37,7 +43,7 @@ const REASON_OPTIONS: { value: AbsenceReason; label: string }[] = [
   { value: "schedule_conflict", label: "Schedule conflict" },
   { value: "no_show_unknown", label: "Unable to attend (other)" },
   { value: "other", label: "Other" },
-]
+];
 
 export default function RequestMakeupModal({
   open,
@@ -45,18 +51,18 @@ export default function RequestMakeupModal({
   studentId,
   missedSession,
 }: RequestMakeupModalProps) {
-  const httpClient = useHttpClient()
-  const queryClient = useQueryClient()
-  const toast = useToast()
+  const httpClient = useHttpClient();
+  const queryClient = useQueryClient();
+  const toast = useToast();
 
-  const [reason, setReason] = useState<AbsenceReason>("sick")
-  const [reasonText, setReasonText] = useState("")
-  const [preferredDates, setPreferredDates] = useState("")
+  const [reason, setReason] = useState<AbsenceReason>("sick");
+  const [reasonText, setReasonText] = useState("");
+  const [preferredDates, setPreferredDates] = useState("");
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!missedSession) throw new Error("No session selected")
-      
+      if (!missedSession) throw new Error("No session selected");
+
       const response = await httpClient.post("/v1/makeup-requests", {
         student_id: studentId,
         original_session_date: missedSession.date,
@@ -64,30 +70,30 @@ export default function RequestMakeupModal({
         reason,
         reason_text: reasonText || undefined,
         preferred_dates: preferredDates || undefined,
-      })
-      return response.data
+      });
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parentHttp"] })
-      queryClient.invalidateQueries({ queryKey: ["parent-makeup-requests"] })
-      toast.success("Make-up request submitted successfully")
-      handleClose()
+      queryClient.invalidateQueries({ queryKey: ["parentHttp"] });
+      queryClient.invalidateQueries({ queryKey: ["parent-makeup-requests"] });
+      toast.success("Make-up request submitted successfully");
+      handleClose();
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to submit request")
+      toast.error(err?.response?.data?.message || "Failed to submit request");
     },
-  })
+  });
 
   const handleClose = () => {
-    setReason("sick")
-    setReasonText("")
-    setPreferredDates("")
-    onClose()
-  }
+    setReason("sick");
+    setReasonText("");
+    setPreferredDates("");
+    onClose();
+  };
 
   const handleSubmit = () => {
-    createMutation.mutate()
-  }
+    createMutation.mutate();
+  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -95,8 +101,8 @@ export default function RequestMakeupModal({
       month: "long",
       day: "numeric",
       year: "numeric",
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -164,5 +170,5 @@ export default function RequestMakeupModal({
         </Button>
       </DialogActions>
     </Dialog>
-  )
+  );
 }

@@ -22,18 +22,10 @@ const TeacherAssignments = ({
         }}
       >
         <div>
-          <div style={{ fontWeight: 600, color: "#111827" }}>
-            {teacher.name}
-          </div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
-            {teacher.subject}
-          </div>
+          <div style={{ fontWeight: 600, color: "#111827" }}>{teacher.name}</div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>{teacher.subject}</div>
         </div>
-        <Button
-          onClick={() => onRemove(teacher.id)}
-          color="#dc2626"
-          variant="outline"
-        >
+        <Button onClick={() => onRemove(teacher.id)} color="#dc2626" variant="outline">
           Remove
         </Button>
       </div>

@@ -6,11 +6,11 @@ type UserRole = "administrator" | "teacher" | "parent";
 /**
  * Middleware factory that requires the user to have one of the specified roles
  * Must be used after authMiddleware (which sets req.currentUser)
- * 
+ *
  * @example
  * // Single role
  * router.get("/admin-only", requireRole("administrator"), handler);
- * 
+ *
  * // Multiple roles
  * router.get("/staff", requireRole("administrator", "teacher"), handler);
  */
@@ -24,7 +24,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
     }
 
     if (!allowedRoles.includes(user.role as UserRole)) {
-      res.status(403).json({ 
+      res.status(403).json({
         error: "Forbidden: Insufficient permissions",
         required: allowedRoles,
         actual: user.role,

@@ -40,7 +40,11 @@ export default function TeacherDetailsPage() {
   const teacherHttpService = useTeacherHttpService();
   const { isAdmin } = useAuth();
 
-  const { data: teacher, isLoading, error } = useQuery({
+  const {
+    data: teacher,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: [teacherHttpService.key, "show", id],
     queryFn: () => teacherHttpService.queries.show(id!),
     enabled: !!id,
@@ -74,7 +78,9 @@ export default function TeacherDetailsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
+      <Box
+        sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <IconButton onClick={() => navigate(-1)}>
             <ArrowBackIcon />
@@ -234,11 +240,7 @@ export default function TeacherDetailsPage() {
                       }
                     />
                     <ListItemSecondaryAction>
-                      <IconButton
-                        component={Link}
-                        to={`/schedules/${schedule.id}`}
-                        size="small"
-                      >
+                      <IconButton component={Link} to={`/schedules/${schedule.id}`} size="small">
                         <VisibilityIcon />
                       </IconButton>
                     </ListItemSecondaryAction>
@@ -271,16 +273,16 @@ export default function TeacherDetailsPage() {
                   <ListItem>
                     <ListItemText
                       primary={
-                        isAdmin
-                          ? `${student.first_name} ${student.last_name}`
-                          : student.initials
+                        isAdmin ? `${student.first_name} ${student.last_name}` : student.initials
                       }
                       secondary={student.site.name}
                     />
                     <ListItemSecondaryAction>
                       <IconButton
                         component={Link}
-                        to={isAdmin ? `/students/${student.id}` : `/teachers/students/${student.id}`}
+                        to={
+                          isAdmin ? `/students/${student.id}` : `/teachers/students/${student.id}`
+                        }
                         size="small"
                       >
                         <VisibilityIcon />

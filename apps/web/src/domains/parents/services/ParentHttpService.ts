@@ -1,5 +1,5 @@
-import type { IHttpService } from "../../../utils/IHttpService"
-import { useHttpClient } from "../../../plugins/axios"
+import type { IHttpService } from "../../../utils/IHttpService";
+import { useHttpClient } from "../../../plugins/axios";
 
 // Types based on API responses
 export interface LinkedChild {
@@ -93,20 +93,20 @@ export function useParentHttpService(): IHttpService & {
     childDetails: (studentId: string) => Promise<ChildDetails>;
   };
 } {
-  const httpClient = useHttpClient()
+  const httpClient = useHttpClient();
 
   return {
-    key: 'parents',
+    key: "parents",
     mutations: {},
     queries: {
       myChildren: async (): Promise<MyChildrenResponse> => {
-        const response = await httpClient.get(`/v1/parents/me/children`)
-        return response.data
+        const response = await httpClient.get(`/v1/parents/me/children`);
+        return response.data;
       },
       childDetails: async (studentId: string): Promise<ChildDetails> => {
-        const response = await httpClient.get(`/v1/parents/children/${studentId}`)
-        return response.data
-      }
-    }
-  }
+        const response = await httpClient.get(`/v1/parents/children/${studentId}`);
+        return response.data;
+      },
+    },
+  };
 }

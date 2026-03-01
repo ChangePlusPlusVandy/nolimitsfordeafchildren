@@ -64,7 +64,7 @@ const navItems: NavItem[] = [
     icon: <SwapHorizIcon />,
     roles: ["administrator"],
   },
-  
+
   // Teacher items
   {
     text: "My Day",
@@ -78,7 +78,7 @@ const navItems: NavItem[] = [
     icon: <EventRepeatIcon />,
     roles: ["teacher"],
   },
-  
+
   // Parent items
   {
     text: "My Students",
@@ -98,7 +98,7 @@ const navItems: NavItem[] = [
     icon: <ListAltIcon />,
     roles: ["parent"],
   },
-  
+
   // Shared items (all roles)
   {
     text: "Bulletin",
@@ -144,7 +144,10 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
   });
 
   const drawerContent = (
-    <Box sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }} role="presentation">
+    <Box
+      sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }}
+      role="presentation"
+    >
       {/* Logo */}
       <Box sx={{ padding: 2, textAlign: "center", height: 190 }}>
         <img
@@ -157,21 +160,25 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
       {/* User info */}
       {user && (
         <Box sx={{ px: 2, pb: 1 }}>
-          <Box sx={{ 
-            fontSize: "0.875rem", 
-            fontWeight: 500,
-            color: "text.primary",
-            textOverflow: "ellipsis",
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-          }}>
+          <Box
+            sx={{
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              color: "text.primary",
+              textOverflow: "ellipsis",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+          >
             {user.name}
           </Box>
-          <Box sx={{ 
-            fontSize: "0.75rem", 
-            color: "text.secondary",
-            textTransform: "capitalize",
-          }}>
+          <Box
+            sx={{
+              fontSize: "0.75rem",
+              color: "text.secondary",
+              textTransform: "capitalize",
+            }}
+          >
             {user.role}
           </Box>
         </Box>
@@ -182,9 +189,10 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
       {/* Navigation items */}
       <List sx={{ padding: "0 8px", flexGrow: 1 }} component="nav" aria-label="Main navigation">
         {visibleItems.map((item) => {
-          const isActive = location.pathname === item.to || 
+          const isActive =
+            location.pathname === item.to ||
             (item.to !== "/" && location.pathname.startsWith(item.to));
-          
+
           return (
             <ListItem key={item.text} disablePadding sx={{ margin: "4px 0" }}>
               <ListItemButton
@@ -201,9 +209,7 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
                   }),
                 }}
               >
-                <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>
-                  {item.icon}
-                </ListItemIcon>
+                <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>{item.icon}</ListItemIcon>
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
@@ -233,10 +239,7 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
               <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>
                 <LogoutIcon />
               </ListItemIcon>
-              <ListItemText
-                primary="Logout"
-                primaryTypographyProps={{ fontSize: "1.1rem" }}
-              />
+              <ListItemText primary="Logout" primaryTypographyProps={{ fontSize: "1.1rem" }} />
             </ListItemButton>
           </ListItem>
         </List>

@@ -85,7 +85,7 @@ export class StudentsService {
   async index(
     filters: StudentFilters,
     userRole: UserRole,
-    userId?: string
+    userId?: string,
   ): Promise<{ items: any[]; nextCursor: string | null }> {
     const limit = filters.limit ?? 50;
 
@@ -98,8 +98,8 @@ export class StudentsService {
         or(
           ilike(StudentTable.initials, `%${filters.search}%`),
           ilike(StudentTable.first_name, `%${filters.search}%`),
-          ilike(StudentTable.last_name, `%${filters.search}%`)
-        )
+          ilike(StudentTable.last_name, `%${filters.search}%`),
+        ),
       );
     }
 
@@ -162,8 +162,8 @@ export class StudentsService {
           and(
             eq(TeacherStudentTable.student_id, StudentTable.id),
             eq(TeacherStudentTable.teacher_id, teacherProfileId),
-            isNull(TeacherStudentTable.unassigned_at)
-          )
+            isNull(TeacherStudentTable.unassigned_at),
+          ),
         )
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(StudentTable.id)
@@ -202,8 +202,8 @@ export class StudentsService {
           and(
             eq(ParentStudentLinkTable.student_id, StudentTable.id),
             eq(ParentStudentLinkTable.parent_id, parentProfileId),
-            isNull(ParentStudentLinkTable.revoked_at)
-          )
+            isNull(ParentStudentLinkTable.revoked_at),
+          ),
         )
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(StudentTable.id)
@@ -243,11 +243,7 @@ export class StudentsService {
    */
   async show(id: string): Promise<any> {
     // Get student
-    const [student] = await db
-      .select()
-      .from(StudentTable)
-      .where(eq(StudentTable.id, id))
-      .limit(1);
+    const [student] = await db.select().from(StudentTable).where(eq(StudentTable.id, id)).limit(1);
 
     if (!student) {
       return null;
@@ -261,10 +257,7 @@ export class StudentsService {
       .limit(1);
 
     // Get siblings
-    const siblings = await db
-      .select()
-      .from(SiblingTable)
-      .where(eq(SiblingTable.student_id, id));
+    const siblings = await db.select().from(SiblingTable).where(eq(SiblingTable.student_id, id));
 
     // Get linked teachers (active only)
     const teacherLinks = await db
@@ -276,16 +269,10 @@ export class StudentsService {
         teacher_email: UserTable.email,
       })
       .from(TeacherStudentTable)
-      .innerJoin(
-        TeacherProfileTable,
-        eq(TeacherStudentTable.teacher_id, TeacherProfileTable.id)
-      )
+      .innerJoin(TeacherProfileTable, eq(TeacherStudentTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .where(
-        and(
-          eq(TeacherStudentTable.student_id, id),
-          isNull(TeacherStudentTable.unassigned_at)
-        )
+        and(eq(TeacherStudentTable.student_id, id), isNull(TeacherStudentTable.unassigned_at)),
       );
 
     // Get linked parents (active only)
@@ -302,16 +289,10 @@ export class StudentsService {
         user_id: UserTable.id,
       })
       .from(ParentStudentLinkTable)
-      .innerJoin(
-        ParentProfileTable,
-        eq(ParentStudentLinkTable.parent_id, ParentProfileTable.id)
-      )
+      .innerJoin(ParentProfileTable, eq(ParentStudentLinkTable.parent_id, ParentProfileTable.id))
       .innerJoin(UserTable, eq(ParentProfileTable.user_id, UserTable.id))
       .where(
-        and(
-          eq(ParentStudentLinkTable.student_id, id),
-          isNull(ParentStudentLinkTable.revoked_at)
-        )
+        and(eq(ParentStudentLinkTable.student_id, id), isNull(ParentStudentLinkTable.revoked_at)),
       );
 
     return {
@@ -358,8 +339,7 @@ export class StudentsService {
   async create(data: CreateStudentInput): Promise<StudentEntity> {
     // Auto-generate initials if not provided
     const initials =
-      data.initials ||
-      `${data.first_name.charAt(0)}${data.last_name.charAt(0)}`.toUpperCase();
+      data.initials || `${data.first_name.charAt(0)}${data.last_name.charAt(0)}`.toUpperCase();
 
     const [student] = await db
       .insert(StudentTable)
@@ -458,16 +438,13 @@ export class StudentsService {
         teacher_email: UserTable.email,
       })
       .from(TeacherStudentTable)
-      .innerJoin(
-        TeacherProfileTable,
-        eq(TeacherStudentTable.teacher_id, TeacherProfileTable.id)
-      )
+      .innerJoin(TeacherProfileTable, eq(TeacherStudentTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .where(
         and(
           eq(TeacherStudentTable.student_id, studentId),
-          isNull(TeacherStudentTable.unassigned_at)
-        )
+          isNull(TeacherStudentTable.unassigned_at),
+        ),
       );
 
     return {
@@ -485,7 +462,10 @@ export class StudentsService {
   /**
    * Link a teacher to a student (admin only)
    */
-  async linkTeacher(studentId: string, teacherId: string): Promise<{ ok: boolean; link_id: string }> {
+  async linkTeacher(
+    studentId: string,
+    teacherId: string,
+  ): Promise<{ ok: boolean; link_id: string }> {
     // Check if already linked
     const existing = await db
       .select()
@@ -494,8 +474,8 @@ export class StudentsService {
         and(
           eq(TeacherStudentTable.student_id, studentId),
           eq(TeacherStudentTable.teacher_id, teacherId),
-          isNull(TeacherStudentTable.unassigned_at)
-        )
+          isNull(TeacherStudentTable.unassigned_at),
+        ),
       )
       .limit(1);
 
@@ -530,8 +510,8 @@ export class StudentsService {
         and(
           eq(TeacherStudentTable.student_id, studentId),
           eq(TeacherStudentTable.teacher_id, teacherId),
-          isNull(TeacherStudentTable.unassigned_at)
-        )
+          isNull(TeacherStudentTable.unassigned_at),
+        ),
       );
 
     return { ok: true };
@@ -554,16 +534,13 @@ export class StudentsService {
         user_id: UserTable.id,
       })
       .from(ParentStudentLinkTable)
-      .innerJoin(
-        ParentProfileTable,
-        eq(ParentStudentLinkTable.parent_id, ParentProfileTable.id)
-      )
+      .innerJoin(ParentProfileTable, eq(ParentStudentLinkTable.parent_id, ParentProfileTable.id))
       .innerJoin(UserTable, eq(ParentProfileTable.user_id, UserTable.id))
       .where(
         and(
           eq(ParentStudentLinkTable.student_id, studentId),
-          isNull(ParentStudentLinkTable.revoked_at)
-        )
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
       );
 
     return {
@@ -592,7 +569,7 @@ export class StudentsService {
     studentId: string,
     parentUserId: string,
     relationship?: string,
-    isPrimary?: boolean
+    isPrimary?: boolean,
   ): Promise<{ ok: boolean; link_id: string }> {
     // Look up the parent profile for this user
     let parentProfileId: string;
@@ -625,8 +602,8 @@ export class StudentsService {
         and(
           eq(ParentStudentLinkTable.student_id, studentId),
           eq(ParentStudentLinkTable.parent_id, parentProfileId),
-          isNull(ParentStudentLinkTable.revoked_at)
-        )
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
       )
       .limit(1);
 
@@ -679,15 +656,18 @@ export class StudentsService {
         and(
           eq(ParentStudentLinkTable.student_id, studentId),
           eq(ParentStudentLinkTable.parent_id, parentProfileId),
-          isNull(ParentStudentLinkTable.revoked_at)
-        )
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
       );
 
     return { ok: true };
   }
 
   // Legacy methods for backward compatibility
-  async assignTeacher(studentId: string, body: { teacher_id: string }): Promise<{ ok: boolean; link_id: string }> {
+  async assignTeacher(
+    studentId: string,
+    body: { teacher_id: string },
+  ): Promise<{ ok: boolean; link_id: string }> {
     return this.linkTeacher(studentId, body.teacher_id);
   }
 
@@ -695,7 +675,10 @@ export class StudentsService {
     return this.unlinkTeacher(studentId, teacherId);
   }
 
-  async addParent(studentId: string, body: LinkParentInput): Promise<{ ok: boolean; link_id: string }> {
+  async addParent(
+    studentId: string,
+    body: LinkParentInput,
+  ): Promise<{ ok: boolean; link_id: string }> {
     return this.linkParent(studentId, body.parent_id, body.relationship, body.is_primary);
   }
 

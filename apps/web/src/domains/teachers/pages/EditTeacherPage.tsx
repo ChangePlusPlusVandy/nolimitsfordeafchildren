@@ -91,19 +91,23 @@ export default function EditTeacherPage() {
     },
   });
 
-  const handleChange = (field: keyof FormData) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }
-  ) => {
-    setFormData((prev) =>
-      prev
-        ? {
-            ...prev,
-            [field]: event.target.value,
-          }
-        : null
-    );
-    setError(null);
-  };
+  const handleChange =
+    (field: keyof FormData) =>
+    (
+      event:
+        | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        | { target: { value: unknown } },
+    ) => {
+      setFormData((prev) =>
+        prev
+          ? {
+              ...prev,
+              [field]: event.target.value,
+            }
+          : null,
+      );
+      setError(null);
+    };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,11 +152,7 @@ export default function EditTeacherPage() {
         <Alert severity="error">
           {teacherError ? "Failed to load teacher." : "Teacher not found."}
         </Alert>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          sx={{ mt: 2 }}
-        >
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mt: 2 }}>
           Go Back
         </Button>
       </Box>

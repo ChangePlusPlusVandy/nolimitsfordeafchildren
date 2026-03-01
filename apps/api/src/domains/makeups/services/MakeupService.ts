@@ -17,7 +17,13 @@ import {
   type MakeupSessionInsert,
 } from "@/db/schema";
 
-export type AbsenceReason = "sick" | "family_emergency" | "transportation" | "schedule_conflict" | "no_show_unknown" | "other";
+export type AbsenceReason =
+  | "sick"
+  | "family_emergency"
+  | "transportation"
+  | "schedule_conflict"
+  | "no_show_unknown"
+  | "other";
 export type RequestStatus = "pending" | "approved" | "denied" | "completed";
 export type AttendanceStatus = "present" | "no_show" | "cancelled";
 
@@ -117,8 +123,8 @@ export class MakeupService {
         and(
           eq(MakeupRequestTable.student_id, input.student_id),
           eq(MakeupRequestTable.original_schedule_id, input.original_schedule_id),
-          eq(MakeupRequestTable.original_session_date, input.original_session_date)
-        )
+          eq(MakeupRequestTable.original_session_date, input.original_session_date),
+        ),
       )
       .limit(1);
 
@@ -138,10 +144,7 @@ export class MakeupService {
       requested_at: new Date(),
     };
 
-    const result = await db
-      .insert(MakeupRequestTable)
-      .values(newRequest)
-      .returning();
+    const result = await db.insert(MakeupRequestTable).values(newRequest).returning();
 
     return result[0]!;
   }
@@ -202,9 +205,7 @@ export class MakeupService {
       conditions.push(eq(ScheduleTable.site_id, filters.site_id));
     }
 
-    const results = conditions.length > 0
-      ? await query.where(and(...conditions))
-      : await query;
+    const results = conditions.length > 0 ? await query.where(and(...conditions)) : await query;
 
     const items: MakeupRequestWithDetails[] = results.map((row) => ({
       id: row.id,
@@ -316,7 +317,7 @@ export class MakeupService {
     requestId: string,
     adminId: string,
     status: "approved" | "denied",
-    reviewNotes?: string
+    reviewNotes?: string,
   ): Promise<MakeupRequestEntity | null> {
     const existing = await db
       .select()
@@ -395,10 +396,7 @@ export class MakeupService {
       created_by: input.created_by,
     };
 
-    const result = await db
-      .insert(MakeupSessionTable)
-      .values(newSession)
-      .returning();
+    const result = await db.insert(MakeupSessionTable).values(newSession).returning();
 
     // If linked to a request, mark request as completed
     if (input.makeup_request_id) {
@@ -417,7 +415,10 @@ export class MakeupService {
   /**
    * List makeup sessions for a teacher
    */
-  async listSessionsForTeacher(teacherId: string, date?: string): Promise<{ items: MakeupSessionWithDetails[] }> {
+  async listSessionsForTeacher(
+    teacherId: string,
+    date?: string,
+  ): Promise<{ items: MakeupSessionWithDetails[] }> {
     const conditions = [eq(MakeupSessionTable.teacher_id, teacherId)];
 
     if (date) {
@@ -482,7 +483,7 @@ export class MakeupService {
    */
   async markSessionAttendance(
     sessionId: string,
-    status: AttendanceStatus
+    status: AttendanceStatus,
   ): Promise<MakeupSessionEntity | null> {
     const result = await db
       .update(MakeupSessionTable)
@@ -499,7 +500,9 @@ export class MakeupService {
   /**
    * Get requests for a parent's children
    */
-  async listRequestsForParent(parentUserId: string): Promise<{ items: MakeupRequestWithDetails[] }> {
+  async listRequestsForParent(
+    parentUserId: string,
+  ): Promise<{ items: MakeupRequestWithDetails[] }> {
     // Get parent profile
     const parentProfile = await db
       .select()
@@ -518,8 +521,8 @@ export class MakeupService {
       .where(
         and(
           eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
-          isNull(ParentStudentLinkTable.revoked_at)
-        )
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
       );
 
     if (linkedStudents.length === 0) {

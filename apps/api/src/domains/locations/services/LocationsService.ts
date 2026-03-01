@@ -23,11 +23,11 @@ export class LocationsService {
    */
   async index(query?: { is_active?: boolean }): Promise<LocationEntity[]> {
     const conditions = [];
-    
+
     if (query?.is_active !== undefined) {
       conditions.push(eq(LocationTable.is_active, query.is_active));
     }
-    
+
     if (conditions.length > 0) {
       return await db
         .select()
@@ -35,11 +35,8 @@ export class LocationsService {
         .where(and(...conditions))
         .orderBy(LocationTable.name);
     }
-    
-    return await db
-      .select()
-      .from(LocationTable)
-      .orderBy(LocationTable.name);
+
+    return await db.select().from(LocationTable).orderBy(LocationTable.name);
   }
 
   /**
@@ -51,7 +48,7 @@ export class LocationsService {
       .from(LocationTable)
       .where(eq(LocationTable.id, siteId))
       .limit(1);
-    
+
     return results[0] || null;
   }
 
@@ -67,7 +64,7 @@ export class LocationsService {
         updated_at: new Date(),
       })
       .returning();
-    
+
     return results[0]!;
   }
 
@@ -83,7 +80,7 @@ export class LocationsService {
       })
       .where(eq(LocationTable.id, siteId))
       .returning();
-    
+
     return results[0] || null;
   }
 
@@ -102,7 +99,7 @@ export class LocationsService {
       })
       .from(LocationTable)
       .orderBy(LocationTable.name);
-    
+
     return results;
   }
 
@@ -111,7 +108,7 @@ export class LocationsService {
    */
   async nowNext(siteId: string, query?: { date?: string }) {
     const today = query?.date ?? new Date().toISOString().split("T")[0]!;
-    
+
     // Get schedules for this site that include today in their cycle
     const schedules = await db
       .select()
@@ -121,27 +118,25 @@ export class LocationsService {
           eq(ScheduleTable.site_id, siteId),
           eq(ScheduleTable.is_active, true),
           lte(ScheduleTable.cycle_start_date, today),
-          gte(ScheduleTable.cycle_end_date, today)
-        )
+          gte(ScheduleTable.cycle_end_date, today),
+        ),
       )
       .orderBy(ScheduleTable.start_time);
-    
+
     // For now, return the schedules grouped by time
     // In a full implementation, we'd check the day_of_week_mask
     // and calculate which sessions are "now" vs "next"
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:00`;
-    
-    const nowSchedules = schedules.filter(s => s.start_time <= currentTime && s.end_time > currentTime);
-    const nextSchedules = schedules.filter(s => s.start_time > currentTime);
-    
+
+    const nowSchedules = schedules.filter(
+      (s) => s.start_time <= currentTime && s.end_time > currentTime,
+    );
+    const nextSchedules = schedules.filter((s) => s.start_time > currentTime);
+
     return {
       now: nowSchedules,
       next: nextSchedules.slice(0, 5), // Next 5 sessions
     };
   }
 }
-
-
-
-

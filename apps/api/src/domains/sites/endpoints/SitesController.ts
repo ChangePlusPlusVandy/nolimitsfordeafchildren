@@ -16,7 +16,3 @@ export class SitesController {
     return await this.locationsService.nowNext(siteId, { date });
   }
 }
-
-
-
-

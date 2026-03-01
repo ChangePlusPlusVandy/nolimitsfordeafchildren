@@ -65,7 +65,7 @@ export class PostStudentNotesController {
   async handle(
     @Param("studentId") studentId: string,
     @Body() body: CreateNoteBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     // Get teacher profile for current user
     const teacherProfile = await db
@@ -131,7 +131,7 @@ export class PatchNoteController {
   async handle(
     @Param("id") id: string,
     @Body() body: UpdateNoteBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     // Get teacher profile for current user
     const teacherProfile = await db
@@ -166,10 +166,7 @@ export class DeleteNoteController {
 
   @Delete("/notes/:id")
   @Authorized(["administrator", "teacher"])
-  async handle(
-    @Param("id") id: string,
-    @CurrentUser({ required: true }) currentUser: UserEntity
-  ) {
+  async handle(@Param("id") id: string, @CurrentUser({ required: true }) currentUser: UserEntity) {
     let teacherId: string | undefined;
 
     // If not admin, get teacher profile to ensure they own the note

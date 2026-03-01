@@ -3,10 +3,7 @@ import type { Note } from "../pages/mockdata";
 const Notes = ({ notes }: { notes: Note[] }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
     {notes.map((note) => (
-      <div
-        key={note.id}
-        style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }}
-      >
+      <div key={note.id} style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }}>
         <div
           style={{
             display: "flex",

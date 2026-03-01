@@ -13,7 +13,7 @@ export class ShowUserEndpoint {
 
   @Get("/:id")
   async handle(@Param("id") id: string) {
-    const user = await this.userService.getById(id); 
+    const user = await this.userService.getById(id);
 
     if (user === undefined) {
       return new HttpError(404, "User not found");

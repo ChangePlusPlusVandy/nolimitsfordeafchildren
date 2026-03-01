@@ -50,7 +50,11 @@ export default function MyProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch profile
-  const { data: profile, isLoading, error } = useQuery<UserProfile>({
+  const {
+    data: profile,
+    isLoading,
+    error,
+  } = useQuery<UserProfile>({
     queryKey: ["me"],
     queryFn: async () => {
       const response = await httpClient.get("/v1/me");
@@ -129,11 +133,7 @@ export default function MyProfilePage() {
   }
 
   if (error) {
-    return (
-      <Alert severity="error">
-        Failed to load profile. Please try again.
-      </Alert>
-    );
+    return <Alert severity="error">Failed to load profile. Please try again.</Alert>;
   }
 
   const displayProfile = profile || {
@@ -180,8 +180,8 @@ export default function MyProfilePage() {
             displayProfile.role === "administrator"
               ? "primary"
               : displayProfile.role === "teacher"
-              ? "secondary"
-              : "success"
+                ? "secondary"
+                : "success"
           }
           sx={{ textTransform: "capitalize" }}
         />

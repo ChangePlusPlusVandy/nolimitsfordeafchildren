@@ -46,7 +46,7 @@ export class GetStudentsController {
     @QueryParam("is_active") is_active?: boolean,
     @QueryParam("limit") limit?: number,
     @QueryParam("cursor") cursor?: string,
-    @CurrentUser() user?: CurrentUserType
+    @CurrentUser() user?: CurrentUserType,
   ) {
     const query: StudentFilters = { search, site_id, is_active, limit, cursor };
     const role = user?.role ?? "administrator";
@@ -129,7 +129,7 @@ export class GetStudentTeachersController {
   async handle(
     @Param("id") id: string,
     @QueryParam("page") page?: number,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     return await this.studentsService.teachers(id, { page, limit });
   }

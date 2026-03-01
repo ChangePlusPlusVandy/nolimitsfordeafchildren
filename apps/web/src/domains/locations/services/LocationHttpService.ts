@@ -1,5 +1,5 @@
-import type { IHttpService } from "../../../utils/IHttpService"
-import { useHttpClient } from "../../../plugins/axios"
+import type { IHttpService } from "../../../utils/IHttpService";
+import { useHttpClient } from "../../../plugins/axios";
 
 export type LocationType = "education_center" | "pop_up" | "remote";
 
@@ -60,35 +60,33 @@ export function useLocationHttpService(): IHttpService & {
     update: (params: { id: string; payload: UpdateLocationPayload }) => Promise<Location>;
   };
 } {
-  const httpClient = useHttpClient()
+  const httpClient = useHttpClient();
 
   return {
-    key: 'locations',
+    key: "locations",
     mutations: {
       create: async (payload: CreateLocationPayload) => {
-        const response = await httpClient.post<Location>(`/v1/locations`, payload)
-        return response.data
+        const response = await httpClient.post<Location>(`/v1/locations`, payload);
+        return response.data;
       },
       update: async ({ id, payload }: { id: string; payload: UpdateLocationPayload }) => {
-        const response = await httpClient.patch<Location>(`/v1/locations/${id}`, payload)
-        return response.data
+        const response = await httpClient.patch<Location>(`/v1/locations/${id}`, payload);
+        return response.data;
       },
     },
     queries: {
       index: async () => {
-        const response = await httpClient.get<Location[]>(`/v1/locations`)
-        return response.data
+        const response = await httpClient.get<Location[]>(`/v1/locations`);
+        return response.data;
       },
       show: async (id: string) => {
-        const response = await httpClient.get<Location>(`/v1/locations/${id}`)
-        return response.data
+        const response = await httpClient.get<Location>(`/v1/locations/${id}`);
+        return response.data;
       },
       mapData: async () => {
-        const response = await httpClient.get<LocationMapPin[]>(`/v1/locations/map-summary`)
-        return response.data
+        const response = await httpClient.get<LocationMapPin[]>(`/v1/locations/map-summary`);
+        return response.data;
       },
-    }
-  }
+    },
+  };
 }
-
-

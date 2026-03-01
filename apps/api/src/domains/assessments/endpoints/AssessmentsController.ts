@@ -69,7 +69,7 @@ export class PostStudentAssessmentsController {
   async handle(
     @Param("studentId") studentId: string,
     @Body() body: CreateAssessmentBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     // Get teacher profile for current user
     const teacherProfile = await db
@@ -147,7 +147,7 @@ export class PatchAssessmentController {
   async handle(
     @Param("id") id: string,
     @Body() body: UpdateAssessmentBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     // Get teacher profile for current user
     const teacherProfile = await db
@@ -161,11 +161,7 @@ export class PatchAssessmentController {
     }
 
     try {
-      const assessment = await this.assessmentsService.update(
-        id,
-        teacherProfile[0]!.id,
-        body
-      );
+      const assessment = await this.assessmentsService.update(id, teacherProfile[0]!.id, body);
       if (!assessment) {
         throw new HttpError(404, "Assessment not found or you don't have permission to update it");
       }
@@ -193,10 +189,7 @@ export class DeleteAssessmentController {
 
   @Delete("/assessments/:id")
   @Authorized(["administrator", "teacher"])
-  async handle(
-    @Param("id") id: string,
-    @CurrentUser({ required: true }) currentUser: UserEntity
-  ) {
+  async handle(@Param("id") id: string, @CurrentUser({ required: true }) currentUser: UserEntity) {
     let teacherId: string | undefined;
 
     // If not admin, get teacher profile to ensure they own the assessment

@@ -64,20 +64,20 @@ function DevAuthProvider({ children }: { children: React.ReactNode }) {
   // Check URL params for role override: ?role=administrator|teacher|parent
   const urlParams = new URLSearchParams(window.location.search);
   const roleParam = urlParams.get("role") as UserRole | null;
-  
+
   // Store role in sessionStorage so it persists across navigation
   const storedRole = sessionStorage.getItem("devRole") as UserRole | null;
-  
+
   // Priority: URL param > sessionStorage > default (administrator)
   const activeRole: UserRole = roleParam || storedRole || "administrator";
-  
+
   // Update sessionStorage when URL param changes
   useEffect(() => {
     if (roleParam && roleParam !== storedRole) {
       sessionStorage.setItem("devRole", roleParam);
     }
   }, [roleParam, storedRole]);
-  
+
   const devUser = DEV_USERS[activeRole];
 
   const value = useMemo<AuthContextValue>(() => {
@@ -123,7 +123,7 @@ function Auth0Bridge({ children }: { children: React.ReactNode }) {
       setSyncLoading(true);
       try {
         const token = await getAccessTokenSilently();
-        
+
         // Call backend to ensure user exists and get their role
         const response = await axios.post(
           `${config.apiUrl}/v1/auth/callback`,
@@ -137,7 +137,7 @@ function Auth0Bridge({ children }: { children: React.ReactNode }) {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         setAppUser({
@@ -171,7 +171,7 @@ function Auth0Bridge({ children }: { children: React.ReactNode }) {
       if (!appUser) return false;
       return roles.includes(appUser.role);
     },
-    [appUser]
+    [appUser],
   );
 
   const value = useMemo<AuthContextValue>(() => {
@@ -209,8 +209,7 @@ function Auth0Bridge({ children }: { children: React.ReactNode }) {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth0Configured = Boolean(config.auth0.domain && config.auth0.clientId);
-  const authDisabled =
-    import.meta.env.VITE_AUTH_DISABLED === "true" || !auth0Configured;
+  const authDisabled = import.meta.env.VITE_AUTH_DISABLED === "true" || !auth0Configured;
 
   if (authDisabled) {
     return <DevAuthProvider>{children}</DevAuthProvider>;
@@ -249,7 +248,7 @@ export function useAuth() {
  */
 export function useRoleAccess(...allowedRoles: UserRole[]) {
   const { user, hasRole, isLoading } = useAuth();
-  
+
   return {
     isAllowed: hasRole(...allowedRoles),
     isLoading,

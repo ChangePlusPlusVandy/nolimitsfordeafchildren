@@ -8,9 +8,7 @@ function Schedule({ schedule }: { schedule: ScheduleItem[] }) {
 
   return (
     <div>
-      <div
-        style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}
-      >
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {days.map((day) => (
           <button
             key={day}
@@ -49,9 +47,7 @@ function Schedule({ schedule }: { schedule: ScheduleItem[] }) {
               }}
             >
               <div>
-                <div
-                  style={{ fontWeight: 600, color: "#111827", marginBottom: 4 }}
-                >
+                <div style={{ fontWeight: 600, color: "#111827", marginBottom: 4 }}>
                   {item.className}
                 </div>
                 <div style={{ fontSize: 14, color: "#6b7280" }}>
@@ -59,9 +55,7 @@ function Schedule({ schedule }: { schedule: ScheduleItem[] }) {
                   {item.room && `Room ${item.room}`}
                 </div>
               </div>
-              <span style={{ fontSize: 14, fontWeight: 500, color: "#2563eb" }}>
-                {item.time}
-              </span>
+              <span style={{ fontSize: 14, fontWeight: 500, color: "#2563eb" }}>{item.time}</span>
             </div>
           </div>
         ))}

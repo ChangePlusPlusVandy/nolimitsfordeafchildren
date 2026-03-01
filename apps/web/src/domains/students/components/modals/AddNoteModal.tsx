@@ -7,12 +7,7 @@ interface AddNoteModalProps {
   onSave: () => void;
 }
 
-function AddNoteModal({
-  noteText,
-  onChangeText,
-  onClose,
-  onSave,
-}: AddNoteModalProps) {
+function AddNoteModal({ noteText, onChangeText, onClose, onSave }: AddNoteModalProps) {
   return (
     <div
       style={{
@@ -37,9 +32,7 @@ function AddNoteModal({
           boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
         }}
       >
-        <h3 style={{ margin: "0 0 16px 0", fontSize: 20, fontWeight: 600 }}>
-          Add Note
-        </h3>
+        <h3 style={{ margin: "0 0 16px 0", fontSize: 20, fontWeight: 600 }}>Add Note</h3>
         <textarea
           value={noteText}
           onChange={(e) => onChangeText(e.target.value)}

@@ -91,8 +91,8 @@ export class AttendanceService {
         and(
           eq(AttendanceTable.student_id, input.student_id),
           eq(AttendanceTable.schedule_id, input.schedule_id),
-          eq(AttendanceTable.session_date, input.session_date)
-        )
+          eq(AttendanceTable.session_date, input.session_date),
+        ),
       )
       .limit(1);
 
@@ -126,10 +126,7 @@ export class AttendanceService {
       marked_at: new Date(),
     };
 
-    const result = await db
-      .insert(AttendanceTable)
-      .values(newAttendance)
-      .returning();
+    const result = await db.insert(AttendanceTable).values(newAttendance).returning();
 
     return result[0]!;
   }
@@ -140,7 +137,7 @@ export class AttendanceService {
   async update(
     id: string,
     input: UpdateAttendanceInput,
-    markedBy: string
+    markedBy: string,
   ): Promise<AttendanceEntity | null> {
     const existing = await db
       .select()
@@ -332,8 +329,7 @@ export class AttendanceService {
     }
 
     const total = present + no_show + cancelled;
-    const attendance_rate =
-      total > 0 ? Math.round((present / (present + no_show)) * 100) : 0;
+    const attendance_rate = total > 0 ? Math.round((present / (present + no_show)) * 100) : 0;
 
     return {
       total,
@@ -347,10 +343,7 @@ export class AttendanceService {
   /**
    * Get sessions for a teacher's day (used by My Day page)
    */
-  async getTeacherDaySessions(
-    teacherProfileId: string,
-    date: string
-  ): Promise<SessionForDay[]> {
+  async getTeacherDaySessions(teacherProfileId: string, date: string): Promise<SessionForDay[]> {
     // Get the day of week (0 = Sunday, 1 = Monday, etc.)
     const dateObj = new Date(date + "T00:00:00");
     const dayOfWeek = dateObj.getDay();
@@ -377,8 +370,8 @@ export class AttendanceService {
           lte(ScheduleTable.cycle_start_date, date),
           gte(ScheduleTable.cycle_end_date, date),
           // Check if day mask includes this day
-          sql`(${ScheduleTable.day_of_week_mask} & ${dayMask}) != 0`
-        )
+          sql`(${ScheduleTable.day_of_week_mask} & ${dayMask}) != 0`,
+        ),
       );
 
     if (schedules.length === 0) {
@@ -402,11 +395,11 @@ export class AttendanceService {
         and(
           sql`${EnrollmentTable.schedule_id} IN (${sql.join(
             scheduleIds.map((id) => sql`${id}`),
-            sql`, `
+            sql`, `,
           )})`,
           isNull(EnrollmentTable.ended_at),
-          eq(StudentTable.is_active, true)
-        )
+          eq(StudentTable.is_active, true),
+        ),
       );
 
     // Get existing attendance for this date
@@ -417,10 +410,10 @@ export class AttendanceService {
         and(
           sql`${AttendanceTable.schedule_id} IN (${sql.join(
             scheduleIds.map((id) => sql`${id}`),
-            sql`, `
+            sql`, `,
           )})`,
-          eq(AttendanceTable.session_date, date)
-        )
+          eq(AttendanceTable.session_date, date),
+        ),
       );
 
     // Build session list
@@ -429,9 +422,7 @@ export class AttendanceService {
     for (const enrollment of enrollments) {
       const schedule = schedules.find((s) => s.schedule_id === enrollment.schedule_id)!;
       const attendance = existingAttendance.find(
-        (a) =>
-          a.student_id === enrollment.student_id &&
-          a.schedule_id === enrollment.schedule_id
+        (a) => a.student_id === enrollment.student_id && a.schedule_id === enrollment.schedule_id,
       );
 
       sessions.push({

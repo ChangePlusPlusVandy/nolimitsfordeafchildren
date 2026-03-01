@@ -1,4 +1,12 @@
-import { Body, Get, JsonController, Patch, Req, Authorized, NotFoundError } from "routing-controllers";
+import {
+  Body,
+  Get,
+  JsonController,
+  Patch,
+  Req,
+  Authorized,
+  NotFoundError,
+} from "routing-controllers";
 import type { Request } from "express";
 import { Service } from "typedi";
 import Container from "@/container";
@@ -20,13 +28,13 @@ export class GetMeController {
   @Authorized()
   async handle(@Req() req: Request) {
     const currentUser = req.currentUser;
-    
+
     if (!currentUser) {
       throw new NotFoundError("User not found");
     }
 
     const profile = await this.meService.getProfile(currentUser.id);
-    
+
     if (!profile) {
       throw new NotFoundError("User not found");
     }
@@ -62,13 +70,13 @@ export class PatchMeController {
   @Authorized()
   async handle(@Req() req: Request, @Body() body: UpdateMeInput) {
     const currentUser = req.currentUser;
-    
+
     if (!currentUser) {
       throw new NotFoundError("User not found");
     }
 
     const updated = await this.meService.updateProfile(currentUser.id, body);
-    
+
     if (!updated) {
       throw new NotFoundError("User not found");
     }

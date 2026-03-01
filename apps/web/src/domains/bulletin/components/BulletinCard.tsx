@@ -1,12 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardActionArea,
-  Typography,
-  Box,
-  Chip,
-  Stack,
-} from "@mui/material";
+import { Card, CardContent, CardActionArea, Typography, Box, Chip, Stack } from "@mui/material";
 import PublicIcon from "@mui/icons-material/Public";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -21,13 +13,7 @@ interface BulletinCardProps {
 function getScopeChip(scope: BulletinScope, siteName?: string) {
   if (scope === "global") {
     return (
-      <Chip
-        icon={<PublicIcon />}
-        label="Global"
-        size="small"
-        color="primary"
-        variant="outlined"
-      />
+      <Chip icon={<PublicIcon />} label="Global" size="small" color="primary" variant="outlined" />
     );
   }
   return (
@@ -57,12 +43,7 @@ function getRoleTargetChip(roleTarget: BulletinRoleTarget) {
   };
 
   return (
-    <Chip
-      label={labels[roleTarget]}
-      size="small"
-      color={colors[roleTarget]}
-      variant="filled"
-    />
+    <Chip label={labels[roleTarget]} size="small" color={colors[roleTarget]} variant="filled" />
   );
 }
 
@@ -97,7 +78,14 @@ export default function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
       <CardActionArea onClick={handleClick} disabled={!onClick}>
         <CardContent>
           {/* Header with badges */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              mb: 1,
+            }}
+          >
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {getScopeChip(bulletin.scope, bulletin.site_name)}
               {getRoleTargetChip(bulletin.role_target)}

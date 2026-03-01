@@ -1,4 +1,12 @@
-import { Body, Get, JsonController, Param, Patch, Authorized, CurrentUser } from "routing-controllers";
+import {
+  Body,
+  Get,
+  JsonController,
+  Param,
+  Patch,
+  Authorized,
+  CurrentUser,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { ProfilesService } from "../services/ProfilesService";
@@ -19,10 +27,7 @@ export class ProfilesController {
 
   @Get("/teacher/:userId")
   @Authorized(["administrator", "teacher"])
-  async getTeacher(
-    @Param("userId") userId: string,
-    @CurrentUser() currentUser: CurrentUserType
-  ) {
+  async getTeacher(@Param("userId") userId: string, @CurrentUser() currentUser: CurrentUserType) {
     // Teachers can only view their own profile, admins can view any
     if (currentUser.role === "teacher" && currentUser.id !== userId) {
       throw new ForbiddenError("You can only view your own profile");
@@ -35,7 +40,7 @@ export class ProfilesController {
   async updateTeacher(
     @Param("userId") userId: string,
     @Body() body: any,
-    @CurrentUser() currentUser: CurrentUserType
+    @CurrentUser() currentUser: CurrentUserType,
   ) {
     // Teachers can only update their own profile, admins can update any
     if (currentUser.role === "teacher" && currentUser.id !== userId) {
@@ -46,10 +51,7 @@ export class ProfilesController {
 
   @Get("/parent/:userId")
   @Authorized(["administrator", "parent"])
-  async getParent(
-    @Param("userId") userId: string,
-    @CurrentUser() currentUser: CurrentUserType
-  ) {
+  async getParent(@Param("userId") userId: string, @CurrentUser() currentUser: CurrentUserType) {
     // Parents can only view their own profile, admins can view any
     if (currentUser.role === "parent" && currentUser.id !== userId) {
       throw new ForbiddenError("You can only view your own profile");
@@ -62,7 +64,7 @@ export class ProfilesController {
   async updateParent(
     @Param("userId") userId: string,
     @Body() body: any,
-    @CurrentUser() currentUser: CurrentUserType
+    @CurrentUser() currentUser: CurrentUserType,
   ) {
     // Parents can only update their own profile, admins can update any
     if (currentUser.role === "parent" && currentUser.id !== userId) {

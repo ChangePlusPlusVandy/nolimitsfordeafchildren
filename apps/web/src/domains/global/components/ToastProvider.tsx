@@ -45,21 +45,33 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const success = useCallback((message: string) => {
-    showToast({ message, severity: "success" });
-  }, [showToast]);
+  const success = useCallback(
+    (message: string) => {
+      showToast({ message, severity: "success" });
+    },
+    [showToast],
+  );
 
-  const error = useCallback((message: string) => {
-    showToast({ message, severity: "error", duration: 6000 });
-  }, [showToast]);
+  const error = useCallback(
+    (message: string) => {
+      showToast({ message, severity: "error", duration: 6000 });
+    },
+    [showToast],
+  );
 
-  const warning = useCallback((message: string) => {
-    showToast({ message, severity: "warning" });
-  }, [showToast]);
+  const warning = useCallback(
+    (message: string) => {
+      showToast({ message, severity: "warning" });
+    },
+    [showToast],
+  );
 
-  const info = useCallback((message: string) => {
-    showToast({ message, severity: "info" });
-  }, [showToast]);
+  const info = useCallback(
+    (message: string) => {
+      showToast({ message, severity: "info" });
+    },
+    [showToast],
+  );
 
   const handleClose = (_event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === "clickaway") {
@@ -85,12 +97,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           action={
             <>
               {toast.action}
-              <IconButton
-                size="small"
-                aria-label="close"
-                color="inherit"
-                onClick={handleClose}
-              >
+              <IconButton size="small" aria-label="close" color="inherit" onClick={handleClose}>
                 <CloseIcon fontSize="small" />
               </IconButton>
             </>

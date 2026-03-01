@@ -23,7 +23,7 @@ export class GetTeachersMeDayController {
   @Authorized(["teacher", "administrator"])
   async handle(
     @QueryParam("date") date: string | undefined,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     // Get teacher profile for current user
     const teacherProfile = await db

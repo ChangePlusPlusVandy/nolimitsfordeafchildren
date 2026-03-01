@@ -79,9 +79,7 @@ function AddDocumentModal({
               📄 {selectedFile.name}
             </p>
           ) : (
-            <p style={{ fontSize: 14, color: "#6b7280", margin: "12px 0 0 0" }}>
-              No file selected
-            </p>
+            <p style={{ fontSize: 14, color: "#6b7280", margin: "12px 0 0 0" }}>No file selected</p>
           )}
         </div>
 
@@ -89,10 +87,7 @@ function AddDocumentModal({
           <Button onClick={onClose} variant="outline" color="#374151">
             Cancel
           </Button>
-          <Button
-            onClick={() => selectedFile && onSave(selectedFile)}
-            color="#2563eb"
-          >
+          <Button onClick={() => selectedFile && onSave(selectedFile)} color="#2563eb">
             Upload
           </Button>
         </div>

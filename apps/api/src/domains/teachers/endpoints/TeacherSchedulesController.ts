@@ -2,7 +2,11 @@ import { Body, JsonController, Param, Patch, Post } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { Authorized } from "routing-controllers";
-import { TeachersService, type CreateScheduleInput, type UpdateScheduleInput } from "../services/TeachersService";
+import {
+  TeachersService,
+  type CreateScheduleInput,
+  type UpdateScheduleInput,
+} from "../services/TeachersService";
 
 @Service()
 @JsonController("/v1")

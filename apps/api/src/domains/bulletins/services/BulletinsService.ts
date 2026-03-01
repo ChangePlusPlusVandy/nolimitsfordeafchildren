@@ -103,8 +103,8 @@ export class BulletinsService {
         .where(
           and(
             eq(ParentStudentLinkTable.parent_id, parentProfile[0].id),
-            isNull(ParentStudentLinkTable.revoked_at)
-          )
+            isNull(ParentStudentLinkTable.revoked_at),
+          ),
         )
         .limit(1);
 
@@ -116,20 +116,20 @@ export class BulletinsService {
 
   /**
    * List bulletins filtered by user role and site
-   * 
+   *
    * Filtering logic:
    * - If scope='global', show to all
    * - If scope='site', only show to users at that site
    * - Filter by role_target: show if role_target='all' OR matches user's role
    * - Only show published bulletins (publish_at <= NOW or publish_at IS NULL)
    * - Only show non-expired bulletins (expire_at > NOW or expire_at IS NULL)
-   * 
+   *
    * Admin override: Admins can see all bulletins with filters
    */
   async index(
     query: ListBulletinsQuery,
     userRole: UserRole,
-    userId: string
+    userId: string,
   ): Promise<{
     items: BulletinWithDetails[];
     total: number;
@@ -149,10 +149,7 @@ export class BulletinsService {
       // Admin can optionally filter by site
       if (query.siteId) {
         conditions.push(
-          or(
-            eq(BulletinTable.scope, "global"),
-            eq(BulletinTable.site_id, query.siteId)
-          )
+          or(eq(BulletinTable.scope, "global"), eq(BulletinTable.site_id, query.siteId)),
         );
       }
       // Optional scope filter for admin
@@ -172,11 +169,8 @@ export class BulletinsService {
         conditions.push(
           or(
             eq(BulletinTable.scope, "global"),
-            and(
-              eq(BulletinTable.scope, "site"),
-              eq(BulletinTable.site_id, userSiteId)
-            )
-          )
+            and(eq(BulletinTable.scope, "site"), eq(BulletinTable.site_id, userSiteId)),
+          ),
         );
       } else {
         // User has no site, only show global
@@ -185,32 +179,19 @@ export class BulletinsService {
 
       // Role target filter: 'all' OR matches user's role
       conditions.push(
-        or(
-          eq(BulletinTable.role_target, "all"),
-          eq(BulletinTable.role_target, userRole)
-        )
+        or(eq(BulletinTable.role_target, "all"), eq(BulletinTable.role_target, userRole)),
       );
     }
 
     // Time-based filters (unless admin wants to see all)
     if (!query.includeScheduled) {
       // Only show published bulletins
-      conditions.push(
-        or(
-          isNull(BulletinTable.publish_at),
-          lte(BulletinTable.publish_at, now)
-        )
-      );
+      conditions.push(or(isNull(BulletinTable.publish_at), lte(BulletinTable.publish_at, now)));
     }
 
     if (!query.includeExpired) {
       // Only show non-expired bulletins
-      conditions.push(
-        or(
-          isNull(BulletinTable.expire_at),
-          gte(BulletinTable.expire_at, now)
-        )
-      );
+      conditions.push(or(isNull(BulletinTable.expire_at), gte(BulletinTable.expire_at, now)));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -240,16 +221,14 @@ export class BulletinsService {
 
     // Get attachments for all bulletins
     const bulletinIds = bulletins.map((b) => b.bulletin.id);
-    
+
     let attachmentsMap: Map<string, BulletinAttachmentEntity[]> = new Map();
-    
+
     if (bulletinIds.length > 0) {
       const attachments = await db
         .select()
         .from(BulletinAttachmentTable)
-        .where(
-          inArray(BulletinAttachmentTable.bulletin_id, bulletinIds)
-        );
+        .where(inArray(BulletinAttachmentTable.bulletin_id, bulletinIds));
 
       // Group attachments by bulletin_id
       for (const attachment of attachments) {
@@ -329,10 +308,7 @@ export class BulletinsService {
       updated_at: new Date(),
     };
 
-    const result = await db
-      .insert(BulletinTable)
-      .values(newBulletin)
-      .returning();
+    const result = await db.insert(BulletinTable).values(newBulletin).returning();
 
     return result[0]!;
   }
@@ -341,11 +317,7 @@ export class BulletinsService {
    * Update a bulletin (admin only)
    */
   async update(id: string, data: UpdateBulletinInput): Promise<BulletinEntity | null> {
-    const existing = await db
-      .select()
-      .from(BulletinTable)
-      .where(eq(BulletinTable.id, id))
-      .limit(1);
+    const existing = await db.select().from(BulletinTable).where(eq(BulletinTable.id, id)).limit(1);
 
     if (existing.length === 0) {
       return null;
@@ -359,9 +331,8 @@ export class BulletinsService {
     if (data.body !== undefined) updateData.body = data.body;
     if (data.scope !== undefined) updateData.scope = data.scope;
     if (data.site_id !== undefined) {
-      updateData.site_id = data.scope === "site" || existing[0]!.scope === "site" 
-        ? data.site_id 
-        : null;
+      updateData.site_id =
+        data.scope === "site" || existing[0]!.scope === "site" ? data.site_id : null;
     }
     if (data.role_target !== undefined) updateData.role_target = data.role_target;
     if (data.publish_at !== undefined) {
@@ -385,15 +356,10 @@ export class BulletinsService {
    */
   async delete(id: string): Promise<boolean> {
     // First delete attachments
-    await db
-      .delete(BulletinAttachmentTable)
-      .where(eq(BulletinAttachmentTable.bulletin_id, id));
+    await db.delete(BulletinAttachmentTable).where(eq(BulletinAttachmentTable.bulletin_id, id));
 
     // Then delete the bulletin
-    const result = await db
-      .delete(BulletinTable)
-      .where(eq(BulletinTable.id, id))
-      .returning();
+    const result = await db.delete(BulletinTable).where(eq(BulletinTable.id, id)).returning();
 
     return result.length > 0;
   }
@@ -403,7 +369,7 @@ export class BulletinsService {
    */
   async addAttachment(
     bulletinId: string,
-    data: AddAttachmentInput
+    data: AddAttachmentInput,
   ): Promise<BulletinAttachmentEntity> {
     // Verify bulletin exists
     const bulletin = await db
@@ -425,10 +391,7 @@ export class BulletinsService {
       created_at: new Date(),
     };
 
-    const result = await db
-      .insert(BulletinAttachmentTable)
-      .values(attachment)
-      .returning();
+    const result = await db.insert(BulletinAttachmentTable).values(attachment).returning();
 
     return result[0]!;
   }

@@ -25,7 +25,11 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
-import { useUserHttpService, type UserRole, type UpdateUserInput } from "../services/UserHttpService";
+import {
+  useUserHttpService,
+  type UserRole,
+  type UpdateUserInput,
+} from "../services/UserHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 
 export default function UserDetailsPage() {
@@ -44,7 +48,11 @@ export default function UserDetailsPage() {
   const [showDisableDialog, setShowDisableDialog] = useState(false);
 
   // Fetch user
-  const { data: user, isLoading, error } = useQuery({
+  const {
+    data: user,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: [userHttpService.key, "show", id],
     queryFn: () => userHttpService.queries.show(id!),
     enabled: !!id,
@@ -62,8 +70,7 @@ export default function UserDetailsPage() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: (data: UpdateUserInput & { id: string }) => 
-      userHttpService.mutations.update(data),
+    mutationFn: (data: UpdateUserInput & { id: string }) => userHttpService.mutations.update(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [userHttpService.key] });
       setIsEditing(false);
@@ -198,8 +205,8 @@ export default function UserDetailsPage() {
             user.role === "administrator"
               ? "primary"
               : user.role === "teacher"
-              ? "secondary"
-              : "success"
+                ? "secondary"
+                : "success"
           }
           sx={{ textTransform: "capitalize" }}
         />
@@ -268,9 +275,7 @@ export default function UserDetailsPage() {
               label={user.is_active ? "Active" : "Disabled"}
             />
             <Typography variant="body2" color="text.secondary">
-              {user.is_active
-                ? "User can log in and access the system"
-                : "User cannot log in"}
+              {user.is_active ? "User can log in and access the system" : "User cannot log in"}
             </Typography>
           </Box>
 

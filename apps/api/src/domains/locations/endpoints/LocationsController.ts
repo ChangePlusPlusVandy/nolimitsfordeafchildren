@@ -1,4 +1,14 @@
-import { Body, Get, JsonController, Param, Patch, Post, QueryParam, Authorized, HttpCode } from "routing-controllers";
+import {
+  Body,
+  Get,
+  JsonController,
+  Param,
+  Patch,
+  Post,
+  QueryParam,
+  Authorized,
+  HttpCode,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { LocationsService } from "../services/LocationsService";
@@ -6,7 +16,7 @@ import type { CreateLocationDto, UpdateLocationDto } from "../services/Locations
 
 /**
  * Consolidated Locations Controller
- * 
+ *
  * IMPORTANT: Route order matters! Static routes must come before parameterized routes.
  * Within a single controller class, routing-controllers respects method order.
  */

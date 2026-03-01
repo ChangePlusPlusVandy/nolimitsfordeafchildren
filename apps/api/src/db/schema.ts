@@ -1,4 +1,16 @@
-import { pgTable, text, uuid, boolean, timestamp, varchar, date, time, integer, numeric, pgEnum } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  uuid,
+  boolean,
+  timestamp,
+  varchar,
+  date,
+  time,
+  integer,
+  numeric,
+  pgEnum,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // ==================== CUSTOM TYPES ====================
@@ -17,7 +29,11 @@ export const userRoleEnum = pgEnum("user_role", ["administrator", "teacher", "pa
 
 export const locationTypeEnum = pgEnum("location_type", ["education_center", "pop_up", "remote"]);
 
-export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "no_show", "cancelled"]);
+export const attendanceStatusEnum = pgEnum("attendance_status", [
+  "present",
+  "no_show",
+  "cancelled",
+]);
 
 export const absenceReasonEnum = pgEnum("absence_reason", [
   "sick",
@@ -49,11 +65,21 @@ export const ageGroupSpecialtyEnum = pgEnum("age_group_specialty", [
   "all_ages",
 ]);
 
-export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "denied", "completed"]);
+export const requestStatusEnum = pgEnum("request_status", [
+  "pending",
+  "approved",
+  "denied",
+  "completed",
+]);
 
 export const bulletinScopeEnum = pgEnum("bulletin_scope", ["global", "site"]);
 
-export const bulletinRoleTargetEnum = pgEnum("bulletin_role_target", ["all", "administrator", "teacher", "parent"]);
+export const bulletinRoleTargetEnum = pgEnum("bulletin_role_target", [
+  "all",
+  "administrator",
+  "teacher",
+  "parent",
+]);
 
 // ==================== CORE TABLES ====================
 

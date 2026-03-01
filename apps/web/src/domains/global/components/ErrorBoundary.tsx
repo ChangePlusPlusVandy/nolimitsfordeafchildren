@@ -65,13 +65,8 @@ export default class ErrorBoundary extends Component<Props, State> {
             <Typography variant="h5" component="h1" gutterBottom>
               Something went wrong
             </Typography>
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              sx={{ mb: 3 }}
-            >
-              We're sorry, but an unexpected error occurred. Please try again
-              or reload the page.
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              We're sorry, but an unexpected error occurred. Please try again or reload the page.
             </Typography>
 
             {import.meta.env.DEV && this.state.error && (
@@ -119,11 +114,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               >
                 Try Again
               </Button>
-              <Button
-                variant="outlined"
-                onClick={this.handleReload}
-                aria-label="Reload page"
-              >
+              <Button variant="outlined" onClick={this.handleReload} aria-label="Reload page">
                 Reload Page
               </Button>
             </Box>

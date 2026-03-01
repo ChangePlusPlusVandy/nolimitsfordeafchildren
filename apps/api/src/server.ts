@@ -10,12 +10,12 @@ async function startServer() {
   try {
     // Run database migrations before starting the server
     await runMigrations();
-    
+
     const app = buildApplication();
-    
+
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
-      
+
       // Initialize scheduled jobs
       initializeCronJobs();
     });

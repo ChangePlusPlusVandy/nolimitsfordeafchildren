@@ -34,10 +34,10 @@ export async function runAudiogramJob(): Promise<JobResult> {
         site: LocationTable,
       })
       .from(DocumentTable)
-      .innerJoin(StudentTable, and(
-        eq(DocumentTable.entity_type, "student"),
-        eq(DocumentTable.entity_id, StudentTable.id)
-      ))
+      .innerJoin(
+        StudentTable,
+        and(eq(DocumentTable.entity_type, "student"), eq(DocumentTable.entity_id, StudentTable.id)),
+      )
       .innerJoin(LocationTable, eq(StudentTable.site_id, LocationTable.id))
       .where(
         and(
@@ -45,8 +45,8 @@ export async function runAudiogramJob(): Promise<JobResult> {
           eq(StudentTable.is_active, true),
           // Due date is within next 30 days
           gte(DocumentTable.next_due_date, todayStr),
-          lte(DocumentTable.next_due_date, thirtyDaysStr)
-        )
+          lte(DocumentTable.next_due_date, thirtyDaysStr),
+        ),
       )
       .orderBy(DocumentTable.next_due_date);
 
@@ -61,12 +61,7 @@ export async function runAudiogramJob(): Promise<JobResult> {
     const admins = await db
       .select()
       .from(UserTable)
-      .where(
-        and(
-          eq(UserTable.role, "administrator"),
-          eq(UserTable.is_active, true)
-        )
-      );
+      .where(and(eq(UserTable.role, "administrator"), eq(UserTable.is_active, true)));
 
     if (admins.length === 0) {
       console.log("[Audiogram Job] No active administrators found");
@@ -74,11 +69,14 @@ export async function runAudiogramJob(): Promise<JobResult> {
     }
 
     // Group by student to avoid duplicate notifications
-    const studentMap = new Map<string, {
-      student: typeof documentsWithDueDates[0]["student"];
-      site: typeof documentsWithDueDates[0]["site"];
-      dueDate: string;
-    }>();
+    const studentMap = new Map<
+      string,
+      {
+        student: (typeof documentsWithDueDates)[0]["student"];
+        site: (typeof documentsWithDueDates)[0]["site"];
+        dueDate: string;
+      }
+    >();
 
     for (const { document, student, site } of documentsWithDueDates) {
       // Only keep the earliest due date per student
@@ -94,7 +92,9 @@ export async function runAudiogramJob(): Promise<JobResult> {
     // Send notifications
     for (const { student, site, dueDate } of studentMap.values()) {
       const dueDateObj = new Date(dueDate);
-      const daysUntilDue = Math.ceil((dueDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilDue = Math.ceil(
+        (dueDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+      );
 
       // Send to all administrators
       for (const admin of admins) {
@@ -105,18 +105,23 @@ export async function runAudiogramJob(): Promise<JobResult> {
             student.initials,
             dueDate,
             site.name,
-            daysUntilDue
+            daysUntilDue,
           );
 
           if (result.success) {
             sent++;
           } else {
             errors++;
-            console.error(`[Audiogram Job] Failed to send for ${student.initials} to ${admin.email}: ${result.error}`);
+            console.error(
+              `[Audiogram Job] Failed to send for ${student.initials} to ${admin.email}: ${result.error}`,
+            );
           }
         } catch (error) {
           errors++;
-          console.error(`[Audiogram Job] Error sending for ${student.initials} to ${admin.email}:`, error);
+          console.error(
+            `[Audiogram Job] Error sending for ${student.initials} to ${admin.email}:`,
+            error,
+          );
         }
       }
     }

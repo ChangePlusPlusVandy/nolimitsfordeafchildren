@@ -177,7 +177,7 @@ export function useTeacherHttpService() {
        */
       students: async (
         id: string,
-        params?: { page?: number; limit?: number }
+        params?: { page?: number; limit?: number },
       ): Promise<{
         items: Array<{
           id: string;

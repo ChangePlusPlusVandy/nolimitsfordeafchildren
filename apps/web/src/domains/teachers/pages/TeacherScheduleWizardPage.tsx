@@ -34,7 +34,10 @@ import {
   encodeDayMask,
   type CreateScheduleInput,
 } from "../services/TeacherHttpService";
-import { useLocationHttpService, type Location } from "../../locations/services/LocationHttpService";
+import {
+  useLocationHttpService,
+  type Location,
+} from "../../locations/services/LocationHttpService";
 
 const STEPS = ["Schedule Pattern", "Set Times", "Cycle Dates", "Review"];
 
@@ -267,12 +270,8 @@ export default function TeacherScheduleWizardPage() {
                   onChange={(_, value) => value && setSelectedPattern(value)}
                   fullWidth
                 >
-                  <ToggleButton value="MWS">
-                    {SCHEDULE_PATTERNS.MWS.label}
-                  </ToggleButton>
-                  <ToggleButton value="TThS">
-                    {SCHEDULE_PATTERNS.TThS.label}
-                  </ToggleButton>
+                  <ToggleButton value="MWS">{SCHEDULE_PATTERNS.MWS.label}</ToggleButton>
+                  <ToggleButton value="TThS">{SCHEDULE_PATTERNS.TThS.label}</ToggleButton>
                 </ToggleButtonGroup>
               </Box>
             )}
@@ -344,7 +343,13 @@ export default function TeacherScheduleWizardPage() {
                     {formatTime(startTime)} - {formatTime(endTime)}
                     {startTime < endTime && (
                       <Typography component="span" color="text.secondary" sx={{ ml: 1 }}>
-                        ({Math.round((new Date(`2000-01-01T${endTime}`).getTime() - new Date(`2000-01-01T${startTime}`).getTime()) / 60000)} minutes)
+                        (
+                        {Math.round(
+                          (new Date(`2000-01-01T${endTime}`).getTime() -
+                            new Date(`2000-01-01T${startTime}`).getTime()) /
+                            60000,
+                        )}{" "}
+                        minutes)
                       </Typography>
                     )}
                   </>
@@ -389,7 +394,12 @@ export default function TeacherScheduleWizardPage() {
                   <>
                     {cycleStartDate} to {cycleEndDate}
                     <Typography component="span" color="text.secondary" sx={{ ml: 1 }}>
-                      ({Math.round((new Date(cycleEndDate).getTime() - new Date(cycleStartDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} days)
+                      (
+                      {Math.round(
+                        (new Date(cycleEndDate).getTime() - new Date(cycleStartDate).getTime()) /
+                          (1000 * 60 * 60 * 24),
+                      ) + 1}{" "}
+                      days)
                     </Typography>
                   </>
                 ) : (
@@ -407,17 +417,11 @@ export default function TeacherScheduleWizardPage() {
 
             <List>
               <ListItem>
-                <ListItemText
-                  primary="Teacher"
-                  secondary={teacher?.user.name || "—"}
-                />
+                <ListItemText primary="Teacher" secondary={teacher?.user.name || "—"} />
               </ListItem>
               <Divider />
               <ListItem>
-                <ListItemText
-                  primary="Site"
-                  secondary={selectedSite?.name || "—"}
-                />
+                <ListItemText primary="Site" secondary={selectedSite?.name || "—"} />
               </ListItem>
               <Divider />
               <ListItem>
@@ -441,10 +445,7 @@ export default function TeacherScheduleWizardPage() {
               </ListItem>
               <Divider />
               <ListItem>
-                <ListItemText
-                  primary="Cycle"
-                  secondary={`${cycleStartDate} to ${cycleEndDate}`}
-                />
+                <ListItemText primary="Cycle" secondary={`${cycleStartDate} to ${cycleEndDate}`} />
               </ListItem>
             </List>
           </Box>
@@ -452,19 +453,12 @@ export default function TeacherScheduleWizardPage() {
 
         {/* Navigation Buttons */}
         <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
-          <Button
-            disabled={activeStep === 0 || isPending}
-            onClick={handleBack}
-          >
+          <Button disabled={activeStep === 0 || isPending} onClick={handleBack}>
             Back
           </Button>
           <Box>
             {activeStep < STEPS.length - 1 ? (
-              <Button
-                variant="contained"
-                endIcon={<ArrowForwardIcon />}
-                onClick={handleNext}
-              >
+              <Button variant="contained" endIcon={<ArrowForwardIcon />} onClick={handleNext}>
                 Next
               </Button>
             ) : (

@@ -135,8 +135,8 @@ export class ParentsService {
         and(
           eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
           isNull(ParentStudentLinkTable.revoked_at),
-          eq(StudentTable.is_active, true)
-        )
+          eq(StudentTable.is_active, true),
+        ),
       );
 
     const items: LinkedChild[] = [];
@@ -152,8 +152,8 @@ export class ParentsService {
         .where(
           and(
             eq(MakeupRequestTable.student_id, student.student_id),
-            eq(MakeupRequestTable.status, "pending")
-          )
+            eq(MakeupRequestTable.status, "pending"),
+          ),
         );
 
       const pendingScheduleChanges = await db
@@ -162,8 +162,8 @@ export class ParentsService {
         .where(
           and(
             eq(ScheduleChangeRequestTable.student_id, student.student_id),
-            eq(ScheduleChangeRequestTable.status, "pending")
-          )
+            eq(ScheduleChangeRequestTable.status, "pending"),
+          ),
         );
 
       const pendingRequests =
@@ -217,8 +217,8 @@ export class ParentsService {
         and(
           eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
           eq(ParentStudentLinkTable.student_id, studentId),
-          isNull(ParentStudentLinkTable.revoked_at)
-        )
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
       )
       .limit(1);
 
@@ -264,10 +264,7 @@ export class ParentsService {
       .select({ count: sql<number>`count(*)::int` })
       .from(MakeupRequestTable)
       .where(
-        and(
-          eq(MakeupRequestTable.student_id, studentId),
-          eq(MakeupRequestTable.status, "pending")
-        )
+        and(eq(MakeupRequestTable.student_id, studentId), eq(MakeupRequestTable.status, "pending")),
       );
 
     const pendingScheduleChanges = await db
@@ -276,8 +273,8 @@ export class ParentsService {
       .where(
         and(
           eq(ScheduleChangeRequestTable.student_id, studentId),
-          eq(ScheduleChangeRequestTable.status, "pending")
-        )
+          eq(ScheduleChangeRequestTable.status, "pending"),
+        ),
       );
 
     // Get missed sessions (no-shows without makeup request)
@@ -297,8 +294,8 @@ export class ParentsService {
           sql`(${BulletinTable.scope} = 'global' OR ${BulletinTable.site_id} = ${s.site_id})`,
           sql`(${BulletinTable.role_target} = 'all' OR ${BulletinTable.role_target} = 'parent')`,
           sql`(${BulletinTable.publish_at} IS NULL OR ${BulletinTable.publish_at} <= NOW())`,
-          sql`(${BulletinTable.expire_at} IS NULL OR ${BulletinTable.expire_at} > NOW())`
-        )
+          sql`(${BulletinTable.expire_at} IS NULL OR ${BulletinTable.expire_at} > NOW())`,
+        ),
       )
       .orderBy(desc(BulletinTable.publish_at))
       .limit(5);
@@ -352,8 +349,8 @@ export class ParentsService {
           eq(EnrollmentTable.student_id, studentId),
           isNull(EnrollmentTable.ended_at),
           eq(ScheduleTable.is_active, true),
-          gte(ScheduleTable.cycle_end_date, todayStr)
-        )
+          gte(ScheduleTable.cycle_end_date, todayStr),
+        ),
       );
 
     if (enrollments.length === 0) {
@@ -367,14 +364,14 @@ export class ParentsService {
     for (const enrollment of enrollments) {
       const scheduleStart = new Date(enrollment.cycle_start_date);
       const scheduleEnd = new Date(enrollment.cycle_end_date);
-      
+
       // Start from today
       let checkDate = new Date(Math.max(today.getTime(), scheduleStart.getTime()));
-      
+
       // Check next 30 days
       for (let i = 0; i < 30; i++) {
         if (checkDate > scheduleEnd) break;
-        
+
         const dayMask = 1 << checkDate.getDay();
         if ((enrollment.day_of_week_mask & dayMask) !== 0) {
           if (!nextDate || checkDate < nextDate) {
@@ -383,7 +380,7 @@ export class ParentsService {
           }
           break;
         }
-        
+
         checkDate.setDate(checkDate.getDate() + 1);
       }
     }
@@ -405,11 +402,11 @@ export class ParentsService {
   private async getScheduledSessions(
     studentId: string,
     daysRange: number,
-    direction: "future" | "past"
+    direction: "future" | "past",
   ): Promise<ChildScheduleSession[]> {
     const today = new Date();
     const rangeDate = new Date();
-    
+
     if (direction === "future") {
       rangeDate.setDate(rangeDate.getDate() + daysRange);
     } else {
@@ -444,8 +441,8 @@ export class ParentsService {
         and(
           eq(EnrollmentTable.student_id, studentId),
           isNull(EnrollmentTable.ended_at),
-          eq(ScheduleTable.is_active, true)
-        )
+          eq(ScheduleTable.is_active, true),
+        ),
       );
 
     const sessions: ChildScheduleSession[] = [];
@@ -454,7 +451,7 @@ export class ParentsService {
     for (const enrollment of enrollments) {
       const scheduleStart = new Date(enrollment.cycle_start_date);
       const scheduleEnd = new Date(enrollment.cycle_end_date);
-      
+
       let checkDate = new Date(Math.max(startDate.getTime(), scheduleStart.getTime()));
       const finalDate = new Date(Math.min(endDate.getTime(), scheduleEnd.getTime()));
 
@@ -471,8 +468,8 @@ export class ParentsService {
               and(
                 eq(AttendanceTable.student_id, studentId),
                 eq(AttendanceTable.schedule_id, enrollment.schedule_id),
-                eq(AttendanceTable.session_date, dateStr)
-              )
+                eq(AttendanceTable.session_date, dateStr),
+              ),
             )
             .limit(1);
 
@@ -493,7 +490,7 @@ export class ParentsService {
             attendance_status: attendance[0]?.status || null,
           });
         }
-        
+
         checkDate.setDate(checkDate.getDate() + 1);
       }
     }
@@ -531,8 +528,8 @@ export class ParentsService {
         and(
           eq(AttendanceTable.student_id, studentId),
           eq(AttendanceTable.status, "no_show"),
-          gte(AttendanceTable.session_date, dateStr)
-        )
+          gte(AttendanceTable.session_date, dateStr),
+        ),
       )
       .orderBy(desc(AttendanceTable.session_date));
 
@@ -547,8 +544,8 @@ export class ParentsService {
           and(
             eq(MakeupRequestTable.student_id, studentId),
             eq(MakeupRequestTable.original_schedule_id, noShow.schedule_id),
-            eq(MakeupRequestTable.original_session_date, noShow.session_date)
-          )
+            eq(MakeupRequestTable.original_session_date, noShow.session_date),
+          ),
         )
         .limit(1);
 

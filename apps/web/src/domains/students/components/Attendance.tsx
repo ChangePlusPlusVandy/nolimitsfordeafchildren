@@ -13,14 +13,10 @@ function Attendance({ summary }: { summary: AttendanceSummary }) {
           textAlign: "center",
         }}
       >
-        <div style={{ fontSize: 28, fontWeight: 700, color: "#15803d" }}>
-          {summary.percentage}
-        </div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: "#15803d" }}>{summary.percentage}</div>
         <div style={{ fontSize: 14, color: "#15803d" }}>Attendance Rate</div>
       </div>
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         {[
           { val: summary.present, label: "Present", color: "#111827" },
           { val: summary.absent, label: "Absent", color: "#dc2626" },

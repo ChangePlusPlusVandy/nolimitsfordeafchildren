@@ -34,7 +34,12 @@ interface LinkTeacherModalProps {
   studentName?: string;
 }
 
-export default function LinkTeacherModal({ open, onClose, studentId, studentName }: LinkTeacherModalProps) {
+export default function LinkTeacherModal({
+  open,
+  onClose,
+  studentId,
+  studentName,
+}: LinkTeacherModalProps) {
   const queryClient = useQueryClient();
   const studentHttpService = useStudentHttpService();
   const teacherHttpService = useTeacherHttpService();
@@ -43,28 +48,32 @@ export default function LinkTeacherModal({ open, onClose, studentId, studentName
   const [selectedTeacher, setSelectedTeacher] = useState<any | null>(null);
 
   // Fetch student details to show current linked teachers
-  const { data: student, isLoading: studentLoading, isError: studentError } = useQuery({
+  const {
+    data: student,
+    isLoading: studentLoading,
+    isError: studentError,
+  } = useQuery({
     queryKey: [studentHttpService.key, "show", studentId],
     queryFn: () => studentHttpService.queries.show(studentId),
     enabled: open && !!studentId,
   });
 
   // Fetch all teachers for the dropdown
-  const { data: teachersData, isLoading: teachersLoading, isError: teachersError } = useQuery({
+  const {
+    data: teachersData,
+    isLoading: teachersLoading,
+    isError: teachersError,
+  } = useQuery({
     queryKey: [teacherHttpService.key, "index"],
     queryFn: () => teacherHttpService.queries.index(),
     enabled: open,
   });
 
-  const teachers = Array.isArray(teachersData) 
-    ? teachersData 
-    : ((teachersData as any)?.items || []);
+  const teachers = Array.isArray(teachersData) ? teachersData : (teachersData as any)?.items || [];
 
   // Filter out already linked teachers
   const linkedTeacherIds = student?.teachers?.map((t) => t.teacher_id) || [];
-  const availableTeachers = teachers.filter(
-    (t: any) => !linkedTeacherIds.includes(t.id)
-  );
+  const availableTeachers = teachers.filter((t: any) => !linkedTeacherIds.includes(t.id));
 
   // Link teacher mutation
   const linkMutation = useMutation({
@@ -161,9 +170,7 @@ export default function LinkTeacherModal({ open, onClose, studentId, studentName
                       <PersonIcon fontSize="small" />
                     </Avatar>
                     <Box>
-                      <Typography variant="body2">
-                        {option.name || option.user?.name}
-                      </Typography>
+                      <Typography variant="body2">{option.name || option.user?.name}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         {option.email || option.user?.email}
                       </Typography>
@@ -218,10 +225,7 @@ export default function LinkTeacherModal({ open, onClose, studentId, studentName
                       <PersonIcon fontSize="small" />
                     </Avatar>
                   </ListItemAvatar>
-                  <ListItemText
-                    primary={teacher.name}
-                    secondary={teacher.email}
-                  />
+                  <ListItemText primary={teacher.name} secondary={teacher.email} />
                 </ListItem>
               ))}
             </List>

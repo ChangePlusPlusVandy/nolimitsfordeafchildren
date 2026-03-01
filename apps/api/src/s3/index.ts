@@ -1,11 +1,16 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
 const region = process.env.S3_REGION || "sfo3";
 const endpoint = process.env.S3_ENDPOINT || `https://${region}.digitaloceanspaces.com`;
 
 // Detect if using local S3 (MinIO) vs production (DigitalOcean Spaces)
-const isLocalS3 = endpoint.startsWith('http://localhost') || endpoint.includes('minio');
+const isLocalS3 = endpoint.startsWith("http://localhost") || endpoint.includes("minio");
 
 const s3Client = new S3Client({
   region,
@@ -30,7 +35,7 @@ const bucket = process.env.S3_BUCKET_NAME!;
 export async function uploadFile(
   key: string,
   body: Buffer | ReadableStream | string | Uint8Array,
-  contentType?: string
+  contentType?: string,
 ): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: bucket,
@@ -40,7 +45,7 @@ export async function uploadFile(
   });
 
   await s3Client.send(command);
-  
+
   return getPublicUrl(key);
 }
 
@@ -54,7 +59,7 @@ export async function uploadFile(
 export async function uploadLargeFile(
   key: string,
   body: Buffer | ReadableStream | string | Uint8Array,
-  contentType?: string
+  contentType?: string,
 ): Promise<string> {
   const upload = new Upload({
     client: s3Client,
@@ -67,7 +72,7 @@ export async function uploadLargeFile(
   });
 
   await upload.done();
-  
+
   return getPublicUrl(key);
 }
 
@@ -112,10 +117,10 @@ export { s3Client, bucket };
 export async function getPresignedUploadUrl(
   key: string,
   contentType: string,
-  expiresIn: number = 900
+  expiresIn: number = 900,
 ): Promise<string> {
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
-  
+
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
@@ -135,10 +140,10 @@ export async function getPresignedUploadUrl(
  */
 export async function getPresignedDownloadUrl(
   key: string,
-  expiresIn: number = 3600
+  expiresIn: number = 3600,
 ): Promise<string> {
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
-  
+
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: key,
@@ -174,14 +179,13 @@ export function extractKeyFromUrl(url: string): string | null {
   if (url.startsWith(prodBaseUrl)) {
     return url.slice(prodBaseUrl.length);
   }
-  
+
   // Local MinIO URL format: http://localhost:9000/bucket/key or http://minio:9000/bucket/key
   const localPattern = new RegExp(`^https?://[^/]+/${bucket}/(.+)$`);
   const match = url.match(localPattern);
   if (match?.[1]) {
     return match[1];
   }
-  
+
   return null;
 }
-

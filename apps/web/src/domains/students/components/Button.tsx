@@ -5,12 +5,7 @@ interface ButtonProps {
   children: React.ReactNode;
 }
 
-const Button = ({
-  onClick,
-  color = "#2563eb",
-  variant = "solid",
-  children,
-}: ButtonProps) => (
+const Button = ({ onClick, color = "#2563eb", variant = "solid", children }: ButtonProps) => (
   <button
     onClick={onClick}
     style={{

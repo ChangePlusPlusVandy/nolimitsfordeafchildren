@@ -49,14 +49,22 @@ export class GetBulletinsController {
     @QueryParam("includeExpired") includeExpired?: boolean,
     @QueryParam("includeScheduled") includeScheduled?: boolean,
     @QueryParam("page") page?: number,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     const currentUser = req.currentUser;
     if (!currentUser) {
       throw new NotFoundError("User not found");
     }
 
-    const query: ListBulletinsQuery = { siteId, scope, roleTarget, includeExpired, includeScheduled, page, limit };
+    const query: ListBulletinsQuery = {
+      siteId,
+      scope,
+      roleTarget,
+      includeExpired,
+      includeScheduled,
+      page,
+      limit,
+    };
     return await this.bulletinsService.index(query, currentUser.role, currentUser.id);
   }
 }
@@ -120,8 +128,13 @@ export class PostBulletinsController {
       throw new BadRequestError("site_id is required when scope is 'site'");
     }
 
-    if (!body.role_target || !["all", "administrator", "teacher", "parent"].includes(body.role_target)) {
-      throw new BadRequestError("role_target must be 'all', 'administrator', 'teacher', or 'parent'");
+    if (
+      !body.role_target ||
+      !["all", "administrator", "teacher", "parent"].includes(body.role_target)
+    ) {
+      throw new BadRequestError(
+        "role_target must be 'all', 'administrator', 'teacher', or 'parent'",
+      );
     }
 
     return await this.bulletinsService.create(body, currentUser.id);
@@ -150,8 +163,13 @@ export class PatchBulletinController {
     }
 
     // Validate role_target if provided
-    if (body.role_target && !["all", "administrator", "teacher", "parent"].includes(body.role_target)) {
-      throw new BadRequestError("role_target must be 'all', 'administrator', 'teacher', or 'parent'");
+    if (
+      body.role_target &&
+      !["all", "administrator", "teacher", "parent"].includes(body.role_target)
+    ) {
+      throw new BadRequestError(
+        "role_target must be 'all', 'administrator', 'teacher', or 'parent'",
+      );
     }
 
     const bulletin = await this.bulletinsService.update(id, body);

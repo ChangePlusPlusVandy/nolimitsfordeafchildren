@@ -39,7 +39,7 @@ export class GetParentsChildDetailController {
   @Authorized(["parent"])
   async handle(
     @Param("studentId") studentId: string,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     const result = await this.parentsService.childDetail(currentUser.id, studentId);
     if (!result) {

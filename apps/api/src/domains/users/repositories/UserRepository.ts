@@ -16,20 +16,20 @@ export class UserRepository implements IUserRepository {
     const [user] = await db.select().from(UserTable).where(eq(UserTable.id, id));
     if (user === undefined) return undefined;
 
-    return new UserProjection(user.id)
+    return new UserProjection(user.id);
   }
 
   async getByAuth0Id(auth0Id: string): Promise<UserProjection | undefined> {
     const [user] = await db.select().from(UserTable).where(eq(UserTable.auth0Id, auth0Id));
     if (user === undefined) return undefined;
 
-    return new UserProjection(user.id)
+    return new UserProjection(user.id);
   }
 
   async insert(user: Omit<UserEntity, "id">): Promise<UserProjection> {
     const [newUser] = await db.insert(UserTable).values(user).returning();
     if (newUser === undefined) throw new Error("Failed to insert user");
 
-    return new UserProjection(newUser.id)
+    return new UserProjection(newUser.id);
   }
 }

@@ -33,7 +33,7 @@ export async function sendMissedSessionAlert(
   sessionDate: string,
   teacherName: string,
   siteName: string,
-  reason?: string
+  reason?: string,
 ): Promise<EmailResult> {
   const client = getResendClient();
   if (!client) {
@@ -75,12 +75,16 @@ export async function sendMissedSessionAlert(
               <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Site:</strong></td>
               <td style="padding: 8px; border-bottom: 1px solid #eee;">${siteName}</td>
             </tr>
-            ${reason ? `
+            ${
+              reason
+                ? `
             <tr>
               <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Reason:</strong></td>
               <td style="padding: 8px; border-bottom: 1px solid #eee;">${reason.replace(/_/g, " ")}</td>
             </tr>
-            ` : ""}
+            `
+                : ""
+            }
           </table>
           
           <p style="color: #666; font-size: 14px;">
@@ -118,7 +122,7 @@ export async function sendBirthdayNotification(
   studentInitials: string,
   birthday: string,
   age: number,
-  siteName: string
+  siteName: string,
 ): Promise<EmailResult> {
   const client = getResendClient();
   if (!client) {
@@ -190,7 +194,7 @@ export async function sendAudiogramReminder(
   studentInitials: string,
   dueDate: string,
   siteName: string,
-  daysUntilDue: number
+  daysUntilDue: number,
 ): Promise<EmailResult> {
   const client = getResendClient();
   if (!client) {
@@ -273,7 +277,7 @@ export async function sendMakeupRequestNotification(
   requestedByName: string,
   missedDate: string,
   reason: string,
-  siteName: string
+  siteName: string,
 ): Promise<EmailResult> {
   const client = getResendClient();
   if (!client) {
@@ -355,7 +359,7 @@ export async function sendScheduleChangeRequestNotification(
   requestedByName: string,
   reason: string,
   currentSchedule: string,
-  requestedSchedule: string
+  requestedSchedule: string,
 ): Promise<EmailResult> {
   const client = getResendClient();
   if (!client) {
@@ -413,7 +417,9 @@ export async function sendScheduleChangeRequestNotification(
       return { success: false, error: error.message };
     }
 
-    console.log(`[Email] Sent schedule change request notification for ${studentInitials} to ${adminEmail}`);
+    console.log(
+      `[Email] Sent schedule change request notification for ${studentInitials} to ${adminEmail}`,
+    );
     return { success: true, id: data?.id };
   } catch (error: any) {
     console.error("[Email] Error sending schedule change notification:", error);

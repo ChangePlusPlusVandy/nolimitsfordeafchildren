@@ -27,7 +27,11 @@ import { TableSkeleton } from "../../global/components/skeletons";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { useUserHttpService, type UserRole, type ListUsersParams } from "../services/UserHttpService";
+import {
+  useUserHttpService,
+  type UserRole,
+  type ListUsersParams,
+} from "../services/UserHttpService";
 import InviteUserModal from "./InviteUserModal";
 
 export default function ManageUsersPage() {
@@ -213,10 +217,7 @@ export default function ManageUsersPage() {
       )}
 
       {/* Invite User Modal */}
-      <InviteUserModal
-        open={inviteModalOpen}
-        onClose={() => setInviteModalOpen(false)}
-      />
+      <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
     </Box>
   );
 }
