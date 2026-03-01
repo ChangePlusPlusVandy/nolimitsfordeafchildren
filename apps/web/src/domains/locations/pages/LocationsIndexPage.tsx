@@ -21,7 +21,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
-import { useLocationHttpService, type LocationMapPin } from "../services/LocationHttpService";
+import { useLocationHttpService, type LocationMapPin, type LocationType } from "../services/LocationHttpService";
 import { useAuth } from "../../../auth";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { divIcon, LatLngBounds } from "leaflet";
@@ -72,6 +72,21 @@ export default function LocationsIndexPage() {
   const { isAdmin } = useAuth();
   const locationHttpService = useLocationHttpService();
   const [search, setSearch] = useState("");
+
+  const LOCATION_TYPE_LABEL: Record<LocationType, string> = {
+    education_center: "Education Center",
+    pop_up: "Pop-up",
+    remote: "Remote",
+  };
+
+  const LOCATION_TYPE_COLOR: Record<
+    LocationType,
+    "primary" | "secondary" | "info"
+  > = {
+    education_center: "primary",
+    pop_up: "secondary",
+    remote: "info",
+  };
 
   // Fetch all locations for the list
   const {
@@ -229,9 +244,9 @@ export default function LocationsIndexPage() {
                         {pin.name}
                       </Typography>
                       <Chip
-                        label={pin.type === "education_center" ? "Education Center" : "Pop-up"}
+                        label={LOCATION_TYPE_LABEL[pin.type]}
                         size="small"
-                        color={pin.type === "education_center" ? "primary" : "secondary"}
+                        color={LOCATION_TYPE_COLOR[pin.type]}
                         sx={{ mt: 0.5, mb: 0.5 }}
                       />
                       <br />
@@ -306,15 +321,9 @@ export default function LocationsIndexPage() {
                   />
                   <Box display="flex" gap={1} alignItems="center">
                     <Chip
-                      label={
-                        location.type === "education_center"
-                          ? "Education Center"
-                          : "Pop-up"
-                      }
+                      label={LOCATION_TYPE_LABEL[location.type]}
                       size="small"
-                      color={
-                        location.type === "education_center" ? "primary" : "secondary"
-                      }
+                      color={LOCATION_TYPE_COLOR[location.type]}
                       variant="outlined"
                     />
                     <Chip

@@ -15,7 +15,7 @@ export const citext = customType<{ data: string }>({
 
 export const userRoleEnum = pgEnum("user_role", ["administrator", "teacher", "parent"]);
 
-export const locationTypeEnum = pgEnum("location_type", ["education_center", "pop_up"]);
+export const locationTypeEnum = pgEnum("location_type", ["education_center", "pop_up", "remote"]);
 
 export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "no_show", "cancelled"]);
 
