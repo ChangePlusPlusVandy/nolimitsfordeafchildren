@@ -173,16 +173,15 @@ See `AGENTS.md` for detailed architecture documentation.
 
 ## Windows Installation
 
-If you encounter errors related to optional dependencies (e.g., `@rollup/rollup-win32-x64-msvc`):
+If you encounter Rollup install errors on Windows (for example `@rollup/rollup-win32-x64-msvc`), reinstall from the repo root so npm picks up the workspace dependency graph correctly. The web app pins Rollup to the wasm-based package to avoid platform-specific native binary issues.
 
-1. **Clean installation:**
-   ```bash
-   # Remove existing dependencies
-   rm -rf node_modules apps/*/node_modules
-   rm -f package-lock.json apps/*/package-lock.json
+1. **Clean installation in PowerShell:**
+   ```powershell
+   Remove-Item -Recurse -Force node_modules, apps\web\node_modules, apps\api\node_modules -ErrorAction SilentlyContinue
+   Remove-Item -Force package-lock.json, apps\web\package-lock.json, apps\api\package-lock.json -ErrorAction SilentlyContinue
    ```
 
-2. **Reinstall dependencies:**
+2. **Reinstall dependencies from the repo root:**
    ```bash
    npm install
    ```
@@ -192,4 +191,4 @@ If you encounter errors related to optional dependencies (e.g., `@rollup/rollup-
    npm run dev
    ```
 
-**Note:** The `.npmrc` file in the root directory is configured to handle optional dependencies correctly on all platforms. If you still encounter issues, ensure you're using npm v10.9.2 or higher by running `npm --version`.
+If you still encounter issues, verify your npm version with `npm --version`. This repo is configured for `npm@10.9.2`.
