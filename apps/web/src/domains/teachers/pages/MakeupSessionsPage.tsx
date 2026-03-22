@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -14,7 +14,7 @@ import {
   FormControl,
   InputLabel,
   OutlinedInput,
-} from "@mui/material"
+} from "@mui/material";
 import {
   EventRepeat as MakeupIcon,
   Schedule as ScheduleIcon,
@@ -22,66 +22,64 @@ import {
   CheckCircle as PresentIcon,
   Cancel as NoShowIcon,
   CalendarToday as CalendarIcon,
-} from "@mui/icons-material"
-import { useState } from "react"
-import { useHttpClient } from "../../../plugins/axios"
-import { useToast } from "../../global/components/ToastProvider"
+} from "@mui/icons-material";
+import { useState } from "react";
+import { useHttpClient } from "../../../plugins/axios";
+import { useToast } from "../../global/components/ToastProvider";
 
 interface MakeupSession {
-  id: string
+  id: string;
   student: {
-    id: string
-    first_name: string
-    last_name: string
-    initials: string
-  }
+    id: string;
+    first_name: string;
+    last_name: string;
+    initials: string;
+  };
   site: {
-    id: string
-    name: string
-  }
-  scheduled_date: string
-  scheduled_time: string
-  attendance_status: "pending" | "present" | "no_show" | null
-  notes: string | null
+    id: string;
+    name: string;
+  };
+  scheduled_date: string;
+  scheduled_time: string;
+  attendance_status: "pending" | "present" | "no_show" | null;
+  notes: string | null;
   makeup_request?: {
-    id: string
-    original_session_date: string
-    reason: string
-  } | null
+    id: string;
+    original_session_date: string;
+    reason: string;
+  } | null;
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
+  const date = new Date(dateStr);
   return date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
     year: "numeric",
-  })
+  });
 }
 
 function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":")
-  const hour = parseInt(hours!, 10)
-  const ampm = hour >= 12 ? "PM" : "AM"
-  const hour12 = hour % 12 || 12
-  return `${hour12}:${minutes} ${ampm}`
+  const [hours, minutes] = timeStr.split(":");
+  const hour = parseInt(hours!, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
 }
 
 function formatReason(reason: string): string {
-  return reason
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase())
+  return reason.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 function getAttendanceColor(status: string | null): "default" | "success" | "error" {
   switch (status) {
     case "present":
-      return "success"
+      return "success";
     case "no_show":
-      return "error"
+      return "error";
     default:
-      return "default"
+      return "default";
   }
 }
 
@@ -90,22 +88,18 @@ function MakeupSessionCard({
   onMarkAttendance,
   isLoading,
 }: {
-  session: MakeupSession
-  onMarkAttendance: (sessionId: string, status: "present" | "no_show") => void
-  isLoading: boolean
+  session: MakeupSession;
+  onMarkAttendance: (sessionId: string, status: "present" | "no_show") => void;
+  isLoading: boolean;
 }) {
-  const attendanceMarked = session.attendance_status && session.attendance_status !== "pending"
+  const attendanceMarked = session.attendance_status && session.attendance_status !== "pending";
 
   return (
     <Card variant="outlined" sx={{ mb: 2 }}>
       <CardContent>
         <Stack spacing={2}>
           {/* Header */}
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="flex-start"
-          >
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
             <Stack direction="row" spacing={2} alignItems="center">
               <Avatar
                 sx={{
@@ -144,15 +138,11 @@ function MakeupSessionCard({
           <Stack direction="row" spacing={3}>
             <Stack direction="row" spacing={1} alignItems="center">
               <CalendarIcon fontSize="small" color="action" />
-              <Typography variant="body2">
-                {formatDate(session.scheduled_date)}
-              </Typography>
+              <Typography variant="body2">{formatDate(session.scheduled_date)}</Typography>
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <ScheduleIcon fontSize="small" color="action" />
-              <Typography variant="body2">
-                {formatTime(session.scheduled_time)}
-              </Typography>
+              <Typography variant="body2">{formatTime(session.scheduled_time)}</Typography>
             </Stack>
           </Stack>
 
@@ -207,7 +197,7 @@ function MakeupSessionCard({
         </Stack>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function LoadingSkeleton() {
@@ -231,20 +221,18 @@ function LoadingSkeleton() {
         </Card>
       ))}
     </Stack>
-  )
+  );
 }
 
 export default function MakeupSessionsPage() {
-  const httpClient = useHttpClient()
-  const queryClient = useQueryClient()
-  const { showToast } = useToast()
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0]!
-  )
+  const httpClient = useHttpClient();
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]!);
 
   // Get teacher profile ID - in a real app, this would come from user context or a separate query
   // For now, we'll fetch it from /me endpoint
-  const teacherId = ""
+  const teacherId = "";
 
   // Fetch makeup sessions
   const {
@@ -256,25 +244,23 @@ export default function MakeupSessionsPage() {
     queryFn: async () => {
       if (!teacherId) {
         // If no teacher profile ID, fetch from /me endpoint
-        const meResponse = await httpClient.get("/v1/me")
-        const profileId = meResponse.data.teacherProfileId
-        if (!profileId) throw new Error("No teacher profile found")
-        
-        const response = await httpClient.get(
-          `/v1/teachers/${profileId}/makeup-sessions`,
-          { params: { date: selectedDate } }
-        )
-        return response.data
+        const meResponse = await httpClient.get("/v1/me");
+        const profileId = meResponse.data.teacherProfileId;
+        if (!profileId) throw new Error("No teacher profile found");
+
+        const response = await httpClient.get(`/v1/teachers/${profileId}/makeup-sessions`, {
+          params: { date: selectedDate },
+        });
+        return response.data;
       }
-      
-      const response = await httpClient.get(
-        `/v1/teachers/${teacherId}/makeup-sessions`,
-        { params: { date: selectedDate } }
-      )
-      return response.data
+
+      const response = await httpClient.get(`/v1/teachers/${teacherId}/makeup-sessions`, {
+        params: { date: selectedDate },
+      });
+      return response.data;
     },
     enabled: true,
-  })
+  });
 
   // Mark attendance mutation
   const markAttendanceMutation = useMutation({
@@ -282,46 +268,36 @@ export default function MakeupSessionsPage() {
       sessionId,
       status,
     }: {
-      sessionId: string
-      status: "present" | "no_show"
+      sessionId: string;
+      status: "present" | "no_show";
     }) => {
-      const response = await httpClient.patch(
-        `/v1/makeup-sessions/${sessionId}/attendance`,
-        { status }
-      )
-      return response.data
+      const response = await httpClient.patch(`/v1/makeup-sessions/${sessionId}/attendance`, {
+        status,
+      });
+      return response.data;
     },
     onSuccess: () => {
-      showToast({ message: "Attendance marked successfully!", severity: "success" })
-      queryClient.invalidateQueries({ queryKey: ["teachers", teacherId, "makeup-sessions"] })
+      showToast({ message: "Attendance marked successfully!", severity: "success" });
+      queryClient.invalidateQueries({ queryKey: ["teachers", teacherId, "makeup-sessions"] });
     },
     onError: (error: any) => {
       showToast({
         message: error.response?.data?.message || "Failed to mark attendance",
         severity: "error",
-      })
+      });
     },
-  })
+  });
 
-  const sessions: MakeupSession[] = sessionsData?.items ?? []
+  const sessions: MakeupSession[] = sessionsData?.items ?? [];
 
   // Filter sessions by date
-  const todaySessions = sessions.filter(
-    (s) => s.scheduled_date === selectedDate
-  )
-  const upcomingSessions = sessions.filter(
-    (s) => s.scheduled_date > selectedDate
-  )
-  const pastSessions = sessions.filter(
-    (s) => s.scheduled_date < selectedDate
-  )
+  const todaySessions = sessions.filter((s) => s.scheduled_date === selectedDate);
+  const upcomingSessions = sessions.filter((s) => s.scheduled_date > selectedDate);
+  const pastSessions = sessions.filter((s) => s.scheduled_date < selectedDate);
 
-  const handleMarkAttendance = (
-    sessionId: string,
-    status: "present" | "no_show"
-  ) => {
-    markAttendanceMutation.mutate({ sessionId, status })
-  }
+  const handleMarkAttendance = (sessionId: string, status: "present" | "no_show") => {
+    markAttendanceMutation.mutate({ sessionId, status });
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -348,13 +324,11 @@ export default function MakeupSessionsPage() {
       {isLoading ? (
         <LoadingSkeleton />
       ) : error ? (
-        <Alert severity="error">
-          Failed to load make-up sessions. Please try again.
-        </Alert>
+        <Alert severity="error">Failed to load make-up sessions. Please try again.</Alert>
       ) : sessions.length === 0 ? (
         <Alert severity="info" icon={<MakeupIcon />}>
-          You don't have any make-up sessions assigned. Make-up sessions will
-          appear here when an administrator schedules them for you.
+          You don't have any make-up sessions assigned. Make-up sessions will appear here when an
+          administrator schedules them for you.
         </Alert>
       ) : (
         <Stack spacing={3}>
@@ -433,7 +407,7 @@ export default function MakeupSessionsPage() {
                   <Typography variant="h4" color="warning.main">
                     {
                       sessions.filter(
-                        (s) => !s.attendance_status || s.attendance_status === "pending"
+                        (s) => !s.attendance_status || s.attendance_status === "pending",
                       ).length
                     }
                   </Typography>
@@ -447,5 +421,5 @@ export default function MakeupSessionsPage() {
         </Stack>
       )}
     </Box>
-  )
+  );
 }

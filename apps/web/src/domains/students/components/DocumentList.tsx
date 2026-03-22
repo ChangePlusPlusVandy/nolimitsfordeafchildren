@@ -30,7 +30,11 @@ import {
   Warning as WarningIcon,
   CloudUpload as CloudUploadIcon,
 } from "@mui/icons-material";
-import { useDocumentHttpService, type Document, type DocumentType } from "../../documents/services/DocumentHttpService";
+import {
+  useDocumentHttpService,
+  type Document,
+  type DocumentType,
+} from "../../documents/services/DocumentHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 
 interface DocumentListProps {
@@ -39,7 +43,10 @@ interface DocumentListProps {
   onUploadClick?: () => void;
 }
 
-const DOCUMENT_TYPE_CONFIG: Record<DocumentType, { label: string; icon: React.ReactNode; color: string }> = {
+const DOCUMENT_TYPE_CONFIG: Record<
+  DocumentType,
+  { label: string; icon: React.ReactNode; color: string }
+> = {
   audiogram: { label: "Audiogram", icon: <HearingIcon />, color: "#7c4dff" },
   iep: { label: "IEP", icon: <AssignmentIcon />, color: "#00bcd4" },
   cv: { label: "CV", icon: <DescriptionIcon />, color: "#4caf50" },
@@ -73,7 +80,11 @@ function getDaysOverdue(nextDueDate: string | null): number | null {
   return diffDays;
 }
 
-export default function DocumentList({ studentId, canDelete = false, onUploadClick }: DocumentListProps) {
+export default function DocumentList({
+  studentId,
+  canDelete = false,
+  onUploadClick,
+}: DocumentListProps) {
   const documentService = useDocumentHttpService();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -83,7 +94,11 @@ export default function DocumentList({ studentId, canDelete = false, onUploadCli
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Fetch documents
-  const { data: documents, isLoading, error } = useQuery({
+  const {
+    data: documents,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: [documentService.key, "student", studentId],
     queryFn: () => documentService.queries.listForStudent(studentId),
     enabled: !!studentId,
@@ -107,12 +122,12 @@ export default function DocumentList({ studentId, canDelete = false, onUploadCli
     setDownloadingId(doc.id);
     try {
       const { download_url, file_name } = await documentService.queries.getDownloadUrl(doc.id);
-      
+
       // Force download by fetching and creating a blob
       const response = await fetch(download_url);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      
+
       const link = document.createElement("a");
       link.href = url;
       link.download = file_name || doc.file_name;
@@ -120,7 +135,7 @@ export default function DocumentList({ studentId, canDelete = false, onUploadCli
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success("Download started");
     } catch (err) {
       console.error("Download error:", err);
@@ -269,12 +284,16 @@ export default function DocumentList({ studentId, canDelete = false, onUploadCli
                     </Box>
                   }
                   secondary={
-                    <Box component="span" sx={{ display: "flex", flexDirection: "column", gap: 0.25, mt: 0.5 }}>
+                    <Box
+                      component="span"
+                      sx={{ display: "flex", flexDirection: "column", gap: 0.25, mt: 0.5 }}
+                    >
                       <Typography variant="caption" color="text.secondary" component="span">
                         {doc.file_name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" component="span">
-                        Uploaded: {formatDate(doc.created_at)} &bull; {formatFileSize(doc.file_size)}
+                        Uploaded: {formatDate(doc.created_at)} &bull;{" "}
+                        {formatFileSize(doc.file_size)}
                         {doc.next_due_date && (
                           <> &bull; Next due: {formatDate(doc.next_due_date)}</>
                         )}
@@ -293,7 +312,8 @@ export default function DocumentList({ studentId, canDelete = false, onUploadCli
         <DialogTitle>Delete Document</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete "{documentToDelete?.file_name}"? This action cannot be undone.
+            Are you sure you want to delete "{documentToDelete?.file_name}"? This action cannot be
+            undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

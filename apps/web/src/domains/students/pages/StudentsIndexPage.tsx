@@ -228,9 +228,7 @@ export default function StudentsIndexPage() {
                           : "-"}
                       </TableCell>
                     )}
-                    <TableCell>
-                      {locationMap.get(student.site_id) ?? "-"}
-                    </TableCell>
+                    <TableCell>{locationMap.get(student.site_id) ?? "-"}</TableCell>
                     <TableCell>
                       <Chip
                         label={student.is_active ? "Active" : "Inactive"}
@@ -267,10 +265,7 @@ export default function StudentsIndexPage() {
       </Paper>
 
       {/* Create Student Modal */}
-      <CreateStudentModal
-        open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-      />
+      <CreateStudentModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
     </Box>
   );
 }

@@ -3,22 +3,27 @@ import { useExpressServer, useContainer, type Action } from "routing-controllers
 import express, { type Request, type Response } from "express";
 import cors from "cors";
 import Container from "@/container";
-import { hasRole, createAuthMiddleware, errorHandler, notFoundHandler } from "./domains/auth/middleware";
+import {
+  hasRole,
+  createAuthMiddleware,
+  errorHandler,
+  notFoundHandler,
+} from "./domains/auth/middleware";
 
 // Auth Controllers
-import { 
-  PostAuthLoginController, 
-  PostAuthLogoutController, 
+import {
+  PostAuthLoginController,
+  PostAuthLogoutController,
   PostAuthRefreshController,
   AuthCallbackController,
   GetAuthMeController,
 } from "./domains/auth/endpoints/AuthController";
 
 // User Controllers
-import { 
-  GetUsersController, 
+import {
+  GetUsersController,
   GetUserController,
-  PostUsersInviteController, 
+  PostUsersInviteController,
   PatchUserController,
   DeleteUserController,
   PostEnableUserController,
@@ -28,7 +33,7 @@ import {
 import { GetMeController, PatchMeController } from "./domains/me/endpoints/MeController";
 
 // Bulletin Controllers
-import { 
+import {
   GetBulletinsController,
   GetBulletinController,
   PostBulletinsController,
@@ -42,9 +47,18 @@ import {
 import { LocationsController } from "./domains/locations/endpoints/LocationsController";
 
 // Teacher Controllers
-import { GetTeacherController, GetTeacherStudentsController, GetTeachersController, PatchTeacherController, PostTeachersController } from "./domains/teachers/endpoints/TeachersController";
+import {
+  GetTeacherController,
+  GetTeacherStudentsController,
+  GetTeachersController,
+  PatchTeacherController,
+  PostTeachersController,
+} from "./domains/teachers/endpoints/TeachersController";
 import { GetTeachersMeDayController } from "./domains/teachers/endpoints/TeacherMyDayController";
-import { PatchSchedulesController, PostTeacherSchedulesController } from "./domains/teachers/endpoints/TeacherSchedulesController";
+import {
+  PatchSchedulesController,
+  PostTeacherSchedulesController,
+} from "./domains/teachers/endpoints/TeacherSchedulesController";
 
 // Student Controllers
 import {
@@ -62,13 +76,20 @@ import {
 import { StudentParentsAdminController } from "./domains/students/endpoints/StudentParentsAdminController";
 
 // Parent Controllers
-import { GetParentsChildDetailController, GetParentsMeChildrenController } from "./domains/parents/endpoints/ParentsController";
+import {
+  GetParentsChildDetailController,
+  GetParentsMeChildrenController,
+} from "./domains/parents/endpoints/ParentsController";
 
 // Other Controllers
-import { GetEnrollmentsController, PatchEnrollmentController, PostEnrollmentsController } from "./domains/enrollments/endpoints/EnrollmentsController";
-import { 
-  GetAttendanceController, 
-  PatchAttendanceController, 
+import {
+  GetEnrollmentsController,
+  PatchEnrollmentController,
+  PostEnrollmentsController,
+} from "./domains/enrollments/endpoints/EnrollmentsController";
+import {
+  GetAttendanceController,
+  PatchAttendanceController,
   PostAttendanceController,
   GetAttendanceShowController,
   GetStudentAttendanceSummaryController,
@@ -141,27 +162,29 @@ useContainer({
 export function buildApplication() {
   const allowedOrigins = process.env.CORS_ORIGINS?.split(",") || ["http://localhost:5173"];
   const authDisabled = process.env.AUTH_DISABLED === "true";
-  
+
   // Create Express app first
   const app = express();
-  
+
   // Apply CORS middleware
-  app.use(cors({
-    origin: allowedOrigins,
-    credentials: true,
-  }));
-  
+  app.use(
+    cors({
+      origin: allowedOrigins,
+      credentials: true,
+    }),
+  );
+
   // Health check endpoint (no auth required)
   app.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok" });
   });
-  
+
   // Apply global auth middleware
   // This validates JWT tokens (if present) and loads the user from the database.
   // It does NOT reject unauthenticated requests - that's handled by @Authorized() decorator.
   const authMiddleware = createAuthMiddleware();
   app.use(authMiddleware);
-  
+
   // Set up routing-controllers on the existing Express app
   useExpressServer(app, {
     // Disable class-transformer validation to allow interface types with @QueryParams/@Body
@@ -175,11 +198,11 @@ export function buildApplication() {
       PostAuthLogoutController,
       AuthCallbackController,
       GetAuthMeController,
-      
+
       // Me
       GetMeController,
       PatchMeController,
-      
+
       // Bulletins
       GetBulletinsController,
       GetBulletinController,
@@ -188,10 +211,10 @@ export function buildApplication() {
       DeleteBulletinController,
       PostBulletinAttachmentController,
       DeleteBulletinAttachmentController,
-      
+
       // Locations (consolidated controller handles all routes with proper ordering)
       LocationsController,
-      
+
       // Teachers
       GetTeachersController,
       PostTeachersController,
@@ -201,7 +224,7 @@ export function buildApplication() {
       GetTeachersMeDayController,
       PostTeacherSchedulesController,
       PatchSchedulesController,
-      
+
       // Students
       GetStudentsController,
       PostStudentsController,
@@ -214,11 +237,11 @@ export function buildApplication() {
       PostStudentSiblingsController,
       PatchSiblingController,
       DeleteSiblingController,
-      
+
       // Parents
       GetParentsMeChildrenController,
       GetParentsChildDetailController,
-      
+
       // Enrollments & Attendance
       GetEnrollmentsController,
       PostEnrollmentsController,
@@ -228,7 +251,7 @@ export function buildApplication() {
       PostAttendanceController,
       PatchAttendanceController,
       GetStudentAttendanceSummaryController,
-      
+
       // Documents
       PostDocumentsUploadUrlController,
       PostDocumentsController,
@@ -240,7 +263,7 @@ export function buildApplication() {
       GetTeacherDocumentsController,
       GetOverdueAudiogramsController,
       GetAudiogramsDueSoonController,
-      
+
       // Session Notes
       GetStudentNotesController,
       PostStudentNotesController,
@@ -248,14 +271,14 @@ export function buildApplication() {
       PatchNoteController,
       DeleteNoteController,
       GetTeacherNotesController,
-      
+
       // Assessments
       GetStudentAssessmentsController,
       PostStudentAssessmentsController,
       GetAssessmentController,
       PatchAssessmentController,
       DeleteAssessmentController,
-      
+
       // Makeup Requests & Sessions
       PostMakeupRequestController,
       GetMakeupRequestsController,
@@ -265,7 +288,7 @@ export function buildApplication() {
       GetTeacherMakeupSessionsController,
       PatchMakeupSessionAttendanceController,
       GetParentMakeupRequestsController,
-      
+
       // Schedule Change Requests
       PostScheduleChangeRequestController,
       GetScheduleChangeRequestsController,
@@ -273,7 +296,7 @@ export function buildApplication() {
       PatchScheduleChangeRequestController,
       GetAvailableSchedulesController,
       GetParentScheduleChangeRequestsController,
-      
+
       // Users
       GetUsersController,
       GetUserController,
@@ -281,26 +304,26 @@ export function buildApplication() {
       PatchUserController,
       DeleteUserController,
       PostEnableUserController,
-      
+
       // Other
       ProfilesController,
       SchedulesController,
       SitesController,
     ],
     middlewares: [],
-    
+
     /**
      * Current user checker - returns the user loaded by global auth middleware.
      * This is called by routing-controllers when @CurrentUser() decorator is used.
      */
     currentUserChecker: async (action: Action) => {
       const req = action.request as Request;
-      
+
       // User was loaded by global auth middleware
       if (req.currentUser) {
         return req.currentUser;
       }
-      
+
       // If auth is disabled, return dev user as fallback
       if (authDisabled) {
         return {
@@ -316,10 +339,10 @@ export function buildApplication() {
           updated_at: new Date(),
         };
       }
-      
+
       return undefined;
     },
-    
+
     /**
      * Authorization checker - verifies user exists and has required role.
      * This is called by routing-controllers when @Authorized() decorator is used.
@@ -328,16 +351,16 @@ export function buildApplication() {
     authorizationChecker: async (action: Action, roles: string[]) => {
       const req = action.request as Request;
       const res = action.response as Response;
-      
+
       // If auth is disabled, allow all
       if (authDisabled) {
         return true;
       }
-      
+
       // Check if there was an auth error during middleware processing
       if (req.authError) {
         const { code, message } = req.authError;
-        
+
         // Determine appropriate HTTP status code
         let statusCode: number;
         switch (code) {
@@ -354,42 +377,42 @@ export function buildApplication() {
           default:
             statusCode = 401;
         }
-        
+
         // Set response headers for error handling
         res.statusCode = statusCode;
         res.setHeader("X-Auth-Error-Code", code);
         res.setHeader("X-Auth-Error-Message", message);
-        
+
         return false;
       }
-      
+
       // Get current user
       const user = req.currentUser;
-      
+
       if (!user) {
         res.statusCode = 401;
         res.setHeader("X-Auth-Error-Code", "NO_TOKEN");
         res.setHeader("X-Auth-Error-Message", "Authentication required");
         return false;
       }
-      
+
       // If no specific roles required, just check if user exists
       if (roles.length === 0) {
         return true;
       }
-      
+
       // Check if user has one of the required roles
       const hasRequiredRole = hasRole(user, ...(roles as any));
-      
+
       if (!hasRequiredRole) {
         res.statusCode = 403;
         res.setHeader("X-Auth-Error-Code", "INSUFFICIENT_ROLE");
         res.setHeader("X-Auth-Error-Message", `Required roles: ${roles.join(", ")}`);
       }
-      
+
       return hasRequiredRole;
     },
-    
+
     /**
      * Default error handler for routing-controllers
      */

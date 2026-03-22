@@ -68,10 +68,7 @@ export class SessionNotesService {
       note: input.note,
     };
 
-    const result = await db
-      .insert(SessionNoteTable)
-      .values(newNote)
-      .returning();
+    const result = await db.insert(SessionNoteTable).values(newNote).returning();
 
     return result[0]!;
   }
@@ -212,11 +209,7 @@ export class SessionNotesService {
   /**
    * Update a note (only by the teacher who created it)
    */
-  async update(
-    id: string,
-    teacherId: string,
-    note: string
-  ): Promise<SessionNoteEntity | null> {
+  async update(id: string, teacherId: string, note: string): Promise<SessionNoteEntity | null> {
     // Verify the note exists and belongs to this teacher
     const existing = await db
       .select()
@@ -245,7 +238,7 @@ export class SessionNotesService {
    */
   async delete(id: string, teacherId?: string): Promise<boolean> {
     const conditions = [eq(SessionNoteTable.id, id)];
-    
+
     if (teacherId) {
       conditions.push(eq(SessionNoteTable.teacher_id, teacherId));
     }

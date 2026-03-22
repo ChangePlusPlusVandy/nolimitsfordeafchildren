@@ -46,8 +46,8 @@ export async function runBirthdayJob(): Promise<JobResult> {
             (EXTRACT(MONTH FROM ${StudentTable.dob}::date) = ${todayMonth} AND EXTRACT(DAY FROM ${StudentTable.dob}::date) >= ${todayDay})
             OR (EXTRACT(MONTH FROM ${StudentTable.dob}::date) = ${futureMonth} AND EXTRACT(DAY FROM ${StudentTable.dob}::date) <= ${futureDay})
             ${todayMonth !== futureMonth ? sql`OR (EXTRACT(MONTH FROM ${StudentTable.dob}::date) > ${todayMonth} AND EXTRACT(MONTH FROM ${StudentTable.dob}::date) < ${futureMonth})` : sql``}
-          )`
-        )
+          )`,
+        ),
       );
 
     if (studentsWithBirthdays.length === 0) {
@@ -55,18 +55,15 @@ export async function runBirthdayJob(): Promise<JobResult> {
       return { sent: 0, errors: 0 };
     }
 
-    console.log(`[Birthday Job] Found ${studentsWithBirthdays.length} students with upcoming birthdays`);
+    console.log(
+      `[Birthday Job] Found ${studentsWithBirthdays.length} students with upcoming birthdays`,
+    );
 
     // Get site administrators to notify
     const admins = await db
       .select()
       .from(UserTable)
-      .where(
-        and(
-          eq(UserTable.role, "administrator"),
-          eq(UserTable.is_active, true)
-        )
-      );
+      .where(and(eq(UserTable.role, "administrator"), eq(UserTable.is_active, true)));
 
     if (admins.length === 0) {
       console.log("[Birthday Job] No active administrators found");
@@ -77,13 +74,13 @@ export async function runBirthdayJob(): Promise<JobResult> {
     for (const { student, site } of studentsWithBirthdays) {
       const dob = new Date(student.dob);
       const birthdayThisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-      
+
       // If birthday already passed this year, use next year for age calculation
       let upcomingBirthday = birthdayThisYear;
       if (birthdayThisYear < today) {
         upcomingBirthday = new Date(today.getFullYear() + 1, dob.getMonth(), dob.getDate());
       }
-      
+
       const age = upcomingBirthday.getFullYear() - dob.getFullYear();
 
       // Send to all administrators (could be enhanced to send only to site-specific admins)
@@ -96,18 +93,23 @@ export async function runBirthdayJob(): Promise<JobResult> {
             student.initials,
             birthdayStr,
             age,
-            site.name
+            site.name,
           );
 
           if (result.success) {
             sent++;
           } else {
             errors++;
-            console.error(`[Birthday Job] Failed to send for ${student.initials} to ${admin.email}: ${result.error}`);
+            console.error(
+              `[Birthday Job] Failed to send for ${student.initials} to ${admin.email}: ${result.error}`,
+            );
           }
         } catch (error) {
           errors++;
-          console.error(`[Birthday Job] Error sending for ${student.initials} to ${admin.email}:`, error);
+          console.error(
+            `[Birthday Job] Error sending for ${student.initials} to ${admin.email}:`,
+            error,
+          );
         }
       }
     }

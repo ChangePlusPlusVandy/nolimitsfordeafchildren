@@ -21,10 +21,7 @@ import {
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import {
-  useStudentHttpService,
-  type UpdateStudentInput,
-} from "../services/StudentHttpService";
+import { useStudentHttpService, type UpdateStudentInput } from "../services/StudentHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 
@@ -98,32 +95,35 @@ export default function EditStudentPage() {
     },
   });
 
-  const handleChange = (field: keyof FormData) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }
-  ) => {
-    setFormData((prev) =>
-      prev
-        ? {
-            ...prev,
-            [field]: event.target.value,
-          }
-        : null
-    );
-    setError(null);
-  };
+  const handleChange =
+    (field: keyof FormData) =>
+    (
+      event:
+        | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        | { target: { value: unknown } },
+    ) => {
+      setFormData((prev) =>
+        prev
+          ? {
+              ...prev,
+              [field]: event.target.value,
+            }
+          : null,
+      );
+      setError(null);
+    };
 
-  const handleSwitchChange = (field: keyof FormData) => (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setFormData((prev) =>
-      prev
-        ? {
-            ...prev,
-            [field]: event.target.checked,
-          }
-        : null
-    );
-  };
+  const handleSwitchChange =
+    (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) =>
+        prev
+          ? {
+              ...prev,
+              [field]: event.target.checked,
+            }
+          : null,
+      );
+    };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,11 +194,7 @@ export default function EditStudentPage() {
         <Alert severity="error">
           {studentError ? "Failed to load student." : "Student not found."}
         </Alert>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          sx={{ mt: 2 }}
-        >
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mt: 2 }}>
           Go Back
         </Button>
       </Box>
@@ -314,10 +310,7 @@ export default function EditStudentPage() {
 
               <FormControlLabel
                 control={
-                  <Switch
-                    checked={formData.is_active}
-                    onChange={handleSwitchChange("is_active")}
-                  />
+                  <Switch checked={formData.is_active} onChange={handleSwitchChange("is_active")} />
                 }
                 label="Active"
               />
@@ -329,11 +322,7 @@ export default function EditStudentPage() {
 
               <FormControl fullWidth required>
                 <InputLabel>Site</InputLabel>
-                <Select
-                  value={formData.site_id}
-                  label="Site"
-                  onChange={handleChange("site_id")}
-                >
+                <Select value={formData.site_id} label="Site" onChange={handleChange("site_id")}>
                   {activeLocations.map((location) => (
                     <MenuItem key={location.id} value={location.id}>
                       {location.name} ({location.type.replace("_", " ")})

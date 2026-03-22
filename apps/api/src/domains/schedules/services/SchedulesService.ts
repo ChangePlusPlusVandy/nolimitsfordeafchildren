@@ -226,12 +226,7 @@ export class SchedulesService {
       })
       .from(EnrollmentTable)
       .innerJoin(StudentTable, eq(EnrollmentTable.student_id, StudentTable.id))
-      .where(
-        and(
-          eq(EnrollmentTable.schedule_id, id),
-          isNull(EnrollmentTable.ended_at)
-        )
-      )
+      .where(and(eq(EnrollmentTable.schedule_id, id), isNull(EnrollmentTable.ended_at)))
       .orderBy(asc(StudentTable.last_name));
 
     const enrolledStudents = enrollments.map((e) => ({
@@ -298,9 +293,7 @@ export class SchedulesService {
 
     if (query.day_of_week_mask) {
       // Check if any days in the filter overlap with the schedule
-      conditions.push(
-        sql`(${ScheduleTable.day_of_week_mask} & ${query.day_of_week_mask}) > 0`
-      );
+      conditions.push(sql`(${ScheduleTable.day_of_week_mask} & ${query.day_of_week_mask}) > 0`);
     }
 
     const whereClause = and(...conditions);

@@ -199,9 +199,7 @@ export default function BulletinBoardPage() {
       {/* Empty state */}
       {data && data.items.length === 0 && (
         <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography color="text.secondary">
-            No bulletins to display.
-          </Typography>
+          <Typography color="text.secondary">No bulletins to display.</Typography>
         </Paper>
       )}
 
@@ -209,35 +207,27 @@ export default function BulletinBoardPage() {
       {data && data.items.length > 0 && (
         <Box>
           {data.items.map((bulletin) => (
-            <BulletinCard
-              key={bulletin.id}
-              bulletin={bulletin}
-              onClick={handleBulletinClick}
-            />
+            <BulletinCard key={bulletin.id} bulletin={bulletin} onClick={handleBulletinClick} />
           ))}
         </Box>
       )}
 
       {/* Create Bulletin Modal */}
-      <CreateBulletinModal
-        open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-      />
+      <CreateBulletinModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
 
       {/* Bulletin Detail Dialog */}
-      <Dialog
-        open={!!selectedBulletin}
-        onClose={handleCloseDetail}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={!!selectedBulletin} onClose={handleCloseDetail} maxWidth="md" fullWidth>
         {selectedBulletin && (
           <>
             <DialogTitle>{selectedBulletin.title}</DialogTitle>
             <DialogContent>
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                 <Chip
-                  label={selectedBulletin.scope === "global" ? "Global" : selectedBulletin.site_name || "Site-specific"}
+                  label={
+                    selectedBulletin.scope === "global"
+                      ? "Global"
+                      : selectedBulletin.site_name || "Site-specific"
+                  }
                   size="small"
                   color={selectedBulletin.scope === "global" ? "primary" : "secondary"}
                   variant="outlined"
@@ -247,10 +237,10 @@ export default function BulletinBoardPage() {
                     selectedBulletin.role_target === "all"
                       ? "All Users"
                       : selectedBulletin.role_target === "administrator"
-                      ? "Admins"
-                      : selectedBulletin.role_target === "teacher"
-                      ? "Teachers"
-                      : "Parents"
+                        ? "Admins"
+                        : selectedBulletin.role_target === "teacher"
+                          ? "Teachers"
+                          : "Parents"
                   }
                   size="small"
                 />

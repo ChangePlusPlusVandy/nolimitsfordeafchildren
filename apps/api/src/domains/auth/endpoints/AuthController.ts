@@ -47,11 +47,11 @@ export class GetAuthMeController {
   @Get("/me")
   async getCurrentUser(@Req() req: Request) {
     const user = req.currentUser;
-    
+
     if (!user) {
       return { error: "Not authenticated" };
     }
-    
+
     return {
       id: user.id,
       email: user.email,
@@ -91,9 +91,9 @@ export class PostAuthLogoutController {
 export class PostAuthLoginController {
   @Post("/auth/login")
   async handle() {
-    return { 
+    return {
       error: "Direct login is disabled",
-      message: "Please use Auth0 authentication via the frontend" 
+      message: "Please use Auth0 authentication via the frontend",
     };
   }
 }
@@ -103,9 +103,9 @@ export class PostAuthLoginController {
 export class PostAuthRefreshController {
   @Post("/auth/refresh")
   async handle() {
-    return { 
+    return {
       error: "Token refresh is disabled",
-      message: "Token refresh is handled by Auth0 SDK on the frontend" 
+      message: "Token refresh is handled by Auth0 SDK on the frontend",
     };
   }
 }

@@ -48,12 +48,7 @@ interface ErrorResponse {
  * Handles authentication/authorization errors from routing-controllers
  * and provides consistent JSON error responses.
  */
-export function errorHandler(
-  err: any,
-  req: Request,
-  res: Response,
-  _next: NextFunction
-): void {
+export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction): void {
   // Check if response already sent
   if (res.headersSent) {
     return;
@@ -75,11 +70,12 @@ export function errorHandler(
   let requiredRoles: string[] | undefined;
 
   // Handle routing-controllers auth errors - use our custom headers to determine actual status
-  if (err.name === "AuthorizationRequiredError" || 
-      err.name === "AccessDeniedError" ||
-      err.httpCode === 401 ||
-      err.httpCode === 403) {
-    
+  if (
+    err.name === "AuthorizationRequiredError" ||
+    err.name === "AccessDeniedError" ||
+    err.httpCode === 401 ||
+    err.httpCode === 403
+  ) {
     // Determine correct status based on our error code
     if (authErrorCode) {
       switch (authErrorCode) {
@@ -107,7 +103,7 @@ export function errorHandler(
       errorMessage = err.message || "Access denied";
       errorCode = statusCode === 401 ? "AUTH_REQUIRED" : "ACCESS_DENIED";
     }
-    
+
     // Extract required roles if present
     if (authErrorMessage?.includes("Required roles:")) {
       requiredRoles = authErrorMessage.replace("Required roles: ", "").split(", ");
@@ -137,7 +133,7 @@ export function errorHandler(
   // Handle standard Error objects
   else if (err instanceof Error) {
     errorMessage = err.message;
-    
+
     // Check for common error patterns
     if (err.message.includes("not found") || err.message.includes("Not found")) {
       statusCode = 404;
@@ -180,11 +176,7 @@ export function errorHandler(
 /**
  * 404 handler for unmatched routes
  */
-export function notFoundHandler(
-  req: Request,
-  res: Response,
-  _next: NextFunction
-): void {
+export function notFoundHandler(req: Request, res: Response, _next: NextFunction): void {
   res.status(404).json({
     error: "Not Found",
     message: `Cannot ${req.method} ${req.path}`,

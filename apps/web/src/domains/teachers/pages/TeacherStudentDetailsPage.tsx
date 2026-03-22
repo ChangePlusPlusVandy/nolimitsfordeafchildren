@@ -1,5 +1,3 @@
-import StudentDetailsPage from "../../students/pages/StudentDetailsPage"
+import StudentDetailsPage from "../../students/pages/StudentDetailsPage";
 
-export default StudentDetailsPage
-
-
+export default StudentDetailsPage;

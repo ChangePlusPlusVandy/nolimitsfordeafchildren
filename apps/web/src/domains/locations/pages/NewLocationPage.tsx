@@ -37,11 +37,56 @@ const TIMEZONES = [
 ];
 
 const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
   "DC",
 ];
 
@@ -98,24 +143,27 @@ export default function NewLocationPage() {
     },
   });
 
-  const handleChange = (field: keyof FormData) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
-    setError(null);
-  };
+  const handleChange =
+    (field: keyof FormData) =>
+    (
+      event:
+        | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        | { target: { value: unknown } },
+    ) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: event.target.value,
+      }));
+      setError(null);
+    };
 
-  const handleSwitchChange = (field: keyof FormData) => (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: event.target.checked,
-    }));
-  };
+  const handleSwitchChange =
+    (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: event.target.checked,
+      }));
+    };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,11 +213,7 @@ export default function NewLocationPage() {
     <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
       {/* Header */}
       <Box mb={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/locations")}
-          sx={{ mb: 1 }}
-        >
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/locations")} sx={{ mb: 1 }}>
           Back to Locations
         </Button>
         <Typography variant="h4" component="h1">
@@ -203,11 +247,7 @@ export default function NewLocationPage() {
 
               <FormControl fullWidth required>
                 <InputLabel>Type</InputLabel>
-                <Select
-                  value={formData.type}
-                  label="Type"
-                  onChange={handleChange("type")}
-                >
+                <Select value={formData.type} label="Type" onChange={handleChange("type")}>
                   <MenuItem value="education_center">Education Center</MenuItem>
                   <MenuItem value="pop_up">Pop-up</MenuItem>
                   <MenuItem value="remote">Remote</MenuItem>
@@ -216,10 +256,7 @@ export default function NewLocationPage() {
 
               <FormControlLabel
                 control={
-                  <Switch
-                    checked={formData.is_active}
-                    onChange={handleSwitchChange("is_active")}
-                  />
+                  <Switch checked={formData.is_active} onChange={handleSwitchChange("is_active")} />
                 }
                 label="Active"
               />
@@ -257,11 +294,7 @@ export default function NewLocationPage() {
 
                 <FormControl sx={{ flex: "1 1 100px" }} required>
                   <InputLabel>State</InputLabel>
-                  <Select
-                    value={formData.state}
-                    label="State"
-                    onChange={handleChange("state")}
-                  >
+                  <Select value={formData.state} label="State" onChange={handleChange("state")}>
                     {US_STATES.map((state) => (
                       <MenuItem key={state} value={state}>
                         {state}
@@ -368,5 +401,3 @@ export default function NewLocationPage() {
     </Box>
   );
 }
-
-

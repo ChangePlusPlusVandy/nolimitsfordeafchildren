@@ -24,7 +24,10 @@ import {
   type CreateTeacherInput,
 } from "../services/TeacherHttpService";
 import { useUserHttpService, type User } from "../../users/services/UserHttpService";
-import { useLocationHttpService, type Location } from "../../locations/services/LocationHttpService";
+import {
+  useLocationHttpService,
+  type Location,
+} from "../../locations/services/LocationHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 
 export default function NewTeacherPage() {
@@ -45,13 +48,21 @@ export default function NewTeacherPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch available teacher users (users with teacher role without a profile)
-  const { data: usersData, isLoading: usersLoading, isError: usersError } = useQuery({
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    isError: usersError,
+  } = useQuery({
     queryKey: [userHttpService.key, "index", { role: "teacher", limit: 100 }],
     queryFn: () => userHttpService.queries.index({ role: "teacher", limit: 100 }),
   });
 
   // Fetch locations
-  const { data: locationsData, isLoading: locationsLoading, isError: locationsError } = useQuery({
+  const {
+    data: locationsData,
+    isLoading: locationsLoading,
+    isError: locationsError,
+  } = useQuery({
     queryKey: [locationHttpService.key, "index"],
     queryFn: () => locationHttpService.queries.index(),
   });

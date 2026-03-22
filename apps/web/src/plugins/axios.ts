@@ -13,7 +13,7 @@ export function useHttpClient() {
     if (token) {
       requestConfig.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // In dev mode, send the current role to the API
     if (!auth.authEnabled && auth.user?.role) {
       requestConfig.headers["X-Dev-Role"] = auth.user.role;

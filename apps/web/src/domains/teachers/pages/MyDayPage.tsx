@@ -33,9 +33,9 @@ import {
   Block as BlockIcon,
   Undo as UndoIcon,
 } from "@mui/icons-material";
-import { 
-  useTeacherHttpService, 
-  type SessionForDay, 
+import {
+  useTeacherHttpService,
+  type SessionForDay,
   type MyDayResponse,
   type AttendanceStatus,
   type AbsenceReason,
@@ -253,11 +253,7 @@ export default function MyDayPage() {
   }
 
   if (error) {
-    return (
-      <Alert severity="error">
-        Failed to load today's sessions. Please try again.
-      </Alert>
-    );
+    return <Alert severity="error">Failed to load today's sessions. Please try again.</Alert>;
   }
 
   const sessions = data?.sessions || [];
@@ -265,16 +261,19 @@ export default function MyDayPage() {
   const totalCount = sessions.length;
 
   // Group sessions by site
-  const sessionsBySite = sessions.reduce((acc, session) => {
-    if (!acc[session.site_id]) {
-      acc[session.site_id] = {
-        site_name: session.site_name,
-        sessions: [],
-      };
-    }
-    acc[session.site_id]!.sessions.push(session);
-    return acc;
-  }, {} as Record<string, { site_name: string; sessions: SessionForDay[] }>);
+  const sessionsBySite = sessions.reduce(
+    (acc, session) => {
+      if (!acc[session.site_id]) {
+        acc[session.site_id] = {
+          site_name: session.site_name,
+          sessions: [],
+        };
+      }
+      acc[session.site_id]!.sessions.push(session);
+      return acc;
+    },
+    {} as Record<string, { site_name: string; sessions: SessionForDay[] }>,
+  );
 
   return (
     <Box>
@@ -294,9 +293,7 @@ export default function MyDayPage() {
 
       {sessions.length === 0 ? (
         <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography color="text.secondary">
-            No sessions scheduled for today.
-          </Typography>
+          <Typography color="text.secondary">No sessions scheduled for today.</Typography>
         </Paper>
       ) : (
         <>
@@ -317,24 +314,24 @@ export default function MyDayPage() {
                           ? getStatusColor(session.attendance.status) === "success"
                             ? "success.main"
                             : getStatusColor(session.attendance.status) === "error"
-                            ? "error.main"
-                            : "grey.400"
+                              ? "error.main"
+                              : "grey.400"
                           : "grey.300",
                         borderWidth: session.attendance ? 2 : 1,
                       }}
                     >
                       <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                          <Box 
-                            sx={{ 
-                              display: "flex", 
-                              alignItems: "center", 
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
                               gap: 2,
                               cursor: "pointer",
                               borderRadius: 1,
                               p: 0.5,
                               m: -0.5,
-                              "&:hover": { 
+                              "&:hover": {
                                 bgcolor: "action.hover",
                               },
                             }}
@@ -365,7 +362,13 @@ export default function MyDayPage() {
                               />
                               {session.attendance.reason && (
                                 <Typography variant="caption" color="text.secondary">
-                                  ({ABSENCE_REASONS.find((r) => r.value === session.attendance?.reason)?.label})
+                                  (
+                                  {
+                                    ABSENCE_REASONS.find(
+                                      (r) => r.value === session.attendance?.reason,
+                                    )?.label
+                                  }
+                                  )
                                 </Typography>
                               )}
                             </Box>
@@ -430,23 +433,31 @@ export default function MyDayPage() {
               )}
             </Box>
           </Paper>
-          
+
           {/* Add bottom padding to account for sticky footer */}
           <Box sx={{ height: 80 }} />
         </>
       )}
 
       {/* Reason Dialog */}
-      <Dialog open={reasonDialogOpen} onClose={() => setReasonDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={reasonDialogOpen}
+        onClose={() => setReasonDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           {selectedStatus === "no_show" ? "Mark as No Show" : "Mark as Cancelled"}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Student: <strong>{selectedSession?.student_first_name} {selectedSession?.student_last_name}</strong>
+              Student:{" "}
+              <strong>
+                {selectedSession?.student_first_name} {selectedSession?.student_last_name}
+              </strong>
             </Typography>
-            
+
             <FormControl fullWidth required>
               <InputLabel>Reason</InputLabel>
               <Select
@@ -494,9 +505,9 @@ export default function MyDayPage() {
         onClose={() => setUndoSnackbar({ open: false, session: null, previousStatus: null })}
         message={`Marked ${undoSnackbar.session?.student_first_name} ${undoSnackbar.session?.student_last_name}`}
         action={
-          <IconButton 
-            size="small" 
-            color="inherit" 
+          <IconButton
+            size="small"
+            color="inherit"
             onClick={handleUndo}
             aria-label="Undo attendance marking"
           >

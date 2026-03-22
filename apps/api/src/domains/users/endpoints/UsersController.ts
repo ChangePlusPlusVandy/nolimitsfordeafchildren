@@ -1,11 +1,11 @@
-import { 
-  Body, 
-  Get, 
-  JsonController, 
-  Patch, 
-  Post, 
+import {
+  Body,
+  Get,
+  JsonController,
+  Patch,
+  Post,
   Delete,
-  QueryParam, 
+  QueryParam,
   Param,
   Authorized,
   HttpCode,
@@ -14,7 +14,12 @@ import {
 } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
-import { UsersService, type ListUsersQuery, type InviteUserInput, type UpdateUserInput } from "../services/UsersService";
+import {
+  UsersService,
+  type ListUsersQuery,
+  type InviteUserInput,
+  type UpdateUserInput,
+} from "../services/UsersService";
 
 /**
  * GET /v1/users
@@ -38,7 +43,7 @@ export class GetUsersController {
     @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
     @QueryParam("sort") sort?: "name" | "email" | "created_at",
-    @QueryParam("order") order?: "asc" | "desc"
+    @QueryParam("order") order?: "asc" | "desc",
   ) {
     const query: ListUsersQuery = { search, role, is_active, page, limit, sort, order };
     return await this.usersService.index(query);

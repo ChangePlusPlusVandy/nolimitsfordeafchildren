@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -24,55 +24,55 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-} from "@mui/material"
+} from "@mui/material";
 import {
   CheckCircle as ApproveIcon,
   Cancel as DenyIcon,
   Visibility as ViewIcon,
   Refresh as RefreshIcon,
   ArrowForward as ArrowIcon,
-} from "@mui/icons-material"
-import { useHttpClient } from "../../../plugins/axios"
+} from "@mui/icons-material";
+import { useHttpClient } from "../../../plugins/axios";
 
-type RequestStatus = "pending" | "approved" | "denied" | "completed"
+type RequestStatus = "pending" | "approved" | "denied" | "completed";
 
 interface ScheduleInfo {
-  id: string
-  day_of_week_mask: number
-  start_time: string
-  end_time: string
-  cycle_start_date: string
-  cycle_end_date: string
+  id: string;
+  day_of_week_mask: number;
+  start_time: string;
+  end_time: string;
+  cycle_start_date: string;
+  cycle_end_date: string;
   site: {
-    id: string
-    name: string
-  }
+    id: string;
+    name: string;
+  };
   teacher: {
-    id: string
-    name: string
-  }
+    id: string;
+    name: string;
+  };
 }
 
 interface ScheduleChangeRequest {
-  id: string
-  student_id: string
-  current_schedule_id: string
-  requested_schedule_id: string
-  reason: string
-  status: RequestStatus
-  requested_by: string
-  requested_at: string
-  reviewed_by: string | null
-  reviewed_at: string | null
-  review_notes: string | null
+  id: string;
+  student_id: string;
+  current_schedule_id: string;
+  requested_schedule_id: string;
+  reason: string;
+  status: RequestStatus;
+  requested_by: string;
+  requested_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
   student?: {
-    id: string
-    initials: string
-    first_name: string
-    last_name: string
-  }
-  current_schedule?: ScheduleInfo
-  requested_schedule?: ScheduleInfo
+    id: string;
+    initials: string;
+    first_name: string;
+    last_name: string;
+  };
+  current_schedule?: ScheduleInfo;
+  requested_schedule?: ScheduleInfo;
 }
 
 const STATUS_COLORS: Record<RequestStatus, "warning" | "success" | "error" | "info"> = {
@@ -80,36 +80,34 @@ const STATUS_COLORS: Record<RequestStatus, "warning" | "success" | "error" | "in
   approved: "success",
   denied: "error",
   completed: "info",
-}
+};
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function getDaysFromMask(mask: number): string {
-  const days: string[] = []
+  const days: string[] = [];
   DAY_NAMES.forEach((day, idx) => {
     if (mask & (1 << idx)) {
-      days.push(day)
+      days.push(day);
     }
-  })
-  return days.join("/")
+  });
+  return days.join("/");
 }
 
 function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":")
-  const hour = parseInt(hours!, 10)
-  const ampm = hour >= 12 ? "PM" : "AM"
-  const hour12 = hour % 12 || 12
-  return `${hour12}:${minutes} ${ampm}`
+  const [hours, minutes] = timeStr.split(":");
+  const hour = parseInt(hours!, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
 }
 
 function ScheduleDisplay({ schedule }: { schedule?: ScheduleInfo }) {
-  if (!schedule) return <Typography color="text.secondary">Unknown</Typography>
-  
+  if (!schedule) return <Typography color="text.secondary">Unknown</Typography>;
+
   return (
     <Box>
-      <Typography variant="body2">
-        {schedule.site.name}
-      </Typography>
+      <Typography variant="body2">{schedule.site.name}</Typography>
       <Typography variant="caption" color="text.secondary">
         {getDaysFromMask(schedule.day_of_week_mask)} at {formatTime(schedule.start_time)}
       </Typography>
@@ -117,66 +115,77 @@ function ScheduleDisplay({ schedule }: { schedule?: ScheduleInfo }) {
         with {schedule.teacher.name}
       </Typography>
     </Box>
-  )
+  );
 }
 
 export default function ScheduleChangeRequestsPage() {
-  const httpClient = useHttpClient()
-  const queryClient = useQueryClient()
+  const httpClient = useHttpClient();
+  const queryClient = useQueryClient();
 
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("")
-  const [selectedRequest, setSelectedRequest] = useState<ScheduleChangeRequest | null>(null)
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
-  const [reviewAction, setReviewAction] = useState<"approved" | "denied">("approved")
-  const [reviewNotes, setReviewNotes] = useState("")
+  const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("");
+  const [selectedRequest, setSelectedRequest] = useState<ScheduleChangeRequest | null>(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState<"approved" | "denied">("approved");
+  const [reviewNotes, setReviewNotes] = useState("");
 
   // Fetch requests
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin-schedule-change-requests", statusFilter],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      if (statusFilter) params.append("status", statusFilter)
-      const response = await httpClient.get(`/v1/schedule-change-requests?${params}`)
-      return response.data as { items: ScheduleChangeRequest[] }
+      const params = new URLSearchParams();
+      if (statusFilter) params.append("status", statusFilter);
+      const response = await httpClient.get(`/v1/schedule-change-requests?${params}`);
+      return response.data as { items: ScheduleChangeRequest[] };
     },
-  })
+  });
 
   // Review mutation
   const reviewMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: "approved" | "denied"; notes?: string }) => {
+    mutationFn: async ({
+      id,
+      status,
+      notes,
+    }: {
+      id: string;
+      status: "approved" | "denied";
+      notes?: string;
+    }) => {
       const response = await httpClient.patch(`/v1/schedule-change-requests/${id}`, {
         status,
         review_notes: notes || undefined,
-      })
-      return response.data
+      });
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-schedule-change-requests"] })
-      handleCloseReviewDialog()
+      queryClient.invalidateQueries({ queryKey: ["admin-schedule-change-requests"] });
+      handleCloseReviewDialog();
     },
-  })
+  });
 
-  const handleOpenReviewDialog = (request: ScheduleChangeRequest, action: "approved" | "denied") => {
-    setSelectedRequest(request)
-    setReviewAction(action)
-    setReviewNotes("")
-    setReviewDialogOpen(true)
-  }
+  const handleOpenReviewDialog = (
+    request: ScheduleChangeRequest,
+    action: "approved" | "denied",
+  ) => {
+    setSelectedRequest(request);
+    setReviewAction(action);
+    setReviewNotes("");
+    setReviewDialogOpen(true);
+  };
 
   const handleCloseReviewDialog = () => {
-    setSelectedRequest(null)
-    setReviewDialogOpen(false)
-    setReviewNotes("")
-  }
+    setSelectedRequest(null);
+    setReviewDialogOpen(false);
+    setReviewNotes("");
+  };
 
   const handleSubmitReview = () => {
-    if (!selectedRequest) return
+    if (!selectedRequest) return;
     reviewMutation.mutate({
       id: selectedRequest.id,
       status: reviewAction,
       notes: reviewNotes,
-    })
-  }
+    });
+  };
 
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString("en-US", {
@@ -185,10 +194,10 @@ export default function ScheduleChangeRequestsPage() {
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
-  const requests = data?.items ?? []
+  const requests = data?.items ?? [];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -229,7 +238,9 @@ export default function ScheduleChangeRequestsPage() {
       {!isLoading && requests.length === 0 && (
         <Paper sx={{ p: 4, textAlign: "center" }}>
           <Typography color="text.secondary">
-            {statusFilter ? `No ${statusFilter} requests found.` : "No schedule change requests found."}
+            {statusFilter
+              ? `No ${statusFilter} requests found.`
+              : "No schedule change requests found."}
           </Typography>
         </Paper>
       )}
@@ -254,7 +265,9 @@ export default function ScheduleChangeRequestsPage() {
                 <TableRow key={request.id} hover>
                   <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: "0.8rem" }}>
+                      <Avatar
+                        sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: "0.8rem" }}
+                      >
                         {request.student?.initials || "?"}
                       </Avatar>
                       <Box>
@@ -278,13 +291,13 @@ export default function ScheduleChangeRequestsPage() {
                   </TableCell>
                   <TableCell>
                     <Tooltip title={request.reason} arrow>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          maxWidth: 200, 
-                          overflow: "hidden", 
-                          textOverflow: "ellipsis", 
-                          whiteSpace: "nowrap" 
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          maxWidth: 200,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {request.reason}
@@ -349,7 +362,8 @@ export default function ScheduleChangeRequestsPage() {
             <Box sx={{ mb: 2 }}>
               <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1, mb: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>
-                  {selectedRequest.student?.first_name} {selectedRequest.student?.last_name} ({selectedRequest.student?.initials})
+                  {selectedRequest.student?.first_name} {selectedRequest.student?.last_name} (
+                  {selectedRequest.student?.initials})
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Reason: {selectedRequest.reason}
@@ -374,7 +388,8 @@ export default function ScheduleChangeRequestsPage() {
 
               {reviewAction === "approved" && (
                 <Alert severity="info" sx={{ mb: 2 }}>
-                  Approving this request will automatically update the student's enrollment to the new schedule.
+                  Approving this request will automatically update the student's enrollment to the
+                  new schedule.
                 </Alert>
               )}
             </Box>
@@ -397,7 +412,9 @@ export default function ScheduleChangeRequestsPage() {
             variant="contained"
             color={reviewAction === "approved" ? "success" : "error"}
             onClick={handleSubmitReview}
-            disabled={reviewMutation.isPending || (reviewAction === "denied" && !reviewNotes.trim())}
+            disabled={
+              reviewMutation.isPending || (reviewAction === "denied" && !reviewNotes.trim())
+            }
           >
             {reviewMutation.isPending ? (
               <CircularProgress size={20} />
@@ -410,5 +427,5 @@ export default function ScheduleChangeRequestsPage() {
         </DialogActions>
       </Dialog>
     </Box>
-  )
+  );
 }

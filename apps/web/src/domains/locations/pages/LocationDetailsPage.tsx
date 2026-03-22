@@ -16,10 +16,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import {
-  useLocationHttpService,
-  type LocationType,
-} from "../services/LocationHttpService";
+import { useLocationHttpService, type LocationType } from "../services/LocationHttpService";
 import { useAuth } from "../../../auth";
 
 export default function LocationDetailsPage() {
@@ -34,10 +31,7 @@ export default function LocationDetailsPage() {
     remote: "Remote",
   };
 
-  const LOCATION_TYPE_COLOR: Record<
-    LocationType,
-    "primary" | "secondary" | "info"
-  > = {
+  const LOCATION_TYPE_COLOR: Record<LocationType, "primary" | "secondary" | "info"> = {
     education_center: "primary",
     pop_up: "secondary",
     remote: "info",
@@ -97,11 +91,7 @@ export default function LocationDetailsPage() {
         <Alert severity="error">
           {error ? "Failed to load location details." : "Location not found."}
         </Alert>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/locations")}
-          sx={{ mt: 2 }}
-        >
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/locations")} sx={{ mt: 2 }}>
           Back to Locations
         </Button>
       </Box>
@@ -251,5 +241,3 @@ export default function LocationDetailsPage() {
     </Box>
   );
 }
-
-

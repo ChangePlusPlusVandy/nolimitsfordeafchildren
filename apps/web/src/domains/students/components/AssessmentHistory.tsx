@@ -235,12 +235,7 @@ export default function AssessmentHistory({
     if (improvement === undefined) return null;
     if (improvement > 0) {
       return (
-        <Chip
-          icon={<TrendingUpIcon />}
-          label={`+${improvement}`}
-          color="success"
-          size="small"
-        />
+        <Chip icon={<TrendingUpIcon />} label={`+${improvement}`} color="success" size="small" />
       );
     }
     if (improvement < 0) {
@@ -316,9 +311,7 @@ export default function AssessmentHistory({
                     sx={{ cursor: "pointer" }}
                     onClick={() =>
                       setExpandedCycle(
-                        expandedCycle === cycle.cycle_start_date
-                          ? null
-                          : cycle.cycle_start_date
+                        expandedCycle === cycle.cycle_start_date ? null : cycle.cycle_start_date,
                       )
                     }
                   >
@@ -358,9 +351,7 @@ export default function AssessmentHistory({
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="center">
-                      {getImprovementChip(cycle.improvement)}
-                    </TableCell>
+                    <TableCell align="center">{getImprovementChip(cycle.improvement)}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell sx={{ py: 0 }} colSpan={5}>
@@ -388,9 +379,7 @@ export default function AssessmentHistory({
                                   mb: 1,
                                 }}
                               >
-                                <Typography variant="subtitle2">
-                                  Pre-Assessment
-                                </Typography>
+                                <Typography variant="subtitle2">Pre-Assessment</Typography>
                                 {canEdit && (
                                   <Stack direction="row" spacing={0.5}>
                                     <IconButton
@@ -416,22 +405,19 @@ export default function AssessmentHistory({
                                 )}
                               </Box>
                               <Typography variant="body2">
-                                <strong>Focus:</strong>{" "}
-                                {cycle.pre_assessment.teaching_focus}
+                                <strong>Focus:</strong> {cycle.pre_assessment.teaching_focus}
                               </Typography>
                               <Typography variant="body2">
-                                <strong>Score:</strong>{" "}
-                                {cycle.pre_assessment.score}/20
+                                <strong>Score:</strong> {cycle.pre_assessment.score}/20
                               </Typography>
                               {cycle.pre_assessment.notes && (
                                 <Typography variant="body2">
-                                  <strong>Notes:</strong>{" "}
-                                  {cycle.pre_assessment.notes}
+                                  <strong>Notes:</strong> {cycle.pre_assessment.notes}
                                 </Typography>
                               )}
                               <Typography variant="caption" color="text.secondary">
-                                By {cycle.pre_assessment.teacher?.name || "Teacher"}{" "}
-                                on {formatDate(cycle.pre_assessment.assessed_at)}
+                                By {cycle.pre_assessment.teacher?.name || "Teacher"} on{" "}
+                                {formatDate(cycle.pre_assessment.assessed_at)}
                               </Typography>
                             </Box>
                           )}
@@ -453,9 +439,7 @@ export default function AssessmentHistory({
                                   mb: 1,
                                 }}
                               >
-                                <Typography variant="subtitle2">
-                                  Post-Assessment
-                                </Typography>
+                                <Typography variant="subtitle2">Post-Assessment</Typography>
                                 {canEdit && (
                                   <Stack direction="row" spacing={0.5}>
                                     <IconButton
@@ -481,22 +465,19 @@ export default function AssessmentHistory({
                                 )}
                               </Box>
                               <Typography variant="body2">
-                                <strong>Focus:</strong>{" "}
-                                {cycle.post_assessment.teaching_focus}
+                                <strong>Focus:</strong> {cycle.post_assessment.teaching_focus}
                               </Typography>
                               <Typography variant="body2">
-                                <strong>Score:</strong>{" "}
-                                {cycle.post_assessment.score}/20
+                                <strong>Score:</strong> {cycle.post_assessment.score}/20
                               </Typography>
                               {cycle.post_assessment.notes && (
                                 <Typography variant="body2">
-                                  <strong>Notes:</strong>{" "}
-                                  {cycle.post_assessment.notes}
+                                  <strong>Notes:</strong> {cycle.post_assessment.notes}
                                 </Typography>
                               )}
                               <Typography variant="caption" color="text.secondary">
-                                By {cycle.post_assessment.teacher?.name || "Teacher"}{" "}
-                                on {formatDate(cycle.post_assessment.assessed_at)}
+                                By {cycle.post_assessment.teacher?.name || "Teacher"} on{" "}
+                                {formatDate(cycle.post_assessment.assessed_at)}
                               </Typography>
                             </Box>
                           )}
@@ -547,9 +528,7 @@ export default function AssessmentHistory({
 
       {/* Add/Edit Assessment Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingAssessment ? "Edit Assessment" : "Add Assessment"}
-        </DialogTitle>
+        <DialogTitle>{editingAssessment ? "Edit Assessment" : "Add Assessment"}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
             <TextField

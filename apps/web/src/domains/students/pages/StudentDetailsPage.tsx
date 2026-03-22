@@ -27,7 +27,12 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import LinkIcon from "@mui/icons-material/Link";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DescriptionIcon from "@mui/icons-material/Description";
-import { useStudentHttpService, type Sibling, type AddSiblingInput, type UpdateSiblingInput } from "../services/StudentHttpService";
+import {
+  useStudentHttpService,
+  type Sibling,
+  type AddSiblingInput,
+  type UpdateSiblingInput,
+} from "../services/StudentHttpService";
 import { useAuth } from "../../../auth";
 import SiblingAvatars from "../components/SiblingAvatars";
 import AddSiblingModal from "../components/AddSiblingModal";
@@ -54,7 +59,11 @@ export default function StudentDetailsPage() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   // Fetch student details
-  const { data: student, isLoading, error } = useQuery({
+  const {
+    data: student,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: [studentHttpService.key, "show", id],
     queryFn: () => studentHttpService.queries.show(id!),
     enabled: !!id,
@@ -263,7 +272,9 @@ export default function StudentDetailsPage() {
 
           {/* Siblings Section */}
           <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
+            >
               <Typography variant="h6">
                 <FamilyRestroomIcon sx={{ mr: 1, verticalAlign: "middle" }} />
                 Siblings
@@ -293,10 +304,7 @@ export default function StudentDetailsPage() {
                       secondaryAction={
                         isAdmin && (
                           <Box>
-                            <IconButton
-                              size="small"
-                              onClick={() => setEditingSibling(sibling)}
-                            >
+                            <IconButton size="small" onClick={() => setEditingSibling(sibling)}>
                               <EditIcon fontSize="small" />
                             </IconButton>
                             <IconButton
@@ -311,9 +319,7 @@ export default function StudentDetailsPage() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: "secondary.main" }}>
-                          {sibling.name.charAt(0)}
-                        </Avatar>
+                        <Avatar sx={{ bgcolor: "secondary.main" }}>{sibling.name.charAt(0)}</Avatar>
                       </ListItemAvatar>
                       <ListItemText
                         primary={sibling.name}
@@ -335,7 +341,9 @@ export default function StudentDetailsPage() {
         <Box sx={{ flex: 1 }}>
           {/* Linked Teachers */}
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
+            >
               <Typography variant="h6">
                 <SchoolIcon sx={{ mr: 1, verticalAlign: "middle" }} />
                 Linked Teachers
@@ -356,14 +364,9 @@ export default function StudentDetailsPage() {
                 {student.teachers.map((teacher) => (
                   <ListItem key={teacher.link_id}>
                     <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: "info.main" }}>
-                        {teacher.name.charAt(0)}
-                      </Avatar>
+                      <Avatar sx={{ bgcolor: "info.main" }}>{teacher.name.charAt(0)}</Avatar>
                     </ListItemAvatar>
-                    <ListItemText
-                      primary={teacher.name}
-                      secondary={teacher.email}
-                    />
+                    <ListItemText primary={teacher.name} secondary={teacher.email} />
                   </ListItem>
                 ))}
               </List>
@@ -376,7 +379,9 @@ export default function StudentDetailsPage() {
 
           {/* Linked Parents */}
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
+            >
               <Typography variant="h6">
                 <FamilyRestroomIcon sx={{ mr: 1, verticalAlign: "middle" }} />
                 Linked Parents
@@ -397,9 +402,7 @@ export default function StudentDetailsPage() {
                 {student.parents.map((parent) => (
                   <ListItem key={parent.link_id}>
                     <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: "warning.main" }}>
-                        {parent.name.charAt(0)}
-                      </Avatar>
+                      <Avatar sx={{ bgcolor: "warning.main" }}>{parent.name.charAt(0)}</Avatar>
                     </ListItemAvatar>
                     <ListItemText
                       primary={
@@ -430,7 +433,9 @@ export default function StudentDetailsPage() {
 
           {/* Documents Section */}
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
+            >
               <Typography variant="h6">
                 <DescriptionIcon sx={{ mr: 1, verticalAlign: "middle" }} />
                 Documents
@@ -453,18 +458,10 @@ export default function StudentDetailsPage() {
           </Paper>
 
           {/* Session Notes */}
-          <SessionNotes 
-            studentId={id!} 
-            canAdd={isTeacher}
-            canEdit={isTeacher}
-          />
+          <SessionNotes studentId={id!} canAdd={isTeacher} canEdit={isTeacher} />
 
           {/* Assessments */}
-          <AssessmentHistory
-            studentId={id!}
-            canAdd={isTeacher}
-            canEdit={isTeacher}
-          />
+          <AssessmentHistory studentId={id!} canAdd={isTeacher} canEdit={isTeacher} />
         </Box>
       </Box>
 

@@ -9,12 +9,12 @@ export interface IAuthService {
    * Called when a user authenticates via Auth0
    */
   handleCallback(auth0User: Auth0UserInput): Promise<UserEntity>;
-  
+
   /**
    * Get current user by Auth0 ID
    */
   getUserByAuth0Id(auth0Id: string): Promise<UserEntity | null>;
-  
+
   /**
    * Create a new user from Auth0 data
    */
@@ -25,7 +25,7 @@ export interface IAuthService {
  * Auth0 user data - must be a class for routing-controllers body transformation
  */
 export class Auth0UserInput {
-  sub!: string;  // Auth0 user ID
+  sub!: string; // Auth0 user ID
   email!: string;
   name?: string;
   picture?: string;
@@ -42,28 +42,24 @@ export class AuthService implements IAuthService {
   async handleCallback(auth0User: Auth0UserInput): Promise<UserEntity> {
     // Try to find existing user
     const existingUser = await this.getUserByAuth0Id(auth0User.sub);
-    
+
     if (existingUser) {
       return existingUser;
     }
-    
+
     // Create new user if not found
     return this.createUserFromAuth0(auth0User);
   }
-  
+
   /**
    * Get user by Auth0 ID
    */
   async getUserByAuth0Id(auth0Id: string): Promise<UserEntity | null> {
-    const users = await db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.auth0Id, auth0Id))
-      .limit(1);
-    
+    const users = await db.select().from(UserTable).where(eq(UserTable.auth0Id, auth0Id)).limit(1);
+
     return users[0] ?? null;
   }
-  
+
   /**
    * Create a new user from Auth0 data
    * Default role is 'parent' - admin must change role if needed
@@ -78,20 +74,20 @@ export class AuthService implements IAuthService {
       role: "parent", // Default role - admin can change
       is_active: true,
     };
-    
-    const result = await db
-      .insert(UserTable)
-      .values(newUser)
-      .returning();
-    
+
+    const result = await db.insert(UserTable).values(newUser).returning();
+
     return result[0]!;
   }
-  
+
   /**
    * Legacy methods for backward compatibility
    * These are no longer used with Auth0 but kept for API compatibility
    */
-  async login(_input: { email: string; password: string }): Promise<{ accessToken: string; refreshToken: string }> {
+  async login(_input: {
+    email: string;
+    password: string;
+  }): Promise<{ accessToken: string; refreshToken: string }> {
     // With Auth0, login is handled by the Auth0 SDK on the frontend
     // This endpoint is deprecated
     throw new Error("Direct login is disabled. Please use Auth0 authentication.");

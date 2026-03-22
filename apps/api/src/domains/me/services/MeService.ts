@@ -1,7 +1,13 @@
 import { Service } from "typedi";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { UserTable, TeacherProfileTable, ParentProfileTable, type UserEntity, type UserInsert } from "@/db/schema";
+import {
+  UserTable,
+  TeacherProfileTable,
+  ParentProfileTable,
+  type UserEntity,
+  type UserInsert,
+} from "@/db/schema";
 
 export interface UpdateMeInput {
   name?: string;
@@ -20,11 +26,7 @@ export class MeService {
    * Get current user's profile with teacher/parent profile IDs
    */
   async getProfile(userId: string): Promise<UserProfileWithIds | null> {
-    const users = await db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.id, userId))
-      .limit(1);
+    const users = await db.select().from(UserTable).where(eq(UserTable.id, userId)).limit(1);
 
     const user = users[0];
     if (!user) return null;

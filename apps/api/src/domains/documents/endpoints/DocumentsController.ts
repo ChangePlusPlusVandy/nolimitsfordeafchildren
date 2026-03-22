@@ -1,9 +1,20 @@
-import { Body, Get, JsonController, Param, Post, Delete, QueryParam, CurrentUser, Authorized, HttpCode } from "routing-controllers";
+import {
+  Body,
+  Get,
+  JsonController,
+  Param,
+  Post,
+  Delete,
+  QueryParam,
+  CurrentUser,
+  Authorized,
+  HttpCode,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
-import { 
-  DocumentsService, 
-  type GetUploadUrlInput, 
+import {
+  DocumentsService,
+  type GetUploadUrlInput,
   type ConfirmUploadInput,
   type ListDocumentsQuery,
   type EntityType,
@@ -47,7 +58,7 @@ export class PostDocumentsController {
   @HttpCode(201)
   async handle(
     @Body() body: Omit<ConfirmUploadInput, "uploaded_by">,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     return await this.documentsService.confirmUpload({
       ...body,
@@ -75,7 +86,7 @@ export class GetDocumentsController {
     @QueryParam("entity_id") entity_id?: string,
     @QueryParam("document_type") document_type?: DocumentType,
     @QueryParam("page") page?: number,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     const query: ListDocumentsQuery = { entity_type, entity_id, document_type, page, limit };
     return await this.documentsService.index(query);

@@ -1,7 +1,24 @@
-import { Body, Get, JsonController, Param, Patch, Post, QueryParam, CurrentUser, Authorized, HttpCode } from "routing-controllers";
+import {
+  Body,
+  Get,
+  JsonController,
+  Param,
+  Patch,
+  Post,
+  QueryParam,
+  CurrentUser,
+  Authorized,
+  HttpCode,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
-import { AttendanceService, type MarkAttendanceInput, type UpdateAttendanceInput, type ListAttendanceQuery, type AttendanceStatus } from "../services/AttendanceService";
+import {
+  AttendanceService,
+  type MarkAttendanceInput,
+  type UpdateAttendanceInput,
+  type ListAttendanceQuery,
+  type AttendanceStatus,
+} from "../services/AttendanceService";
 import type { UserEntity } from "@/db/schema";
 
 @Service()
@@ -21,7 +38,7 @@ export class PostAttendanceController {
   @HttpCode(201)
   async handle(
     @Body() body: Omit<MarkAttendanceInput, "marked_by">,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     return await this.attendanceService.mark({
       ...body,
@@ -47,7 +64,7 @@ export class PatchAttendanceController {
   async handle(
     @Param("id") id: string,
     @Body() body: UpdateAttendanceInput,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     const result = await this.attendanceService.update(id, body, currentUser.id);
     if (!result) {
@@ -80,9 +97,19 @@ export class GetAttendanceController {
     @QueryParam("date_to") date_to?: string,
     @QueryParam("status") status?: AttendanceStatus,
     @QueryParam("page") page?: number,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
-    const query: ListAttendanceQuery = { student_id, schedule_id, teacher_id, site_id, date_from, date_to, status, page, limit };
+    const query: ListAttendanceQuery = {
+      student_id,
+      schedule_id,
+      teacher_id,
+      site_id,
+      date_from,
+      date_to,
+      status,
+      page,
+      limit,
+    };
     return await this.attendanceService.index(query);
   }
 }

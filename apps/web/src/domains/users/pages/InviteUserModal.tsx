@@ -16,7 +16,11 @@ import {
   Typography,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
-import { useUserHttpService, type UserRole, type InviteUserInput } from "../services/UserHttpService";
+import {
+  useUserHttpService,
+  type UserRole,
+  type InviteUserInput,
+} from "../services/UserHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 
 interface InviteUserModalProps {
@@ -77,7 +81,8 @@ export default function InviteUserModal({ open, onClose }: InviteUserModalProps)
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Enter the details for the new user. They will receive an email invitation to set up their account.
+              Enter the details for the new user. They will receive an email invitation to set up
+              their account.
             </Typography>
 
             <TextField

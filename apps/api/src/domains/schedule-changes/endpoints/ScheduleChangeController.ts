@@ -47,7 +47,7 @@ export class PostScheduleChangeRequestController {
   @Authorized(["parent", "administrator"])
   async handle(
     @Body() body: CreateScheduleChangeRequestBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     const input: CreateScheduleChangeInput = {
       student_id: body.student_id,
@@ -90,7 +90,7 @@ export class GetScheduleChangeRequestsController {
     @QueryParam("status") status?: RequestStatus,
     @QueryParam("student_id") studentId?: string,
     @QueryParam("site_id") siteId?: string,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     const result = await this.scheduleChangeService.listRequests({
       status,
@@ -142,14 +142,14 @@ export class PatchScheduleChangeRequestController {
   async handle(
     @Param("id") id: string,
     @Body() body: ReviewScheduleChangeRequestBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     try {
       const request = await this.scheduleChangeService.reviewRequest(
         id,
         currentUser.id,
         body.status,
-        body.review_notes
+        body.review_notes,
       );
       if (!request) {
         throw new HttpError(404, "Schedule change request not found");
@@ -181,7 +181,7 @@ export class GetAvailableSchedulesController {
   async handle(
     @QueryParam("site_id") siteId?: string,
     @QueryParam("day_pattern") dayPattern?: "mws" | "tths",
-    @QueryParam("exclude_current_schedule_id") excludeCurrentScheduleId?: string
+    @QueryParam("exclude_current_schedule_id") excludeCurrentScheduleId?: string,
   ) {
     const result = await this.scheduleChangeService.getAvailableSchedules({
       site_id: siteId,

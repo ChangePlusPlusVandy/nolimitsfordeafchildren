@@ -8,9 +8,9 @@ import {
   type DocumentEntity,
   type DocumentInsert,
 } from "@/db/schema";
-import { 
-  getPresignedUploadUrl, 
-  getPresignedDownloadUrl, 
+import {
+  getPresignedUploadUrl,
+  getPresignedDownloadUrl,
   deleteFile,
   extractKeyFromUrl,
   getPublicUrl,
@@ -110,10 +110,7 @@ export class DocumentsService {
       uploaded_by: input.uploaded_by,
     };
 
-    const result = await db
-      .insert(DocumentTable)
-      .values(newDocument)
-      .returning();
+    const result = await db.insert(DocumentTable).values(newDocument).returning();
 
     return result[0]!;
   }
@@ -121,19 +118,11 @@ export class DocumentsService {
   /**
    * List documents for an entity
    */
-  async listForEntity(
-    entityType: EntityType,
-    entityId: string
-  ): Promise<DocumentWithMetadata[]> {
+  async listForEntity(entityType: EntityType, entityId: string): Promise<DocumentWithMetadata[]> {
     const results = await db
       .select()
       .from(DocumentTable)
-      .where(
-        and(
-          eq(DocumentTable.entity_type, entityType),
-          eq(DocumentTable.entity_id, entityId)
-        )
-      )
+      .where(and(eq(DocumentTable.entity_type, entityType), eq(DocumentTable.entity_id, entityId)))
       .orderBy(desc(DocumentTable.created_at));
 
     return results.map((doc) => this.addMetadata(doc));
@@ -201,11 +190,7 @@ export class DocumentsService {
    * Get a single document by ID
    */
   async show(id: string): Promise<DocumentWithMetadata | null> {
-    const result = await db
-      .select()
-      .from(DocumentTable)
-      .where(eq(DocumentTable.id, id))
-      .limit(1);
+    const result = await db.select().from(DocumentTable).where(eq(DocumentTable.id, id)).limit(1);
 
     if (result.length === 0) {
       return null;
@@ -273,8 +258,8 @@ export class DocumentsService {
       .where(
         and(
           eq(DocumentTable.document_type, "audiogram"),
-          sql`${DocumentTable.next_due_date} <= ${checkDate}`
-        )
+          sql`${DocumentTable.next_due_date} <= ${checkDate}`,
+        ),
       )
       .orderBy(DocumentTable.next_due_date);
 
@@ -324,8 +309,8 @@ export class DocumentsService {
           eq(DocumentTable.document_type, "audiogram"),
           eq(DocumentTable.entity_type, "student"),
           sql`${DocumentTable.next_due_date} >= ${todayStr}`,
-          sql`${DocumentTable.next_due_date} <= ${futureDateStr}`
-        )
+          sql`${DocumentTable.next_due_date} <= ${futureDateStr}`,
+        ),
       )
       .orderBy(DocumentTable.next_due_date);
 
@@ -369,7 +354,7 @@ export class DocumentsService {
     if (doc.next_due_date) {
       const dueDate = new Date(doc.next_due_date);
       dueDate.setHours(0, 0, 0, 0);
-      
+
       const diffTime = dueDate.getTime() - today.getTime();
       daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       isOverdue = daysUntilDue < 0;

@@ -38,11 +38,56 @@ const TIMEZONES = [
 ];
 
 const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
   "DC",
 ];
 
@@ -117,32 +162,35 @@ export default function EditLocationPage() {
     },
   });
 
-  const handleChange = (field: keyof FormData) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }
-  ) => {
-    setFormData((prev) =>
-      prev
-        ? {
-            ...prev,
-            [field]: event.target.value,
-          }
-        : null
-    );
-    setError(null);
-  };
+  const handleChange =
+    (field: keyof FormData) =>
+    (
+      event:
+        | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        | { target: { value: unknown } },
+    ) => {
+      setFormData((prev) =>
+        prev
+          ? {
+              ...prev,
+              [field]: event.target.value,
+            }
+          : null,
+      );
+      setError(null);
+    };
 
-  const handleSwitchChange = (field: keyof FormData) => (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setFormData((prev) =>
-      prev
-        ? {
-            ...prev,
-            [field]: event.target.checked,
-          }
-        : null
-    );
-  };
+  const handleSwitchChange =
+    (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) =>
+        prev
+          ? {
+              ...prev,
+              [field]: event.target.checked,
+            }
+          : null,
+      );
+    };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,11 +272,7 @@ export default function EditLocationPage() {
         <Alert severity="error">
           {locationError ? "Failed to load location." : "Location not found."}
         </Alert>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/locations")}
-          sx={{ mt: 2 }}
-        >
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/locations")} sx={{ mt: 2 }}>
           Back to Locations
         </Button>
       </Box>
@@ -296,11 +340,7 @@ export default function EditLocationPage() {
 
               <FormControl fullWidth required>
                 <InputLabel>Type</InputLabel>
-                <Select
-                  value={formData.type}
-                  label="Type"
-                  onChange={handleChange("type")}
-                >
+                <Select value={formData.type} label="Type" onChange={handleChange("type")}>
                   <MenuItem value="education_center">Education Center</MenuItem>
                   <MenuItem value="pop_up">Pop-up</MenuItem>
                   <MenuItem value="remote">Remote</MenuItem>
@@ -309,10 +349,7 @@ export default function EditLocationPage() {
 
               <FormControlLabel
                 control={
-                  <Switch
-                    checked={formData.is_active}
-                    onChange={handleSwitchChange("is_active")}
-                  />
+                  <Switch checked={formData.is_active} onChange={handleSwitchChange("is_active")} />
                 }
                 label="Active"
               />
@@ -350,11 +387,7 @@ export default function EditLocationPage() {
 
                 <FormControl sx={{ flex: "1 1 100px" }} required>
                   <InputLabel>State</InputLabel>
-                  <Select
-                    value={formData.state}
-                    label="State"
-                    onChange={handleChange("state")}
-                  >
+                  <Select value={formData.state} label="State" onChange={handleChange("state")}>
                     {US_STATES.map((state) => (
                       <MenuItem key={state} value={state}>
                         {state}
@@ -461,5 +494,3 @@ export default function EditLocationPage() {
     </Box>
   );
 }
-
-

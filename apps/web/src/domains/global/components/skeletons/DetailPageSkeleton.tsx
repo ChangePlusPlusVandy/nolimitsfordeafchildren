@@ -67,7 +67,14 @@ export default function DetailPageSkeleton({
         <Box sx={{ flex: 1 }}>
           {Array.from({ length: sections }).map((_, i) => (
             <Paper key={i} sx={{ p: 3, mb: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  mb: 2,
+                }}
+              >
                 <Skeleton variant="text" width={150} height={28} />
                 <Skeleton variant="rounded" width={100} height={32} />
               </Box>

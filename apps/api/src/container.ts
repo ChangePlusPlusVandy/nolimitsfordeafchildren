@@ -1,6 +1,6 @@
 /**
  * Container module to handle TypeDI ESM/CJS interop issues.
- * 
+ *
  * When importing TypeDI with ESM, the default import returns the module namespace
  * object, not the Container class. This module handles that and exports the actual
  * Container class.

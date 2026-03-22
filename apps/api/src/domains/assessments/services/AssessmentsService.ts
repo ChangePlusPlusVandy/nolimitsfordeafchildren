@@ -81,8 +81,8 @@ export class AssessmentsService {
         and(
           eq(AssessmentTable.student_id, input.student_id),
           eq(AssessmentTable.cycle_start_date, input.cycle_start_date),
-          eq(AssessmentTable.assessment_type, input.assessment_type)
-        )
+          eq(AssessmentTable.assessment_type, input.assessment_type),
+        ),
       )
       .limit(1);
 
@@ -101,10 +101,7 @@ export class AssessmentsService {
       assessed_at: new Date(),
     };
 
-    const result = await db
-      .insert(AssessmentTable)
-      .values(newAssessment)
-      .returning();
+    const result = await db.insert(AssessmentTable).values(newAssessment).returning();
 
     return result[0]!;
   }
@@ -139,7 +136,7 @@ export class AssessmentsService {
 
     for (const row of results) {
       const cycleKey = row.cycle_start_date;
-      
+
       if (!cycleMap.has(cycleKey)) {
         cycleMap.set(cycleKey, {
           cycle_start_date: cycleKey,
@@ -205,8 +202,8 @@ export class AssessmentsService {
       .where(
         and(
           eq(AssessmentTable.student_id, studentId),
-          eq(AssessmentTable.cycle_start_date, cycleStartDate)
-        )
+          eq(AssessmentTable.cycle_start_date, cycleStartDate),
+        ),
       );
 
     if (results.length === 0) {
@@ -315,7 +312,7 @@ export class AssessmentsService {
   async update(
     id: string,
     teacherId: string,
-    data: Partial<Pick<CreateAssessmentInput, "teaching_focus" | "score" | "notes">>
+    data: Partial<Pick<CreateAssessmentInput, "teaching_focus" | "score" | "notes">>,
   ): Promise<AssessmentEntity | null> {
     // Verify the assessment exists and belongs to this teacher
     const existing = await db
@@ -350,7 +347,7 @@ export class AssessmentsService {
    */
   async delete(id: string, teacherId?: string): Promise<boolean> {
     const conditions = [eq(AssessmentTable.id, id)];
-    
+
     if (teacherId) {
       conditions.push(eq(AssessmentTable.teacher_id, teacherId));
     }

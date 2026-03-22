@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -24,42 +24,42 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-} from "@mui/material"
+} from "@mui/material";
 import {
   CheckCircle as ApproveIcon,
   Cancel as DenyIcon,
   Visibility as ViewIcon,
   Refresh as RefreshIcon,
-} from "@mui/icons-material"
-import { useHttpClient } from "../../../plugins/axios"
+} from "@mui/icons-material";
+import { useHttpClient } from "../../../plugins/axios";
 
-type RequestStatus = "pending" | "approved" | "denied" | "completed"
+type RequestStatus = "pending" | "approved" | "denied" | "completed";
 
 interface MakeupRequest {
-  id: string
-  student_id: string
-  original_session_date: string
-  original_schedule_id: string
-  reason: string
-  reason_text: string | null
-  preferred_dates: string | null
-  status: RequestStatus
-  requested_by: string
-  requested_at: string
-  reviewed_by: string | null
-  reviewed_at: string | null
-  review_notes: string | null
+  id: string;
+  student_id: string;
+  original_session_date: string;
+  original_schedule_id: string;
+  reason: string;
+  reason_text: string | null;
+  preferred_dates: string | null;
+  status: RequestStatus;
+  requested_by: string;
+  requested_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
   student?: {
-    id: string
-    initials: string
-    first_name: string
-    last_name: string
-  }
+    id: string;
+    initials: string;
+    first_name: string;
+    last_name: string;
+  };
   original_schedule?: {
-    id: string
-    site_name: string
-    teacher_name: string
-  }
+    id: string;
+    site_name: string;
+    teacher_name: string;
+  };
 }
 
 const STATUS_COLORS: Record<RequestStatus, "warning" | "success" | "error" | "info"> = {
@@ -67,7 +67,7 @@ const STATUS_COLORS: Record<RequestStatus, "warning" | "success" | "error" | "in
   approved: "success",
   denied: "error",
   completed: "info",
-}
+};
 
 const REASON_LABELS: Record<string, string> = {
   sick: "Child was sick",
@@ -76,73 +76,81 @@ const REASON_LABELS: Record<string, string> = {
   schedule_conflict: "Schedule conflict",
   no_show_unknown: "Unable to attend",
   other: "Other",
-}
+};
 
 export default function MakeupRequestsPage() {
-  const httpClient = useHttpClient()
-  const queryClient = useQueryClient()
+  const httpClient = useHttpClient();
+  const queryClient = useQueryClient();
 
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("")
-  const [selectedRequest, setSelectedRequest] = useState<MakeupRequest | null>(null)
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
-  const [reviewAction, setReviewAction] = useState<"approved" | "denied">("approved")
-  const [reviewNotes, setReviewNotes] = useState("")
+  const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("");
+  const [selectedRequest, setSelectedRequest] = useState<MakeupRequest | null>(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState<"approved" | "denied">("approved");
+  const [reviewNotes, setReviewNotes] = useState("");
 
   // Fetch requests
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin-makeup-requests", statusFilter],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      if (statusFilter) params.append("status", statusFilter)
-      const response = await httpClient.get(`/v1/makeup-requests?${params}`)
-      return response.data as { items: MakeupRequest[] }
+      const params = new URLSearchParams();
+      if (statusFilter) params.append("status", statusFilter);
+      const response = await httpClient.get(`/v1/makeup-requests?${params}`);
+      return response.data as { items: MakeupRequest[] };
     },
-  })
+  });
 
   // Review mutation
   const reviewMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: "approved" | "denied"; notes?: string }) => {
+    mutationFn: async ({
+      id,
+      status,
+      notes,
+    }: {
+      id: string;
+      status: "approved" | "denied";
+      notes?: string;
+    }) => {
       const response = await httpClient.patch(`/v1/makeup-requests/${id}`, {
         status,
         review_notes: notes || undefined,
-      })
-      return response.data
+      });
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-makeup-requests"] })
-      handleCloseReviewDialog()
+      queryClient.invalidateQueries({ queryKey: ["admin-makeup-requests"] });
+      handleCloseReviewDialog();
     },
-  })
+  });
 
   const handleOpenReviewDialog = (request: MakeupRequest, action: "approved" | "denied") => {
-    setSelectedRequest(request)
-    setReviewAction(action)
-    setReviewNotes("")
-    setReviewDialogOpen(true)
-  }
+    setSelectedRequest(request);
+    setReviewAction(action);
+    setReviewNotes("");
+    setReviewDialogOpen(true);
+  };
 
   const handleCloseReviewDialog = () => {
-    setSelectedRequest(null)
-    setReviewDialogOpen(false)
-    setReviewNotes("")
-  }
+    setSelectedRequest(null);
+    setReviewDialogOpen(false);
+    setReviewNotes("");
+  };
 
   const handleSubmitReview = () => {
-    if (!selectedRequest) return
+    if (!selectedRequest) return;
     reviewMutation.mutate({
       id: selectedRequest.id,
       status: reviewAction,
       notes: reviewNotes,
-    })
-  }
+    });
+  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
-    })
-  }
+    });
+  };
 
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString("en-US", {
@@ -151,10 +159,10 @@ export default function MakeupRequestsPage() {
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
-  const requests = data?.items ?? []
+  const requests = data?.items ?? [];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -220,7 +228,9 @@ export default function MakeupRequestsPage() {
                 <TableRow key={request.id} hover>
                   <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: "0.8rem" }}>
+                      <Avatar
+                        sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: "0.8rem" }}
+                      >
                         {request.student?.initials || "?"}
                       </Avatar>
                       <Box>
@@ -311,7 +321,8 @@ export default function MakeupRequestsPage() {
           {selectedRequest && (
             <Box sx={{ mb: 2, p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
               <Typography variant="subtitle2">
-                {selectedRequest.student?.first_name} {selectedRequest.student?.last_name} ({selectedRequest.student?.initials})
+                {selectedRequest.student?.first_name} {selectedRequest.student?.last_name} (
+                {selectedRequest.student?.initials})
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Missed: {formatDate(selectedRequest.original_session_date)}
@@ -350,7 +361,9 @@ export default function MakeupRequestsPage() {
             variant="contained"
             color={reviewAction === "approved" ? "success" : "error"}
             onClick={handleSubmitReview}
-            disabled={reviewMutation.isPending || (reviewAction === "denied" && !reviewNotes.trim())}
+            disabled={
+              reviewMutation.isPending || (reviewAction === "denied" && !reviewNotes.trim())
+            }
           >
             {reviewMutation.isPending ? (
               <CircularProgress size={20} />
@@ -363,5 +376,5 @@ export default function MakeupRequestsPage() {
         </DialogActions>
       </Dialog>
     </Box>
-  )
+  );
 }

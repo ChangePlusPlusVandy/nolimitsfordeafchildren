@@ -53,15 +53,19 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
   }, [firstName, lastName]);
 
   // Fetch locations for the dropdown
-  const { data: locationsData, isLoading: locationsLoading, isError: locationsError } = useQuery({
+  const {
+    data: locationsData,
+    isLoading: locationsLoading,
+    isError: locationsError,
+  } = useQuery({
     queryKey: [locationHttpService.key, "index"],
     queryFn: () => locationHttpService.queries.index(),
     enabled: open, // Only fetch when modal is open
   });
 
-  const locations = Array.isArray(locationsData) 
-    ? locationsData 
-    : ((locationsData as any)?.items || []);
+  const locations = Array.isArray(locationsData)
+    ? locationsData
+    : (locationsData as any)?.items || [];
 
   const mutation = useMutation({
     mutationFn: (data: CreateStudentInput) => studentHttpService.mutations.create(data),
@@ -119,9 +123,7 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
             </Typography>
 
             {locationsError && (
-              <Alert severity="error">
-                Failed to load sites. Please try again.
-              </Alert>
+              <Alert severity="error">Failed to load sites. Please try again.</Alert>
             )}
 
             {/* Name Fields */}
@@ -176,21 +178,18 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
             {/* Site Dropdown */}
             <FormControl fullWidth required disabled={isDisabled || locationsLoading}>
               <InputLabel>Site *</InputLabel>
-              <Select
-                value={siteId}
-                label="Site *"
-                onChange={(e) => setSiteId(e.target.value)}
-              >
+              <Select value={siteId} label="Site *" onChange={(e) => setSiteId(e.target.value)}>
                 {locationsLoading && (
                   <MenuItem value="" disabled>
                     Loading sites...
                   </MenuItem>
                 )}
-                {Array.isArray(locations) && locations.map((location: any) => (
-                  <MenuItem key={location.id} value={location.id}>
-                    {location.name} ({location.type?.replace("_", " ")})
-                  </MenuItem>
-                ))}
+                {Array.isArray(locations) &&
+                  locations.map((location: any) => (
+                    <MenuItem key={location.id} value={location.id}>
+                      {location.name} ({location.type?.replace("_", " ")})
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
 

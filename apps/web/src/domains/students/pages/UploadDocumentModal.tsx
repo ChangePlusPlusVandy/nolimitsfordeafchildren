@@ -260,10 +260,10 @@ export default function UploadDocumentModal({
                 {uploadProgress < 30
                   ? "Preparing upload..."
                   : uploadProgress < 70
-                  ? "Uploading file..."
-                  : uploadProgress < 100
-                  ? "Saving document..."
-                  : "Complete!"}
+                    ? "Uploading file..."
+                    : uploadProgress < 100
+                      ? "Saving document..."
+                      : "Complete!"}
               </Typography>
             </Box>
           )}
@@ -276,12 +276,7 @@ export default function UploadDocumentModal({
         <Button
           onClick={handleUpload}
           variant="contained"
-          disabled={
-            !selectedFile ||
-            !documentType ||
-            (isAudiogram && !documentDate) ||
-            uploading
-          }
+          disabled={!selectedFile || !documentType || (isAudiogram && !documentDate) || uploading}
         >
           {uploading ? "Uploading..." : "Upload"}
         </Button>

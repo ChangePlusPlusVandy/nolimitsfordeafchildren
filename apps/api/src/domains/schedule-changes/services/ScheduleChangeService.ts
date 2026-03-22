@@ -107,8 +107,8 @@ export class ScheduleChangeService {
       .where(
         and(
           eq(ScheduleChangeRequestTable.student_id, input.student_id),
-          eq(ScheduleChangeRequestTable.status, "pending")
-        )
+          eq(ScheduleChangeRequestTable.status, "pending"),
+        ),
       )
       .limit(1);
 
@@ -126,10 +126,7 @@ export class ScheduleChangeService {
       requested_at: new Date(),
     };
 
-    const result = await db
-      .insert(ScheduleChangeRequestTable)
-      .values(newRequest)
-      .returning();
+    const result = await db.insert(ScheduleChangeRequestTable).values(newRequest).returning();
 
     return result[0]!;
   }
@@ -322,7 +319,7 @@ export class ScheduleChangeService {
     requestId: string,
     adminId: string,
     status: "approved" | "denied",
-    reviewNotes?: string
+    reviewNotes?: string,
   ): Promise<ScheduleChangeRequestEntity | null> {
     const existing = await db
       .select()
@@ -353,8 +350,8 @@ export class ScheduleChangeService {
           and(
             eq(EnrollmentTable.student_id, request.student_id),
             eq(EnrollmentTable.schedule_id, request.current_schedule_id),
-            isNull(EnrollmentTable.ended_at)
-          )
+            isNull(EnrollmentTable.ended_at),
+          ),
         );
 
       // Create new enrollment
@@ -454,7 +451,9 @@ export class ScheduleChangeService {
   /**
    * Get requests for a parent's children
    */
-  async listRequestsForParent(parentUserId: string): Promise<{ items: ScheduleChangeRequestWithDetails[] }> {
+  async listRequestsForParent(
+    parentUserId: string,
+  ): Promise<{ items: ScheduleChangeRequestWithDetails[] }> {
     // Get parent profile
     const parentProfile = await db
       .select()
@@ -473,8 +472,8 @@ export class ScheduleChangeService {
       .where(
         and(
           eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
-          isNull(ParentStudentLinkTable.revoked_at)
-        )
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
       );
 
     if (linkedStudents.length === 0) {

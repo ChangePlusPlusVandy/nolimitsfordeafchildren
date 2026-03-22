@@ -47,10 +47,14 @@ interface SessionNotesProps {
   canEdit?: boolean; // Teachers can edit their own
 }
 
-export default function SessionNotes({ studentId, canAdd = false, canEdit = false }: SessionNotesProps) {
+export default function SessionNotes({
+  studentId,
+  canAdd = false,
+  canEdit = false,
+}: SessionNotesProps) {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
-  
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<SessionNote | null>(null);
   const [noteText, setNoteText] = useState("");
@@ -117,7 +121,7 @@ export default function SessionNotes({ studentId, canAdd = false, canEdit = fals
 
   const handleSave = () => {
     if (!noteText.trim()) return;
-    
+
     if (editingNote) {
       updateMutation.mutate({ id: editingNote.id, note: noteText });
     } else {
@@ -152,11 +156,7 @@ export default function SessionNotes({ studentId, canAdd = false, canEdit = fals
           Session Notes
         </Typography>
         {canAdd && (
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-          >
+          <Button size="small" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
             Add Note
           </Button>
         )}
@@ -197,17 +197,10 @@ export default function SessionNotes({ studentId, canAdd = false, canEdit = fals
               secondaryAction={
                 canEdit && (
                   <Stack direction="row" spacing={0.5}>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenDialog(note)}
-                    >
+                    <IconButton size="small" onClick={() => handleOpenDialog(note)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(note.id)}
-                    >
+                    <IconButton size="small" color="error" onClick={() => handleDelete(note.id)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Stack>
@@ -215,12 +208,12 @@ export default function SessionNotes({ studentId, canAdd = false, canEdit = fals
               }
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1, width: "100%" }}>
-                <Avatar sx={{ width: 28, height: 28, fontSize: "0.75rem", bgcolor: "primary.main" }}>
+                <Avatar
+                  sx={{ width: 28, height: 28, fontSize: "0.75rem", bgcolor: "primary.main" }}
+                >
                   {note.teacher?.name?.charAt(0) || "T"}
                 </Avatar>
-                <Typography variant="subtitle2">
-                  {note.teacher?.name || "Teacher"}
-                </Typography>
+                <Typography variant="subtitle2">{note.teacher?.name || "Teacher"}</Typography>
                 <Chip
                   label={formatDate(note.created_at)}
                   size="small"
@@ -234,7 +227,8 @@ export default function SessionNotes({ studentId, canAdd = false, canEdit = fals
                   sx: { whiteSpace: "pre-wrap", pr: canEdit ? 8 : 0 },
                 }}
                 secondary={
-                  note.session_date && `Session: ${new Date(note.session_date).toLocaleDateString()}`
+                  note.session_date &&
+                  `Session: ${new Date(note.session_date).toLocaleDateString()}`
                 }
               />
             </ListItem>
@@ -243,15 +237,8 @@ export default function SessionNotes({ studentId, canAdd = false, canEdit = fals
       )}
 
       {/* Add/Edit Note Dialog */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          {editingNote ? "Edit Note" : "Add Session Note"}
-        </DialogTitle>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingNote ? "Edit Note" : "Add Session Note"}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus

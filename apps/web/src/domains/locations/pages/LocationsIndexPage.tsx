@@ -21,7 +21,11 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
-import { useLocationHttpService, type LocationMapPin, type LocationType } from "../services/LocationHttpService";
+import {
+  useLocationHttpService,
+  type LocationMapPin,
+  type LocationType,
+} from "../services/LocationHttpService";
 import { useAuth } from "../../../auth";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { divIcon, LatLngBounds } from "leaflet";
@@ -47,18 +51,14 @@ const createMarkerIcon = (isActive: boolean) => {
 };
 
 // Auto-fit map bounds to show all markers
-function FitBoundsToMarkers({
-  pins,
-}: {
-  pins: Array<{ latitude: string; longitude: string }>;
-}) {
+function FitBoundsToMarkers({ pins }: { pins: Array<{ latitude: string; longitude: string }> }) {
   const map = useMap();
 
   useEffect(() => {
     if (pins.length === 0) return;
 
     const bounds = new LatLngBounds(
-      pins.map((pin) => [parseFloat(pin.latitude), parseFloat(pin.longitude)] as [number, number])
+      pins.map((pin) => [parseFloat(pin.latitude), parseFloat(pin.longitude)] as [number, number]),
     );
 
     map.fitBounds(bounds, { padding: [50, 50] });
@@ -79,10 +79,7 @@ export default function LocationsIndexPage() {
     remote: "Remote",
   };
 
-  const LOCATION_TYPE_COLOR: Record<
-    LocationType,
-    "primary" | "secondary" | "info"
-  > = {
+  const LOCATION_TYPE_COLOR: Record<LocationType, "primary" | "secondary" | "info"> = {
     education_center: "primary",
     pop_up: "secondary",
     remote: "info",
@@ -99,10 +96,7 @@ export default function LocationsIndexPage() {
   });
 
   // Fetch map data (optimized for pins)
-  const {
-    data: mapPins,
-    isLoading: mapLoading,
-  } = useQuery({
+  const { data: mapPins, isLoading: mapLoading } = useQuery({
     queryKey: [locationHttpService.key, "mapData"],
     queryFn: locationHttpService.queries.mapData,
   });
@@ -110,7 +104,7 @@ export default function LocationsIndexPage() {
   // Filter pins with valid coordinates
   const validMapPins = (mapPins ?? []).filter(
     (pin): pin is LocationMapPin & { latitude: string; longitude: string } =>
-      pin.latitude !== null && pin.longitude !== null
+      pin.latitude !== null && pin.longitude !== null,
   );
 
   // Calculate map center (average of all pins, or default to US center)
@@ -220,11 +214,7 @@ export default function LocationsIndexPage() {
           {mapLoading ? (
             <Skeleton variant="rectangular" height="100%" animation="pulse" />
           ) : (
-            <MapContainer
-              center={mapCenter}
-              zoom={4}
-              style={{ height: "100%", width: "100%" }}
-            >
+            <MapContainer center={mapCenter} zoom={4} style={{ height: "100%", width: "100%" }}>
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -256,11 +246,11 @@ export default function LocationsIndexPage() {
                         color={pin.is_active ? "success" : "error"}
                       />
                     </Box>
-                      </Popup>
-                    </Marker>
-                  ))}
-                  <FitBoundsToMarkers pins={validMapPins} />
-                </MapContainer>
+                  </Popup>
+                </Marker>
+              ))}
+              <FitBoundsToMarkers pins={validMapPins} />
+            </MapContainer>
           )}
         </Box>
       </Paper>

@@ -1,6 +1,6 @@
-import { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "react-router"
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import {
   Box,
   Typography,
@@ -21,7 +21,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-} from "@mui/material"
+} from "@mui/material";
 import {
   Schedule as ScheduleIcon,
   LocationOn as LocationIcon,
@@ -29,58 +29,58 @@ import {
   CalendarMonth as CalendarIcon,
   Send as SendIcon,
   ArrowBack as ArrowBackIcon,
-} from "@mui/icons-material"
-import { useParentHttpService } from "../services/ParentHttpService"
-import { useHttpClient } from "../../../plugins/axios"
-import { useToast } from "../../global/components/ToastProvider"
+} from "@mui/icons-material";
+import { useParentHttpService } from "../services/ParentHttpService";
+import { useHttpClient } from "../../../plugins/axios";
+import { useToast } from "../../global/components/ToastProvider";
 
 interface AvailableSchedule {
-  id: string
+  id: string;
   teacher: {
-    id: string
-    name: string
-    age_group_specialty: string | null
-  }
+    id: string;
+    name: string;
+    age_group_specialty: string | null;
+  };
   site: {
-    id: string
-    name: string
-  }
-  day_of_week_mask: number
-  start_time: string
-  end_time: string
-  cycle_start_date: string
-  cycle_end_date: string
-  enrollment_count?: number
+    id: string;
+    name: string;
+  };
+  day_of_week_mask: number;
+  start_time: string;
+  end_time: string;
+  cycle_start_date: string;
+  cycle_end_date: string;
+  enrollment_count?: number;
 }
 
 function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":")
-  const hour = parseInt(hours!, 10)
-  const ampm = hour >= 12 ? "PM" : "AM"
-  const hour12 = hour % 12 || 12
-  return `${hour12}:${minutes} ${ampm}`
+  const [hours, minutes] = timeStr.split(":");
+  const hour = parseInt(hours!, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
 }
 
 function getDaysFromMask(mask: number): string[] {
-  const days: string[] = []
-  if (mask & 1) days.push("Mon")
-  if (mask & 2) days.push("Tue")
-  if (mask & 4) days.push("Wed")
-  if (mask & 8) days.push("Thu")
-  if (mask & 16) days.push("Fri")
-  if (mask & 32) days.push("Sat")
-  if (mask & 64) days.push("Sun")
-  return days
+  const days: string[] = [];
+  if (mask & 1) days.push("Mon");
+  if (mask & 2) days.push("Tue");
+  if (mask & 4) days.push("Wed");
+  if (mask & 8) days.push("Thu");
+  if (mask & 16) days.push("Fri");
+  if (mask & 32) days.push("Sat");
+  if (mask & 64) days.push("Sun");
+  return days;
 }
 
 function getDayPattern(mask: number): string {
-  const days = getDaysFromMask(mask)
-  return days.join("/")
+  const days = getDaysFromMask(mask);
+  return days.join("/");
 }
 
 function formatAgeGroup(specialty: string | null): string {
-  if (!specialty) return "All Ages"
-  return specialty.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())
+  if (!specialty) return "All Ages";
+  return specialty.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 function ScheduleCard({
@@ -88,9 +88,9 @@ function ScheduleCard({
   selected,
   onSelect,
 }: {
-  schedule: AvailableSchedule
-  selected: boolean
-  onSelect: (schedule: AvailableSchedule) => void
+  schedule: AvailableSchedule;
+  selected: boolean;
+  onSelect: (schedule: AvailableSchedule) => void;
 }) {
   return (
     <Card
@@ -131,9 +131,7 @@ function ScheduleCard({
 
             <Stack direction="row" spacing={1} alignItems="center">
               <CalendarIcon color="action" fontSize="small" />
-              <Typography variant="body2">
-                {getDayPattern(schedule.day_of_week_mask)}
-              </Typography>
+              <Typography variant="body2">{getDayPattern(schedule.day_of_week_mask)}</Typography>
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -143,19 +141,12 @@ function ScheduleCard({
               </Typography>
             </Stack>
 
-            {selected && (
-              <Chip
-                label="Selected"
-                color="primary"
-                size="small"
-                sx={{ mt: 1 }}
-              />
-            )}
+            {selected && <Chip label="Selected" color="primary" size="small" sx={{ mt: 1 }} />}
           </Stack>
         </CardContent>
       </CardActionArea>
     </Card>
-  )
+  );
 }
 
 function LoadingSkeleton() {
@@ -183,87 +174,90 @@ function LoadingSkeleton() {
         </Box>
       ))}
     </Box>
-  )
+  );
 }
 
 export default function BrowseSchedulesPage() {
-  const navigate = useNavigate()
-  const httpClient = useHttpClient()
-  const queryClient = useQueryClient()
-  const parentHttpService = useParentHttpService()
-  const { showToast } = useToast()
+  const navigate = useNavigate();
+  const httpClient = useHttpClient();
+  const queryClient = useQueryClient();
+  const parentHttpService = useParentHttpService();
+  const { showToast } = useToast();
 
   // State
-  const [selectedChild, setSelectedChild] = useState<string>("")
-  const [siteFilter, setSiteFilter] = useState<string>("")
-  const [dayPatternFilter, setDayPatternFilter] = useState<string>("")
-  const [selectedSchedule, setSelectedSchedule] = useState<AvailableSchedule | null>(null)
-  const [reason, setReason] = useState("")
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [selectedChild, setSelectedChild] = useState<string>("");
+  const [siteFilter, setSiteFilter] = useState<string>("");
+  const [dayPatternFilter, setDayPatternFilter] = useState<string>("");
+  const [selectedSchedule, setSelectedSchedule] = useState<AvailableSchedule | null>(null);
+  const [reason, setReason] = useState("");
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Fetch linked children
   const { data: childrenData, isLoading: childrenLoading } = useQuery({
     queryKey: [parentHttpService.key, "myChildren"],
     queryFn: parentHttpService.queries.myChildren,
-  })
+  });
 
   // Fetch available schedules
   const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
     queryKey: ["schedules", "available", siteFilter, dayPatternFilter],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      if (siteFilter) params.append("site_id", siteFilter)
+      const params = new URLSearchParams();
+      if (siteFilter) params.append("site_id", siteFilter);
       if (dayPatternFilter) {
         // Convert day pattern to mask
-        const mask = dayPatternFilter === "mws" ? 37 : dayPatternFilter === "tths" ? 42 : undefined
-        if (mask) params.append("day_of_week_mask", mask.toString())
+        const mask = dayPatternFilter === "mws" ? 37 : dayPatternFilter === "tths" ? 42 : undefined;
+        if (mask) params.append("day_of_week_mask", mask.toString());
       }
-      const response = await httpClient.get(`/v1/schedules/available?${params.toString()}`)
-      return response.data
+      const response = await httpClient.get(`/v1/schedules/available?${params.toString()}`);
+      return response.data;
     },
     enabled: !!selectedChild,
-  })
+  });
 
   // Create schedule change request mutation
   const createRequestMutation = useMutation({
     mutationFn: async (data: {
-      student_id: string
-      current_schedule_id: string
-      requested_schedule_id: string
-      reason: string
+      student_id: string;
+      current_schedule_id: string;
+      requested_schedule_id: string;
+      reason: string;
     }) => {
-      const response = await httpClient.post("/v1/schedule-change-requests", data)
-      return response.data
+      const response = await httpClient.post("/v1/schedule-change-requests", data);
+      return response.data;
     },
     onSuccess: () => {
-      showToast({ message: "Schedule change request submitted successfully!", severity: "success" })
-      queryClient.invalidateQueries({ queryKey: [parentHttpService.key] })
-      navigate("/parents/my-requests")
+      showToast({
+        message: "Schedule change request submitted successfully!",
+        severity: "success",
+      });
+      queryClient.invalidateQueries({ queryKey: [parentHttpService.key] });
+      navigate("/parents/my-requests");
     },
     onError: (error: any) => {
       showToast({
         message: error.response?.data?.message || "Failed to submit request",
-        severity: "error"
-      })
+        severity: "error",
+      });
     },
-  })
+  });
 
-  const children = childrenData?.items ?? []
-  const schedules: AvailableSchedule[] = schedulesData?.items ?? []
+  const children = childrenData?.items ?? [];
+  const schedules: AvailableSchedule[] = schedulesData?.items ?? [];
 
   // Get unique sites from schedules for filtering
   const sites = schedules.reduce((acc: { id: string; name: string }[], s) => {
     if (!acc.find((site) => site.id === s.site.id)) {
-      acc.push(s.site)
+      acc.push(s.site);
     }
-    return acc
-  }, [])
+    return acc;
+  }, []);
 
   // Get the selected child's current schedule (for excluding from available)
-  const selectedChildData = children.find((c) => c.id === selectedChild)
+  const selectedChildData = children.find((c) => c.id === selectedChild);
 
   const handleSubmitRequest = () => {
-    if (!selectedChild || !selectedSchedule || !reason.trim()) return
+    if (!selectedChild || !selectedSchedule || !reason.trim()) return;
 
     // Get current schedule ID from child data
     // For now, we'll need to get this from somewhere - let's use child details
@@ -273,18 +267,14 @@ export default function BrowseSchedulesPage() {
       current_schedule_id: "current-schedule-id", // This would come from child details
       requested_schedule_id: selectedSchedule.id,
       reason: reason.trim(),
-    })
-    setConfirmDialogOpen(false)
-  }
+    });
+    setConfirmDialogOpen(false);
+  };
 
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} alignItems="center" mb={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          color="inherit"
-        >
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} color="inherit">
           Back
         </Button>
         <Typography variant="h4">Browse Available Schedules</Typography>
@@ -299,17 +289,15 @@ export default function BrowseSchedulesPage() {
           {childrenLoading ? (
             <Skeleton variant="rounded" height={56} />
           ) : children.length === 0 ? (
-            <Alert severity="info">
-              No children are linked to your account.
-            </Alert>
+            <Alert severity="info">No children are linked to your account.</Alert>
           ) : (
             <FormControl fullWidth>
               <InputLabel>Select a child</InputLabel>
               <Select
                 value={selectedChild}
                 onChange={(e) => {
-                  setSelectedChild(e.target.value)
-                  setSelectedSchedule(null)
+                  setSelectedChild(e.target.value);
+                  setSelectedSchedule(null);
                 }}
                 label="Select a child"
               >
@@ -369,9 +357,7 @@ export default function BrowseSchedulesPage() {
               {schedulesLoading ? (
                 <LoadingSkeleton />
               ) : schedules.length === 0 ? (
-                <Alert severity="info">
-                  No available schedules match your filters.
-                </Alert>
+                <Alert severity="info">No available schedules match your filters.</Alert>
               ) : (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
                   {schedules.map((schedule) => (
@@ -438,8 +424,8 @@ export default function BrowseSchedulesPage() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography>
-              You are requesting to change{" "}
-              <strong>{selectedChildData?.first_name}</strong>'s schedule to:
+              You are requesting to change <strong>{selectedChildData?.first_name}</strong>'s
+              schedule to:
             </Typography>
             {selectedSchedule && (
               <Card variant="outlined">
@@ -448,9 +434,7 @@ export default function BrowseSchedulesPage() {
                     <Typography variant="subtitle1" fontWeight={600}>
                       {selectedSchedule.teacher.name}
                     </Typography>
-                    <Typography variant="body2">
-                      {selectedSchedule.site.name}
-                    </Typography>
+                    <Typography variant="body2">{selectedSchedule.site.name}</Typography>
                     <Typography variant="body2">
                       {getDayPattern(selectedSchedule.day_of_week_mask)} at{" "}
                       {formatTime(selectedSchedule.start_time)}
@@ -463,8 +447,8 @@ export default function BrowseSchedulesPage() {
               <strong>Reason:</strong> {reason}
             </Typography>
             <Alert severity="info">
-              Your request will be reviewed by an administrator. You'll be
-              notified once it's approved or denied.
+              Your request will be reviewed by an administrator. You'll be notified once it's
+              approved or denied.
             </Alert>
           </Stack>
         </DialogContent>
@@ -480,5 +464,5 @@ export default function BrowseSchedulesPage() {
         </DialogActions>
       </Dialog>
     </Box>
-  )
+  );
 }

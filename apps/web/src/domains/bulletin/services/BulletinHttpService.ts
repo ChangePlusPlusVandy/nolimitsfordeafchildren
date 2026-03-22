@@ -127,7 +127,10 @@ export function useBulletinHttpService() {
       /**
        * Add an attachment to a bulletin
        */
-      addAttachment: async (bulletinId: string, payload: AddAttachmentInput): Promise<BulletinAttachment> => {
+      addAttachment: async (
+        bulletinId: string,
+        payload: AddAttachmentInput,
+      ): Promise<BulletinAttachment> => {
         const response = await httpClient.post(`/v1/bulletins/${bulletinId}/attachments`, payload);
         return response.data;
       },
@@ -135,8 +138,13 @@ export function useBulletinHttpService() {
       /**
        * Delete an attachment from a bulletin
        */
-      deleteAttachment: async (bulletinId: string, attachmentId: string): Promise<{ success: boolean; message: string }> => {
-        const response = await httpClient.delete(`/v1/bulletins/${bulletinId}/attachments/${attachmentId}`);
+      deleteAttachment: async (
+        bulletinId: string,
+        attachmentId: string,
+      ): Promise<{ success: boolean; message: string }> => {
+        const response = await httpClient.delete(
+          `/v1/bulletins/${bulletinId}/attachments/${attachmentId}`,
+        );
         return response.data;
       },
     },

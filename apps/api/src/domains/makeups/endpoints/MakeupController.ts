@@ -69,7 +69,7 @@ export class PostMakeupRequestController {
   @Authorized(["parent", "administrator"])
   async handle(
     @Body() body: CreateMakeupRequestBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     const input: CreateMakeupRequestInput = {
       student_id: body.student_id,
@@ -114,7 +114,7 @@ export class GetMakeupRequestsController {
     @QueryParam("status") status?: RequestStatus,
     @QueryParam("student_id") studentId?: string,
     @QueryParam("site_id") siteId?: string,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     const result = await this.makeupService.listRequests({
       status,
@@ -166,14 +166,14 @@ export class PatchMakeupRequestController {
   async handle(
     @Param("id") id: string,
     @Body() body: ReviewMakeupRequestBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     try {
       const request = await this.makeupService.reviewRequest(
         id,
         currentUser.id,
         body.status,
-        body.review_notes
+        body.review_notes,
       );
       if (!request) {
         throw new HttpError(404, "Makeup request not found");
@@ -204,7 +204,7 @@ export class PostMakeupSessionController {
   @Authorized(["administrator"])
   async handle(
     @Body() body: CreateMakeupSessionBody,
-    @CurrentUser({ required: true }) currentUser: UserEntity
+    @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     const input: CreateMakeupSessionInput = {
       makeup_request_id: body.makeup_request_id,
@@ -243,10 +243,7 @@ export class GetTeacherMakeupSessionsController {
 
   @Get("/teachers/:teacherId/makeup-sessions")
   @Authorized(["administrator", "teacher"])
-  async handle(
-    @Param("teacherId") teacherId: string,
-    @QueryParam("date") date?: string
-  ) {
+  async handle(@Param("teacherId") teacherId: string, @QueryParam("date") date?: string) {
     const result = await this.makeupService.listSessionsForTeacher(teacherId, date);
     return result;
   }
@@ -266,10 +263,7 @@ export class PatchMakeupSessionAttendanceController {
 
   @Patch("/makeup-sessions/:id/attendance")
   @Authorized(["administrator", "teacher"])
-  async handle(
-    @Param("id") id: string,
-    @Body() body: MarkAttendanceBody
-  ) {
+  async handle(@Param("id") id: string, @Body() body: MarkAttendanceBody) {
     const session = await this.makeupService.markSessionAttendance(id, body.status);
     if (!session) {
       throw new HttpError(404, "Makeup session not found");

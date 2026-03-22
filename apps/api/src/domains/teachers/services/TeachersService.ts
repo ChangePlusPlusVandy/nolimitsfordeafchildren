@@ -16,7 +16,10 @@ import {
   type ScheduleEntity,
   type ScheduleInsert,
 } from "@/db/schema";
-import { AttendanceService, type SessionForDay } from "@/domains/attendance/services/AttendanceService";
+import {
+  AttendanceService,
+  type SessionForDay,
+} from "@/domains/attendance/services/AttendanceService";
 
 export type AgeGroupSpecialty =
   | "infant"
@@ -127,10 +130,7 @@ export class TeachersService {
 
     if (query.search) {
       conditions.push(
-        or(
-          ilike(UserTable.name, `%${query.search}%`),
-          ilike(UserTable.email, `%${query.search}%`)
-        )
+        or(ilike(UserTable.name, `%${query.search}%`), ilike(UserTable.email, `%${query.search}%`)),
       );
     }
 
@@ -158,7 +158,8 @@ export class TeachersService {
     const total = countResult[0]?.count || 0;
 
     // Determine sort and order
-    const sortColumn = query.sort === "created_at" ? TeacherProfileTable.created_at : UserTable.name;
+    const sortColumn =
+      query.sort === "created_at" ? TeacherProfileTable.created_at : UserTable.name;
     const orderFn = query.order === "desc" ? desc : asc;
 
     // Get paginated results with joins
@@ -313,10 +314,7 @@ export class TeachersService {
       .innerJoin(StudentTable, eq(TeacherStudentTable.student_id, StudentTable.id))
       .innerJoin(LocationTable, eq(StudentTable.site_id, LocationTable.id))
       .where(
-        and(
-          eq(TeacherStudentTable.teacher_id, id),
-          isNull(TeacherStudentTable.unassigned_at)
-        )
+        and(eq(TeacherStudentTable.teacher_id, id), isNull(TeacherStudentTable.unassigned_at)),
       );
 
     const students = studentResults.map((s) => ({
@@ -375,11 +373,7 @@ export class TeachersService {
     }
 
     // Verify user exists and is a teacher role
-    const user = await db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.id, input.user_id))
-      .limit(1);
+    const user = await db.select().from(UserTable).where(eq(UserTable.id, input.user_id)).limit(1);
 
     if (user.length === 0) {
       throw new Error("User not found");
@@ -399,10 +393,7 @@ export class TeachersService {
       age_group_specialty: input.age_group_specialty || "all_ages",
     };
 
-    const result = await db
-      .insert(TeacherProfileTable)
-      .values(newTeacher)
-      .returning();
+    const result = await db.insert(TeacherProfileTable).values(newTeacher).returning();
 
     return result[0]!;
   }
@@ -430,7 +421,8 @@ export class TeachersService {
     if (input.photo_url !== undefined) updateData.photo_url = input.photo_url;
     if (input.qualifications !== undefined) updateData.qualifications = input.qualifications;
     if (input.credentials !== undefined) updateData.credentials = input.credentials;
-    if (input.age_group_specialty !== undefined) updateData.age_group_specialty = input.age_group_specialty;
+    if (input.age_group_specialty !== undefined)
+      updateData.age_group_specialty = input.age_group_specialty;
 
     const result = await db
       .update(TeacherProfileTable)
@@ -454,10 +446,7 @@ export class TeachersService {
       .select({ count: sql<number>`count(*)::int` })
       .from(TeacherStudentTable)
       .where(
-        and(
-          eq(TeacherStudentTable.teacher_id, id),
-          isNull(TeacherStudentTable.unassigned_at)
-        )
+        and(eq(TeacherStudentTable.teacher_id, id), isNull(TeacherStudentTable.unassigned_at)),
       );
 
     const total = countResult[0]?.count || 0;
@@ -478,12 +467,7 @@ export class TeachersService {
       .from(TeacherStudentTable)
       .innerJoin(StudentTable, eq(TeacherStudentTable.student_id, StudentTable.id))
       .innerJoin(LocationTable, eq(StudentTable.site_id, LocationTable.id))
-      .where(
-        and(
-          eq(TeacherStudentTable.teacher_id, id),
-          isNull(TeacherStudentTable.unassigned_at)
-        )
-      )
+      .where(and(eq(TeacherStudentTable.teacher_id, id), isNull(TeacherStudentTable.unassigned_at)))
       .orderBy(asc(StudentTable.last_name))
       .limit(limit)
       .offset(offset);
@@ -512,7 +496,10 @@ export class TeachersService {
   /**
    * Get today's sessions for a teacher (my-day)
    */
-  async myDay(query: { date?: string; teacher_id?: string }): Promise<{ sessions: SessionForDay[] }> {
+  async myDay(query: {
+    date?: string;
+    teacher_id?: string;
+  }): Promise<{ sessions: SessionForDay[] }> {
     const teacherId = query.teacher_id;
     if (!teacherId) {
       return { sessions: [] };
@@ -520,7 +507,7 @@ export class TeachersService {
 
     const date = query.date || new Date().toISOString().split("T")[0]!;
     const sessions = await this.attendanceService.getTeacherDaySessions(teacherId, date);
-    
+
     return { sessions };
   }
 
@@ -542,7 +529,9 @@ export class TeachersService {
     // Check for conflicts
     const conflicts = await this.checkScheduleConflicts(teacherId, input);
     if (conflicts.length > 0) {
-      throw new Error(`Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`);
+      throw new Error(
+        `Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`,
+      );
     }
 
     const newSchedule: ScheduleInsert = {
@@ -564,7 +553,10 @@ export class TeachersService {
   /**
    * Update a schedule
    */
-  async updateSchedule(scheduleId: string, input: UpdateScheduleInput): Promise<ScheduleEntity | null> {
+  async updateSchedule(
+    scheduleId: string,
+    input: UpdateScheduleInput,
+  ): Promise<ScheduleEntity | null> {
     const existing = await db
       .select()
       .from(ScheduleTable)
@@ -576,7 +568,11 @@ export class TeachersService {
     }
 
     // If changing time/days, check for conflicts
-    if (input.day_of_week_mask !== undefined || input.start_time !== undefined || input.end_time !== undefined) {
+    if (
+      input.day_of_week_mask !== undefined ||
+      input.start_time !== undefined ||
+      input.end_time !== undefined
+    ) {
       const checkInput: CreateScheduleInput = {
         site_id: input.site_id ?? existing[0]!.site_id,
         day_of_week_mask: input.day_of_week_mask ?? existing[0]!.day_of_week_mask,
@@ -589,11 +585,13 @@ export class TeachersService {
       const conflicts = await this.checkScheduleConflicts(
         existing[0]!.teacher_id,
         checkInput,
-        scheduleId
+        scheduleId,
       );
 
       if (conflicts.length > 0) {
-        throw new Error(`Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`);
+        throw new Error(
+          `Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`,
+        );
       }
     }
 
@@ -624,13 +622,10 @@ export class TeachersService {
   private async checkScheduleConflicts(
     teacherId: string,
     input: CreateScheduleInput,
-    excludeScheduleId?: string
+    excludeScheduleId?: string,
   ): Promise<ScheduleEntity[]> {
     // Get all active schedules for this teacher
-    const conditions = [
-      eq(ScheduleTable.teacher_id, teacherId),
-      eq(ScheduleTable.is_active, true),
-    ];
+    const conditions = [eq(ScheduleTable.teacher_id, teacherId), eq(ScheduleTable.is_active, true)];
 
     if (excludeScheduleId) {
       conditions.push(sql`${ScheduleTable.id} != ${excludeScheduleId}`);

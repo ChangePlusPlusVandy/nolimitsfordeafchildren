@@ -42,7 +42,12 @@ interface LinkParentModalProps {
   studentName?: string;
 }
 
-export default function LinkParentModal({ open, onClose, studentId, studentName }: LinkParentModalProps) {
+export default function LinkParentModal({
+  open,
+  onClose,
+  studentId,
+  studentName,
+}: LinkParentModalProps) {
   const queryClient = useQueryClient();
   const studentHttpService = useStudentHttpService();
   const userHttpService = useUserHttpService();
@@ -53,14 +58,22 @@ export default function LinkParentModal({ open, onClose, studentId, studentName 
   const [isPrimary, setIsPrimary] = useState(false);
 
   // Fetch student details to show current linked parents
-  const { data: student, isLoading: studentLoading, isError: studentError } = useQuery({
+  const {
+    data: student,
+    isLoading: studentLoading,
+    isError: studentError,
+  } = useQuery({
     queryKey: [studentHttpService.key, "show", studentId],
     queryFn: () => studentHttpService.queries.show(studentId),
     enabled: open && !!studentId,
   });
 
   // Fetch all parents for the dropdown
-  const { data: usersData, isLoading: usersLoading, isError: usersError } = useQuery({
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    isError: usersError,
+  } = useQuery({
     queryKey: [userHttpService.key, "index", { role: "parent" }],
     queryFn: () => userHttpService.queries.index({ role: "parent", limit: 500 }),
     enabled: open,
@@ -70,9 +83,7 @@ export default function LinkParentModal({ open, onClose, studentId, studentName 
 
   // Filter out already linked parents
   const linkedParentUserIds = student?.parents?.map((p) => p.user_id) || [];
-  const availableParents = parents.filter(
-    (p: any) => !linkedParentUserIds.includes(p.id)
-  );
+  const availableParents = parents.filter((p: any) => !linkedParentUserIds.includes(p.id));
 
   // Link parent mutation
   const linkMutation = useMutation({
@@ -266,9 +277,7 @@ export default function LinkParentModal({ open, onClose, studentId, studentName 
                     primary={
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         {parent.name}
-                        {parent.is_primary && (
-                          <Chip label="Primary" size="small" color="primary" />
-                        )}
+                        {parent.is_primary && <Chip label="Primary" size="small" color="primary" />}
                       </Box>
                     }
                     secondary={

@@ -1,11 +1,19 @@
-import { Body, Get, JsonController, Param, Post, QueryParam, Authorized } from "routing-controllers";
+import {
+  Body,
+  Get,
+  JsonController,
+  Param,
+  Post,
+  QueryParam,
+  Authorized,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
-import { 
-  SchedulesService, 
-  type ListSchedulesQuery, 
+import {
+  SchedulesService,
+  type ListSchedulesQuery,
   type AvailableSchedulesQuery,
-  type ConflictCheckInput 
+  type ConflictCheckInput,
 } from "../services/SchedulesService";
 
 @Service()
@@ -23,7 +31,7 @@ export class SchedulesController {
     @QueryParam("site_id") site_id?: string,
     @QueryParam("is_active") is_active?: boolean,
     @QueryParam("page") page?: number,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     const query: ListSchedulesQuery = { teacher_id, site_id, is_active, page, limit };
     return await this.schedulesService.index(query);
@@ -35,7 +43,7 @@ export class SchedulesController {
     @QueryParam("site_id") site_id?: string,
     @QueryParam("day_of_week_mask") day_of_week_mask?: number,
     @QueryParam("page") page?: number,
-    @QueryParam("limit") limit?: number
+    @QueryParam("limit") limit?: number,
   ) {
     const query: AvailableSchedulesQuery = { site_id, day_of_week_mask, page, limit };
     return await this.schedulesService.getAvailable(query);

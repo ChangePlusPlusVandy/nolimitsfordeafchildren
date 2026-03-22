@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Box, AppBar, Toolbar, IconButton, Typography, useMediaQuery, useTheme } from "@mui/material";
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Outlet } from "react-router";
 import { Sidebar, DRAWER_WIDTH } from "../components/Sidebar";
@@ -42,10 +50,10 @@ const DashboardLayout = () => {
         </AppBar>
       )}
 
-      <Sidebar 
-        isMobile={isMobile} 
-        mobileOpen={mobileOpen} 
-        onMobileClose={() => setMobileOpen(false)} 
+      <Sidebar
+        isMobile={isMobile}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
       />
 
       <Box

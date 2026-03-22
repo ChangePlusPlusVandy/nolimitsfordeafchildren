@@ -26,7 +26,7 @@ export class StudentParentsAdminController {
       id,
       body.parent_id,
       body.relationship,
-      body.is_primary
+      body.is_primary,
     );
   }
 

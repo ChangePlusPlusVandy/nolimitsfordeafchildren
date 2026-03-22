@@ -158,7 +158,9 @@ export function useStudentHttpService() {
       /**
        * Get student's linked teachers
        */
-      teachers: async (studentId: string): Promise<{ items: LinkedTeacher[]; nextCursor: null }> => {
+      teachers: async (
+        studentId: string,
+      ): Promise<{ items: LinkedTeacher[]; nextCursor: null }> => {
         const response = await httpClient.get(`/v1/students/${studentId}/teachers`);
         return response.data;
       },
@@ -192,7 +194,10 @@ export function useStudentHttpService() {
       /**
        * Add a sibling to a student
        */
-      addSibling: async ({ studentId, ...data }: AddSiblingInput & { studentId: string }): Promise<Sibling> => {
+      addSibling: async ({
+        studentId,
+        ...data
+      }: AddSiblingInput & { studentId: string }): Promise<Sibling> => {
         const response = await httpClient.post(`/v1/students/${studentId}/siblings`, data);
         return response.data;
       },
@@ -200,7 +205,10 @@ export function useStudentHttpService() {
       /**
        * Update a sibling
        */
-      updateSibling: async ({ id, ...data }: UpdateSiblingInput & { id: string }): Promise<Sibling> => {
+      updateSibling: async ({
+        id,
+        ...data
+      }: UpdateSiblingInput & { id: string }): Promise<Sibling> => {
         const response = await httpClient.patch(`/v1/siblings/${id}`, data);
         return response.data;
       },
@@ -216,15 +224,26 @@ export function useStudentHttpService() {
       /**
        * Link a teacher to a student
        */
-      linkTeacher: async ({ studentId, teacher_id }: LinkTeacherInput & { studentId: string }): Promise<{ ok: boolean; link_id: string }> => {
-        const response = await httpClient.post(`/v1/students/${studentId}/teachers`, { teacher_id });
+      linkTeacher: async ({
+        studentId,
+        teacher_id,
+      }: LinkTeacherInput & { studentId: string }): Promise<{ ok: boolean; link_id: string }> => {
+        const response = await httpClient.post(`/v1/students/${studentId}/teachers`, {
+          teacher_id,
+        });
         return response.data;
       },
 
       /**
        * Unlink a teacher from a student
        */
-      unlinkTeacher: async ({ studentId, teacherId }: { studentId: string; teacherId: string }): Promise<{ ok: boolean }> => {
+      unlinkTeacher: async ({
+        studentId,
+        teacherId,
+      }: {
+        studentId: string;
+        teacherId: string;
+      }): Promise<{ ok: boolean }> => {
         const response = await httpClient.delete(`/v1/students/${studentId}/teachers/${teacherId}`);
         return response.data;
       },
@@ -232,7 +251,10 @@ export function useStudentHttpService() {
       /**
        * Link a parent to a student
        */
-      linkParent: async ({ studentId, ...data }: LinkParentInput & { studentId: string }): Promise<{ ok: boolean; link_id: string }> => {
+      linkParent: async ({
+        studentId,
+        ...data
+      }: LinkParentInput & { studentId: string }): Promise<{ ok: boolean; link_id: string }> => {
         const response = await httpClient.post(`/v1/students/${studentId}/parents`, data);
         return response.data;
       },
@@ -240,7 +262,13 @@ export function useStudentHttpService() {
       /**
        * Unlink a parent from a student
        */
-      unlinkParent: async ({ studentId, parentId }: { studentId: string; parentId: string }): Promise<{ ok: boolean }> => {
+      unlinkParent: async ({
+        studentId,
+        parentId,
+      }: {
+        studentId: string;
+        parentId: string;
+      }): Promise<{ ok: boolean }> => {
         const response = await httpClient.delete(`/v1/students/${studentId}/parents/${parentId}`);
         return response.data;
       },
