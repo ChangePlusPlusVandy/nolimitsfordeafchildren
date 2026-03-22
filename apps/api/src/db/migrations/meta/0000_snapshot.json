@@ -2136,7 +2136,8 @@
       "schema": "public",
       "values": [
         "education_center",
-        "pop_up"
+        "pop_up",
+        "remote"
       ]
     },
     "public.request_status": {

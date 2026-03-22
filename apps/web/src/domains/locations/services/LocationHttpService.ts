@@ -1,7 +1,7 @@
 import type { IHttpService } from "../../../utils/IHttpService"
 import { useHttpClient } from "../../../plugins/axios"
 
-export type LocationType = "education_center" | "pop_up";
+export type LocationType = "education_center" | "pop_up" | "remote";
 
 export interface Location {
   id: string;

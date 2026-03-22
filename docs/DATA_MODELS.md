@@ -15,7 +15,7 @@ CREATE TYPE user_role AS ENUM ('administrator', 'teacher', 'parent');
 
 ### `location_type`
 ```sql
-CREATE TYPE location_type AS ENUM ('education_center', 'pop_up');
+CREATE TYPE location_type AS ENUM ('education_center', 'pop_up', 'remote');
 ```
 
 ### `attendance_status`

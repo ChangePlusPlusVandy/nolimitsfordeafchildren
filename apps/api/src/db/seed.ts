@@ -106,7 +106,7 @@ const generatePhone = (index: number): string => {
 
 interface LocationData {
   name: string;
-  type: "education_center" | "pop_up";
+  type: "education_center" | "pop_up" | "remote";
   address: string;
   city: string;
   zip: string;

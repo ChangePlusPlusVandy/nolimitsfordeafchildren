@@ -12,7 +12,7 @@ export type LocationMapPin = {
   name: string;
   latitude: string | null;
   longitude: string | null;
-  type: "education_center" | "pop_up";
+  type: "education_center" | "pop_up" | "remote";
   is_active: boolean;
 };
 

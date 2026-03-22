@@ -5,7 +5,7 @@ CREATE TYPE "public"."attendance_status" AS ENUM('present', 'no_show', 'cancelle
 CREATE TYPE "public"."bulletin_role_target" AS ENUM('all', 'administrator', 'teacher', 'parent');--> statement-breakpoint
 CREATE TYPE "public"."bulletin_scope" AS ENUM('global', 'site');--> statement-breakpoint
 CREATE TYPE "public"."document_type" AS ENUM('audiogram', 'iep', 'cv', 'annual_test_result', 'other');--> statement-breakpoint
-CREATE TYPE "public"."location_type" AS ENUM('education_center', 'pop_up');--> statement-breakpoint
+CREATE TYPE "public"."location_type" AS ENUM('education_center', 'pop_up', 'remote');--> statement-breakpoint
 CREATE TYPE "public"."request_status" AS ENUM('pending', 'approved', 'denied', 'completed');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('administrator', 'teacher', 'parent');--> statement-breakpoint
 CREATE TABLE "assessments" (

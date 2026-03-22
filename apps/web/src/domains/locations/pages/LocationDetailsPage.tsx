@@ -16,7 +16,10 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import { useLocationHttpService } from "../services/LocationHttpService";
+import {
+  useLocationHttpService,
+  type LocationType,
+} from "../services/LocationHttpService";
 import { useAuth } from "../../../auth";
 
 export default function LocationDetailsPage() {
@@ -24,6 +27,21 @@ export default function LocationDetailsPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const locationHttpService = useLocationHttpService();
+
+  const LOCATION_TYPE_LABEL: Record<LocationType, string> = {
+    education_center: "Education Center",
+    pop_up: "Pop-up",
+    remote: "Remote",
+  };
+
+  const LOCATION_TYPE_COLOR: Record<
+    LocationType,
+    "primary" | "secondary" | "info"
+  > = {
+    education_center: "primary",
+    pop_up: "secondary",
+    remote: "info",
+  };
 
   const {
     data: location,
@@ -117,12 +135,8 @@ export default function LocationDetailsPage() {
           </Typography>
           <Box display="flex" gap={1} flexWrap="wrap">
             <Chip
-              label={
-                location.type === "education_center"
-                  ? "Education Center"
-                  : "Pop-up"
-              }
-              color={location.type === "education_center" ? "primary" : "secondary"}
+              label={LOCATION_TYPE_LABEL[location.type]}
+              color={LOCATION_TYPE_COLOR[location.type]}
             />
             <Chip
               label={location.is_active ? "Active" : "Inactive"}

@@ -51,7 +51,7 @@ const randomInt = (min: number, max: number): number => Math.floor(Math.random()
 
 interface LocationData {
   name: string;
-  type: "education_center" | "pop_up";
+  type: "education_center" | "pop_up" | "remote";
   address: string;
   city: string;
   zip: string;

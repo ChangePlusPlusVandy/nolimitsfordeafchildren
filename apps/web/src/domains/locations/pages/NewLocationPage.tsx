@@ -210,6 +210,7 @@ export default function NewLocationPage() {
                 >
                   <MenuItem value="education_center">Education Center</MenuItem>
                   <MenuItem value="pop_up">Pop-up</MenuItem>
+                  <MenuItem value="remote">Remote</MenuItem>
                 </Select>
               </FormControl>
 
