@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 import { Box, CircularProgress } from "@mui/material";
 import { useAuth, type UserRole } from "../../../auth";
 
