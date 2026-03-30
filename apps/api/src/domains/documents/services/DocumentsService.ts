@@ -48,10 +48,18 @@ export interface ListDocumentsQuery {
   limit?: number;
 }
 
-export interface DocumentWithMetadata extends DocumentEntity {
+export interface PaginatedDocumentsResult {
+  items: DocumentEntity[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export type DocumentWithMetadata = DocumentEntity & {
   is_overdue: boolean;
   days_until_due: number | null;
-}
+};
 
 @Service()
 export class DocumentsService {
@@ -126,6 +134,47 @@ export class DocumentsService {
       .orderBy(desc(DocumentTable.created_at));
 
     return results.map((doc) => this.addMetadata(doc));
+  }
+
+  /**
+   * List paginated documents for an entity
+   */
+  async listForEntityPaginated(
+    entityType: EntityType,
+    entityId: string,
+    query: { page?: number; limit?: number },
+  ): Promise<PaginatedDocumentsResult> {
+    const page = Math.max(query.page || 1, 1);
+    const limit = Math.min(Math.max(query.limit || 10, 1), 100);
+    const offset = (page - 1) * limit;
+
+    const whereClause = and(
+      eq(DocumentTable.entity_type, entityType),
+      eq(DocumentTable.entity_id, entityId),
+    );
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(DocumentTable)
+      .where(whereClause);
+
+    const total = countResult[0]?.count || 0;
+
+    const results = await db
+      .select()
+      .from(DocumentTable)
+      .where(whereClause)
+      .orderBy(desc(DocumentTable.created_at))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      items: results.map((doc) => this.addMetadata(doc)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   /**

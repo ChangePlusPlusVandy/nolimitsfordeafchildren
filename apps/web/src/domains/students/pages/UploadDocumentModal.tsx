@@ -49,7 +49,7 @@ export default function UploadDocumentModal({
 
   const [documentType, setDocumentType] = useState<DocumentType | "">("");
   const [documentDate, setDocumentDate] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -81,69 +81,78 @@ export default function UploadDocumentModal({
       const response = await httpClient.post("/v1/documents", data);
       return response.data;
     },
-    onSuccess: () => {
-      // Invalidate documents query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ["documents", "student", studentId] });
-      toast.success("Document uploaded successfully");
-      handleClose();
-    },
   });
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+    const files = Array.from(
+      (event.target as unknown as { files?: ArrayLike<File> | null }).files ?? [],
+    ) as File[];
+    if (files.length > 0) {
+      setSelectedFiles(files);
       setError(null);
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !documentType) return;
+    if (selectedFiles.length === 0 || !documentType) return;
 
     setError(null);
     setUploading(true);
     setUploadProgress(0);
 
     try {
-      // Step 1: Get presigned upload URL
-      setUploadProgress(10);
-      const { upload_url, file_url } = await getUploadUrlMutation.mutateAsync({
-        entity_type: "student",
-        entity_id: studentId,
-        document_type: documentType,
-        file_name: selectedFile.name,
-        content_type: selectedFile.type || "application/octet-stream",
-      });
+      const totalFiles = selectedFiles.length;
 
-      // Step 2: Upload file directly to S3
-      setUploadProgress(30);
-      const uploadResponse = await fetch(upload_url, {
-        method: "PUT",
-        body: selectedFile,
-        headers: {
-          "Content-Type": selectedFile.type || "application/octet-stream",
-        },
-      });
+      for (const [index, file] of selectedFiles.entries()) {
+        const stepStart = Math.floor((index / totalFiles) * 100);
+        const stepMid = Math.floor(((index + 0.5) / totalFiles) * 100);
+        const stepEnd = Math.floor(((index + 1) / totalFiles) * 100);
 
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload file to storage");
+        // Step 1: Get presigned upload URL
+        setUploadProgress(stepStart);
+        const { upload_url, file_url } = await getUploadUrlMutation.mutateAsync({
+          entity_type: "student",
+          entity_id: studentId,
+          document_type: documentType,
+          file_name: file.name,
+          content_type: file.type || "application/octet-stream",
+        });
+
+        // Step 2: Upload file directly to S3
+        setUploadProgress(stepMid);
+        const uploadResponse = await fetch(upload_url, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Failed to upload ${file.name} to storage`);
+        }
+
+        // Step 3: Confirm upload and create document record
+        await confirmUploadMutation.mutateAsync({
+          entity_type: "student",
+          entity_id: studentId,
+          document_type: documentType,
+          file_url,
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: file.type || "application/octet-stream",
+          document_date: documentDate || undefined,
+        });
+
+        setUploadProgress(stepEnd);
       }
 
-      setUploadProgress(70);
-
-      // Step 3: Confirm upload and create document record
-      await confirmUploadMutation.mutateAsync({
-        entity_type: "student",
-        entity_id: studentId,
-        document_type: documentType,
-        file_url,
-        file_name: selectedFile.name,
-        file_size: selectedFile.size,
-        mime_type: selectedFile.type || "application/octet-stream",
-        document_date: documentDate || undefined,
-      });
-
+      queryClient.invalidateQueries({ queryKey: ["documents", "student", studentId] });
       setUploadProgress(100);
+      toast.success(
+        `${selectedFiles.length} document${selectedFiles.length === 1 ? "" : "s"} uploaded successfully`,
+      );
+      handleClose();
     } catch (err) {
       console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to upload document");
@@ -156,7 +165,7 @@ export default function UploadDocumentModal({
     if (!uploading) {
       setDocumentType("");
       setDocumentDate("");
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setUploadProgress(0);
       setError(null);
       onClose();
@@ -188,7 +197,9 @@ export default function UploadDocumentModal({
             <Select
               value={documentType}
               label="Document Type"
-              onChange={(e) => setDocumentType(e.target.value as DocumentType)}
+              onChange={(event) =>
+                setDocumentType((event.target as unknown as { value: DocumentType }).value)
+              }
               disabled={uploading}
             >
               {DOCUMENT_TYPES.map((type) => (
@@ -204,7 +215,9 @@ export default function UploadDocumentModal({
               label="Audiogram Date"
               type="date"
               value={documentDate}
-              onChange={(e) => setDocumentDate(e.target.value)}
+              onChange={(event) =>
+                setDocumentDate((event.target as unknown as { value: string }).value)
+              }
               InputLabelProps={{ shrink: true }}
               helperText="Required for audiograms. Next due date will be set to 6 months from this date."
               required
@@ -218,7 +231,9 @@ export default function UploadDocumentModal({
               label="Document Date (Optional)"
               type="date"
               value={documentDate}
-              onChange={(e) => setDocumentDate(e.target.value)}
+              onChange={(event) =>
+                setDocumentDate((event.target as unknown as { value: string }).value)
+              }
               InputLabelProps={{ shrink: true }}
               disabled={uploading}
               fullWidth
@@ -231,6 +246,7 @@ export default function UploadDocumentModal({
               style={{ display: "none" }}
               id="document-file-input"
               type="file"
+              multiple
               onChange={handleFileSelect}
               disabled={uploading}
             />
@@ -243,13 +259,24 @@ export default function UploadDocumentModal({
                 fullWidth
                 sx={{ py: 2 }}
               >
-                {selectedFile ? selectedFile.name : "Select File"}
+                {selectedFiles.length > 0
+                  ? `${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} selected`
+                  : "Select File(s)"}
               </Button>
             </label>
-            {selectedFile && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-              </Typography>
+            {selectedFiles.length > 0 && (
+              <Stack spacing={0.5} sx={{ mt: 1 }}>
+                {selectedFiles.slice(0, 5).map((file) => (
+                  <Typography key={`${file.name}-${file.size}`} variant="caption" color="text.secondary">
+                    {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  </Typography>
+                ))}
+                {selectedFiles.length > 5 && (
+                  <Typography variant="caption" color="text.secondary">
+                    +{selectedFiles.length - 5} more files
+                  </Typography>
+                )}
+              </Stack>
             )}
           </Box>
 
@@ -262,7 +289,7 @@ export default function UploadDocumentModal({
                   : uploadProgress < 70
                     ? "Uploading file..."
                     : uploadProgress < 100
-                      ? "Saving document..."
+                      ? "Saving document records..."
                       : "Complete!"}
               </Typography>
             </Box>
@@ -276,7 +303,9 @@ export default function UploadDocumentModal({
         <Button
           onClick={handleUpload}
           variant="contained"
-          disabled={!selectedFile || !documentType || (isAudiogram && !documentDate) || uploading}
+          disabled={
+            selectedFiles.length === 0 || !documentType || (isAudiogram && !documentDate) || uploading
+          }
         >
           {uploading ? "Uploading..." : "Upload"}
         </Button>

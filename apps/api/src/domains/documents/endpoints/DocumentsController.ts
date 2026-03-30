@@ -176,8 +176,15 @@ export class GetStudentDocumentsController {
    */
   @Get("/students/:id/documents")
   @Authorized()
-  async handle(@Param("id") studentId: string) {
-    return await this.documentsService.listForEntity("student", studentId);
+  async handle(
+    @Param("id") studentId: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.documentsService.listForEntityPaginated("student", studentId, {
+      page,
+      limit,
+    });
   }
 }
 
@@ -195,8 +202,15 @@ export class GetTeacherDocumentsController {
    */
   @Get("/teachers/:id/documents")
   @Authorized()
-  async handle(@Param("id") teacherId: string) {
-    return await this.documentsService.listForEntity("teacher", teacherId);
+  async handle(
+    @Param("id") teacherId: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.documentsService.listForEntityPaginated("teacher", teacherId, {
+      page,
+      limit,
+    });
   }
 }
 

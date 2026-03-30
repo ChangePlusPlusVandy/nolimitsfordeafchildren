@@ -27,6 +27,14 @@ export interface DownloadUrlResponse {
   content_type: string;
 }
 
+export interface PaginatedDocumentsResponse {
+  items: Document[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export function useDocumentHttpService() {
   const httpClient = useHttpClient();
 
@@ -35,18 +43,36 @@ export function useDocumentHttpService() {
 
     queries: {
       /**
-       * List all documents for a student
+       * List paginated documents for a student
        */
-      listForStudent: async (studentId: string): Promise<Document[]> => {
-        const response = await httpClient.get(`/v1/students/${studentId}/documents`);
+      listForStudent: async (
+        studentId: string,
+        page: number = 1,
+        limit: number = 10,
+      ): Promise<PaginatedDocumentsResponse> => {
+        const response = await httpClient.get(`/v1/students/${studentId}/documents`, {
+          params: {
+            page,
+            limit,
+          },
+        });
         return response.data;
       },
 
       /**
-       * List all documents for a teacher
+       * List paginated documents for a teacher
        */
-      listForTeacher: async (teacherId: string): Promise<Document[]> => {
-        const response = await httpClient.get(`/v1/teachers/${teacherId}/documents`);
+      listForTeacher: async (
+        teacherId: string,
+        page: number = 1,
+        limit: number = 10,
+      ): Promise<PaginatedDocumentsResponse> => {
+        const response = await httpClient.get(`/v1/teachers/${teacherId}/documents`, {
+          params: {
+            page,
+            limit,
+          },
+        });
         return response.data;
       },
 
