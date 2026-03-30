@@ -1,4 +1,6 @@
 import { Service } from "typedi";
+import Container from "@/container";
+import { AttendanceService } from "@/domains/attendance/services/AttendanceService";
 import { db } from "../../../db";
 import {
   StudentTable,
@@ -76,6 +78,12 @@ export interface LinkParentInput {
 
 @Service()
 export class StudentsService {
+  private readonly attendanceService: AttendanceService;
+
+  constructor() {
+    this.attendanceService = Container.get(AttendanceService);
+  }
+
   /**
    * List students with filtering and role-based scoping
    * - Admins see all students
@@ -241,7 +249,10 @@ export class StudentsService {
   /**
    * Get student details with siblings, teachers, and parents
    */
-  async show(id: string): Promise<any> {
+  async show(
+    id: string,
+    user?: { id: string; role: "administrator" | "teacher" | "parent" },
+  ): Promise<any> {
     // Get student
     const [student] = await db.select().from(StudentTable).where(eq(StudentTable.id, id)).limit(1);
 
@@ -267,6 +278,7 @@ export class StudentsService {
         assigned_at: TeacherStudentTable.assigned_at,
         teacher_name: UserTable.name,
         teacher_email: UserTable.email,
+        user_id: UserTable.id,
       })
       .from(TeacherStudentTable)
       .innerJoin(TeacherProfileTable, eq(TeacherStudentTable.teacher_id, TeacherProfileTable.id))
@@ -294,6 +306,20 @@ export class StudentsService {
       .where(
         and(eq(ParentStudentLinkTable.student_id, id), isNull(ParentStudentLinkTable.revoked_at)),
       );
+
+    let canViewAttendance = false;
+
+    if (user?.role === "administrator") {
+      canViewAttendance = true;
+    } else if (user?.role === "teacher") {
+      canViewAttendance = teacherLinks.some((t) => t.user_id === user.id);
+    } else if (user?.role === "parent") {
+      canViewAttendance = parentLinks.some((p) => p.user_id === user.id);
+    }
+
+    const attendanceOverview = canViewAttendance
+      ? await this.attendanceService.getStudentAttendanceOverview(id, 5)
+      : null;
 
     return {
       ...student,
@@ -330,6 +356,7 @@ export class StudentsService {
         is_primary: p.is_primary,
         linked_at: p.linked_at,
       })),
+      attendance_overview: attendanceOverview,
     };
   }
 
