@@ -24,14 +24,20 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
 } from "@mui/material";
 import {
   CheckCircle as ApproveIcon,
   Cancel as DenyIcon,
   Visibility as ViewIcon,
   Refresh as RefreshIcon,
+  Event as EventIcon,
 } from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
+import { useTeacherHttpService } from "../../teachers/services/TeacherHttpService";
+import { useLocationHttpService } from "../../locations/services/LocationHttpService";
 
 type RequestStatus = "pending" | "approved" | "denied" | "completed";
 
@@ -60,6 +66,30 @@ interface MakeupRequest {
     site_name: string;
     teacher_name: string;
   };
+  makeup_session?: {
+    id: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    teacher_name: string;
+    site_name: string;
+  } | null;
+}
+
+interface TeacherOption {
+  id: string;
+  user: {
+    name: string;
+  };
+}
+
+interface ScheduleSessionPayload {
+  makeup_request_id: string;
+  student_id: string;
+  teacher_id: string;
+  site_id: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  notes?: string;
 }
 
 const STATUS_COLORS: Record<RequestStatus, "warning" | "success" | "error" | "info"> = {
@@ -81,12 +111,23 @@ const REASON_LABELS: Record<string, string> = {
 export default function MakeupRequestsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const teacherHttpService = useTeacherHttpService();
+  const locationHttpService = useLocationHttpService();
 
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("");
   const [selectedRequest, setSelectedRequest] = useState<MakeupRequest | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState<"approved" | "denied">("approved");
   const [reviewNotes, setReviewNotes] = useState("");
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+
+  const [scheduleForm, setScheduleForm] = useState({
+    teacher_id: "",
+    site_id: "",
+    scheduled_date: "",
+    scheduled_time: "",
+    notes: "",
+  });
 
   // Fetch requests
   const { data, isLoading, error, refetch } = useQuery({
@@ -122,6 +163,27 @@ export default function MakeupRequestsPage() {
     },
   });
 
+  const { data: teachersData } = useQuery({
+    queryKey: [teacherHttpService.key, "index", "makeup-requests-page"],
+    queryFn: () => teacherHttpService.queries.index({ limit: 200, is_active: true, sort: "name" }),
+  });
+
+  const { data: locationsData = [] } = useQuery({
+    queryKey: [locationHttpService.key, "index"],
+    queryFn: locationHttpService.queries.index,
+  });
+
+  const createSessionMutation = useMutation({
+    mutationFn: async (payload: ScheduleSessionPayload) => {
+      const response = await httpClient.post("/v1/makeup-sessions", payload);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-makeup-requests"] });
+      handleCloseScheduleDialog();
+    },
+  });
+
   const handleOpenReviewDialog = (request: MakeupRequest, action: "approved" | "denied") => {
     setSelectedRequest(request);
     setReviewAction(action);
@@ -133,6 +195,47 @@ export default function MakeupRequestsPage() {
     setSelectedRequest(null);
     setReviewDialogOpen(false);
     setReviewNotes("");
+  };
+
+  const handleOpenScheduleDialog = (request: MakeupRequest) => {
+    const defaultDate = request.original_session_date;
+    const defaultSite = locationsData.find((l) => l.name === request.original_schedule?.site_name)?.id || "";
+
+    setSelectedRequest(request);
+    setScheduleForm({
+      teacher_id: "",
+      site_id: defaultSite,
+      scheduled_date: defaultDate,
+      scheduled_time: "10:00",
+      notes: "",
+    });
+    setScheduleDialogOpen(true);
+  };
+
+  const handleCloseScheduleDialog = () => {
+    setScheduleDialogOpen(false);
+    setSelectedRequest(null);
+    setScheduleForm({
+      teacher_id: "",
+      site_id: "",
+      scheduled_date: "",
+      scheduled_time: "",
+      notes: "",
+    });
+  };
+
+  const handleSubmitSchedule = () => {
+    if (!selectedRequest) return;
+
+    createSessionMutation.mutate({
+      makeup_request_id: selectedRequest.id,
+      student_id: selectedRequest.student_id,
+      teacher_id: scheduleForm.teacher_id,
+      site_id: scheduleForm.site_id,
+      scheduled_date: scheduleForm.scheduled_date,
+      scheduled_time: scheduleForm.scheduled_time,
+      notes: scheduleForm.notes || undefined,
+    });
   };
 
   const handleSubmitReview = () => {
@@ -163,6 +266,7 @@ export default function MakeupRequestsPage() {
   };
 
   const requests = data?.items ?? [];
+  const teachers: TeacherOption[] = teachersData?.items ?? [];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -297,6 +401,13 @@ export default function MakeupRequestsPage() {
                         </Tooltip>
                       </Stack>
                     )}
+                    {request.status === "approved" && !request.makeup_session && (
+                      <Tooltip title="Schedule make-up session">
+                        <IconButton size="small" color="primary" onClick={() => handleOpenScheduleDialog(request)}>
+                          <EventIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     {request.status !== "pending" && request.review_notes && (
                       <Tooltip title={request.review_notes}>
                         <IconButton size="small">
@@ -372,6 +483,113 @@ export default function MakeupRequestsPage() {
             ) : (
               "Deny"
             )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Schedule Session Dialog */}
+      <Dialog open={scheduleDialogOpen} onClose={handleCloseScheduleDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Schedule Make-Up Session</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel>Teacher</InputLabel>
+              <Select
+                value={scheduleForm.teacher_id}
+                label="Teacher"
+                onChange={(event) =>
+                  setScheduleForm((prev) => ({
+                    ...prev,
+                    teacher_id: (event.target as unknown as { value: string }).value,
+                  }))
+                }
+              >
+                {teachers.map((teacher) => (
+                  <MenuItem key={teacher.id} value={teacher.id}>
+                    {teacher.user.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Location</InputLabel>
+              <Select
+                value={scheduleForm.site_id}
+                label="Location"
+                onChange={(event) =>
+                  setScheduleForm((prev) => ({
+                    ...prev,
+                    site_id: (event.target as unknown as { value: string }).value,
+                  }))
+                }
+              >
+                {locationsData.map((location) => (
+                  <MenuItem key={location.id} value={location.id}>
+                    {location.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              type="date"
+              label="Date"
+              value={scheduleForm.scheduled_date}
+              onChange={(event) =>
+                setScheduleForm((prev) => ({
+                  ...prev,
+                  scheduled_date: (event.target as unknown as { value: string }).value,
+                }))
+              }
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+
+            <TextField
+              type="time"
+              label="Time"
+              value={scheduleForm.scheduled_time}
+              onChange={(event) =>
+                setScheduleForm((prev) => ({
+                  ...prev,
+                  scheduled_time: (event.target as unknown as { value: string }).value,
+                }))
+              }
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+
+            <TextField
+              label="Notes"
+              multiline
+              rows={3}
+              value={scheduleForm.notes}
+              onChange={(event) =>
+                setScheduleForm((prev) => ({
+                  ...prev,
+                  notes: (event.target as unknown as { value: string }).value,
+                }))
+              }
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseScheduleDialog} disabled={createSessionMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmitSchedule}
+            disabled={
+              createSessionMutation.isPending ||
+              !scheduleForm.teacher_id ||
+              !scheduleForm.site_id ||
+              !scheduleForm.scheduled_date ||
+              !scheduleForm.scheduled_time
+            }
+          >
+            {createSessionMutation.isPending ? <CircularProgress size={20} /> : "Schedule Session"}
           </Button>
         </DialogActions>
       </Dialog>

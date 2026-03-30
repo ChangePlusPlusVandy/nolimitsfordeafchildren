@@ -68,6 +68,13 @@ export interface MakeupRequestWithDetails extends MakeupRequestEntity {
     id: string;
     name: string;
   } | null;
+  makeup_session?: {
+    id: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    teacher_name: string;
+    site_name: string;
+  } | null;
 }
 
 export interface MakeupSessionWithDetails extends MakeupSessionEntity {
@@ -89,6 +96,35 @@ export interface MakeupSessionWithDetails extends MakeupSessionEntity {
 
 @Service()
 export class MakeupService {
+  private async getMakeupSessionForRequest(requestId: string): Promise<
+    | {
+        id: string;
+        scheduled_date: string;
+        scheduled_time: string;
+        teacher_name: string;
+        site_name: string;
+      }
+    | null
+  > {
+    const rows = await db
+      .select({
+        id: MakeupSessionTable.id,
+        scheduled_date: MakeupSessionTable.scheduled_date,
+        scheduled_time: MakeupSessionTable.scheduled_time,
+        teacher_name: UserTable.name,
+        site_name: LocationTable.name,
+      })
+      .from(MakeupSessionTable)
+      .innerJoin(TeacherProfileTable, eq(MakeupSessionTable.teacher_id, TeacherProfileTable.id))
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .innerJoin(LocationTable, eq(MakeupSessionTable.site_id, LocationTable.id))
+      .where(eq(MakeupSessionTable.makeup_request_id, requestId))
+      .orderBy(desc(MakeupSessionTable.created_at))
+      .limit(1);
+
+    return rows[0] ?? null;
+  }
+
   /**
    * Create a makeup request (parent)
    */
@@ -563,34 +599,41 @@ export class MakeupService {
       .where(sql`${MakeupRequestTable.student_id} IN ${studentIds}`)
       .orderBy(desc(MakeupRequestTable.requested_at));
 
-    const items: MakeupRequestWithDetails[] = results.map((row) => ({
-      id: row.id,
-      student_id: row.student_id,
-      original_session_date: row.original_session_date,
-      original_schedule_id: row.original_schedule_id,
-      reason: row.reason,
-      reason_text: row.reason_text,
-      preferred_dates: row.preferred_dates,
-      status: row.status,
-      requested_by: row.requested_by,
-      requested_at: row.requested_at,
-      reviewed_by: row.reviewed_by,
-      reviewed_at: row.reviewed_at,
-      review_notes: row.review_notes,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      student: {
-        id: row.student_id,
-        initials: row.student_initials,
-        first_name: row.student_first_name,
-        last_name: row.student_last_name,
-      },
-      original_schedule: {
-        id: row.original_schedule_id,
-        site_name: row.site_name,
-        teacher_name: row.teacher_name,
-      },
-    }));
+    const items: MakeupRequestWithDetails[] = [];
+
+    for (const row of results) {
+      const makeupSession = await this.getMakeupSessionForRequest(row.id);
+
+      items.push({
+        id: row.id,
+        student_id: row.student_id,
+        original_session_date: row.original_session_date,
+        original_schedule_id: row.original_schedule_id,
+        reason: row.reason,
+        reason_text: row.reason_text,
+        preferred_dates: row.preferred_dates,
+        status: row.status,
+        requested_by: row.requested_by,
+        requested_at: row.requested_at,
+        reviewed_by: row.reviewed_by,
+        reviewed_at: row.reviewed_at,
+        review_notes: row.review_notes,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        student: {
+          id: row.student_id,
+          initials: row.student_initials,
+          first_name: row.student_first_name,
+          last_name: row.student_last_name,
+        },
+        original_schedule: {
+          id: row.original_schedule_id,
+          site_name: row.site_name,
+          teacher_name: row.teacher_name,
+        },
+        makeup_session: makeupSession,
+      });
+    }
 
     return { items };
   }
