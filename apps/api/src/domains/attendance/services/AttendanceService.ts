@@ -12,6 +12,7 @@ import {
   type AttendanceEntity,
   type AttendanceInsert,
 } from "@/db/schema";
+import { sendMissedSessionAlert } from "@/email";
 
 export type AttendanceStatus = "present" | "no_show" | "cancelled";
 export type AbsenceReason =
@@ -98,6 +99,57 @@ export interface SessionForDay {
 
 @Service()
 export class AttendanceService {
+  private async sendNoShowAlerts(params: {
+    student_id: string;
+    schedule_id: string;
+    session_date: string;
+    reason?: AbsenceReason;
+  }): Promise<void> {
+    const details = await db
+      .select({
+        student_first_name: StudentTable.first_name,
+        student_last_name: StudentTable.last_name,
+        student_initials: StudentTable.initials,
+        teacher_name: UserTable.name,
+        site_name: LocationTable.name,
+      })
+      .from(ScheduleTable)
+      .innerJoin(StudentTable, eq(StudentTable.id, params.student_id))
+      .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .where(eq(ScheduleTable.id, params.schedule_id))
+      .limit(1);
+
+    if (details.length === 0) {
+      return;
+    }
+
+    const row = details[0]!;
+    const studentName = `${row.student_first_name} ${row.student_last_name}`;
+
+    const admins = await db
+      .select({ email: UserTable.email })
+      .from(UserTable)
+      .where(and(eq(UserTable.role, "administrator"), eq(UserTable.is_active, true)));
+
+    for (const admin of admins) {
+      if (!admin.email) {
+        continue;
+      }
+
+      await sendMissedSessionAlert(
+        admin.email,
+        studentName,
+        row.student_initials,
+        params.session_date,
+        row.teacher_name,
+        row.site_name,
+        params.reason,
+      );
+    }
+  }
+
   /**
    * Mark attendance for a student
    */
@@ -116,6 +168,8 @@ export class AttendanceService {
       .limit(1);
 
     if (existing.length > 0) {
+      const shouldSendNoShowAlert = existing[0]!.status !== "no_show" && input.status === "no_show";
+
       // Update existing attendance record
       const result = await db
         .update(AttendanceTable)
@@ -129,6 +183,15 @@ export class AttendanceService {
         })
         .where(eq(AttendanceTable.id, existing[0]!.id))
         .returning();
+
+      if (shouldSendNoShowAlert) {
+        await this.sendNoShowAlerts({
+          student_id: input.student_id,
+          schedule_id: input.schedule_id,
+          session_date: input.session_date,
+          reason: input.reason,
+        });
+      }
 
       return result[0]!;
     }
@@ -146,6 +209,15 @@ export class AttendanceService {
     };
 
     const result = await db.insert(AttendanceTable).values(newAttendance).returning();
+
+    if (input.status === "no_show") {
+      await this.sendNoShowAlerts({
+        student_id: input.student_id,
+        schedule_id: input.schedule_id,
+        session_date: input.session_date,
+        reason: input.reason,
+      });
+    }
 
     return result[0]!;
   }
@@ -178,11 +250,22 @@ export class AttendanceService {
     if (input.reason !== undefined) updateData.reason = input.reason;
     if (input.reason_text !== undefined) updateData.reason_text = input.reason_text;
 
+    const shouldSendNoShowAlert = existing[0]!.status !== "no_show" && input.status === "no_show";
+
     const result = await db
       .update(AttendanceTable)
       .set(updateData)
       .where(eq(AttendanceTable.id, id))
       .returning();
+
+    if (shouldSendNoShowAlert) {
+      await this.sendNoShowAlerts({
+        student_id: existing[0]!.student_id,
+        schedule_id: existing[0]!.schedule_id,
+        session_date: existing[0]!.session_date,
+        reason: (input.reason as AbsenceReason | null | undefined) ?? undefined,
+      });
+    }
 
     return result[0] ?? null;
   }
