@@ -27,6 +27,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import LinkIcon from "@mui/icons-material/Link";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DescriptionIcon from "@mui/icons-material/Description";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import {
   useStudentHttpService,
   type Sibling,
@@ -120,7 +121,11 @@ export default function StudentDetailsPage() {
   };
 
   const handleRemoveSibling = (siblingId: string) => {
-    if (confirm("Are you sure you want to remove this sibling?")) {
+    const confirmed = (
+      globalThis as unknown as { confirm?: (message?: string) => boolean }
+    ).confirm?.("Are you sure you want to remove this sibling?");
+
+    if (confirmed !== false) {
       removeSiblingMutation.mutate(siblingId);
     }
   };
@@ -153,6 +158,20 @@ export default function StudentDetailsPage() {
       </Box>
     );
   }
+
+  const attendanceOverview = student.attendance_overview;
+
+  const attendanceStatusColor = (status: "present" | "no_show" | "cancelled") => {
+    switch (status) {
+      case "present":
+        return "success";
+      case "no_show":
+        return "error";
+      case "cancelled":
+      default:
+        return "default";
+    }
+  };
 
   return (
     <Box>
@@ -456,6 +475,62 @@ export default function StudentDetailsPage() {
               onUploadClick={() => setUploadModalOpen(true)}
             />
           </Paper>
+
+          {/* Attendance Overview */}
+          {attendanceOverview && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                <EventAvailableIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+                Attendance
+              </Typography>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: 1,
+                  mb: 2,
+                }}
+              >
+                <Chip label={`Present: ${attendanceOverview.present}`} color="success" size="small" />
+                <Chip label={`No-show: ${attendanceOverview.no_show}`} color="error" size="small" />
+                <Chip label={`Cancelled: ${attendanceOverview.cancelled}`} size="small" />
+              </Box>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Attendance rate: {attendanceOverview.attendance_rate}% ({attendanceOverview.total} total)
+              </Typography>
+
+              {attendanceOverview.recent_entries.length > 0 ? (
+                <List dense sx={{ p: 0 }}>
+                  {attendanceOverview.recent_entries.map((entry, index) => (
+                    <Box key={entry.id}>
+                      {index > 0 && <Divider />}
+                      <ListItem sx={{ px: 0 }}>
+                        <ListItemText
+                          primary={new Date(entry.session_date).toLocaleDateString()}
+                          secondary={
+                            <>
+                              <Chip
+                                label={entry.status.replace("_", " ")}
+                                size="small"
+                                color={attendanceStatusColor(entry.status)}
+                                sx={{ mr: 1, textTransform: "capitalize" }}
+                              />
+                              {entry.reason && `Reason: ${entry.reason.replace(/_/g, " ")}`}
+                              {entry.reason_text && ` (${entry.reason_text})`}
+                            </>
+                          }
+                        />
+                      </ListItem>
+                    </Box>
+                  ))}
+                </List>
+              ) : (
+                <Typography color="text.secondary">No attendance records yet.</Typography>
+              )}
+            </Paper>
+          )}
 
           {/* Session Notes */}
           <SessionNotes studentId={id!} canAdd={isTeacher} canEdit={isTeacher} />

@@ -84,8 +84,8 @@ export class GetStudentController {
 
   @Get("/students/:id")
   @Authorized()
-  async handle(@Param("id") id: string) {
-    const student = await this.studentsService.show(id);
+  async handle(@Param("id") id: string, @CurrentUser() user?: CurrentUserType) {
+    const student = await this.studentsService.show(id, user);
     if (!student) {
       throw new NotFoundError("Student not found");
     }

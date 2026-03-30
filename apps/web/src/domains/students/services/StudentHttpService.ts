@@ -37,6 +37,26 @@ export interface StudentDetails extends Student {
   siblings: Sibling[];
   teachers: LinkedTeacher[];
   parents: LinkedParent[];
+  attendance_overview: AttendanceOverview | null;
+}
+
+export interface AttendanceRecentEntry {
+  id: string;
+  session_date: string;
+  status: "present" | "no_show" | "cancelled";
+  reason: "sick" | "family_emergency" | "transportation" | "schedule_conflict" | "no_show_unknown" | "other" | null;
+  reason_text: string | null;
+  marked_at: string;
+  schedule_id: string;
+}
+
+export interface AttendanceOverview {
+  total: number;
+  present: number;
+  no_show: number;
+  cancelled: number;
+  attendance_rate: number;
+  recent_entries: AttendanceRecentEntry[];
 }
 
 export interface Sibling {

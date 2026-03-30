@@ -58,6 +58,25 @@ export interface AttendanceSummary {
   attendance_rate: number;
 }
 
+export interface AttendanceRecentEntry {
+  id: string;
+  session_date: string;
+  status: AttendanceStatus;
+  reason: AbsenceReason | null;
+  reason_text: string | null;
+  marked_at: Date;
+  schedule_id: string;
+}
+
+export interface StudentAttendanceOverview {
+  total: number;
+  present: number;
+  no_show: number;
+  cancelled: number;
+  attendance_rate: number;
+  recent_entries: AttendanceRecentEntry[];
+}
+
 export interface SessionForDay {
   schedule_id: string;
   student_id: string;
@@ -337,6 +356,36 @@ export class AttendanceService {
       no_show,
       cancelled,
       attendance_rate,
+    };
+  }
+
+  /**
+   * Get attendance summary plus recent entries for a student
+   */
+  async getStudentAttendanceOverview(
+    studentId: string,
+    recentLimit = 5,
+  ): Promise<StudentAttendanceOverview> {
+    const summary = await this.getSummary(studentId);
+
+    const recentEntries = await db
+      .select({
+        id: AttendanceTable.id,
+        session_date: AttendanceTable.session_date,
+        status: AttendanceTable.status,
+        reason: AttendanceTable.reason,
+        reason_text: AttendanceTable.reason_text,
+        marked_at: AttendanceTable.marked_at,
+        schedule_id: AttendanceTable.schedule_id,
+      })
+      .from(AttendanceTable)
+      .where(eq(AttendanceTable.student_id, studentId))
+      .orderBy(desc(AttendanceTable.session_date), desc(AttendanceTable.marked_at))
+      .limit(recentLimit);
+
+    return {
+      ...summary,
+      recent_entries: recentEntries,
     };
   }
 
