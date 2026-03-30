@@ -7,14 +7,16 @@ import {
   SiblingTable,
   TeacherStudentTable,
   ParentStudentLinkTable,
+  EnrollmentTable,
   LocationTable,
+  ScheduleTable,
   TeacherProfileTable,
   UserTable,
   ParentProfileTable,
   type StudentEntity,
   type SiblingEntity,
 } from "../../../db/schema";
-import { eq, and, isNull, ilike, or, sql } from "drizzle-orm";
+import { eq, and, isNull, ilike, or, sql, desc } from "drizzle-orm";
 
 // Types
 export type UserRole = "administrator" | "teacher" | "parent";
@@ -307,6 +309,44 @@ export class StudentsService {
         and(eq(ParentStudentLinkTable.student_id, id), isNull(ParentStudentLinkTable.revoked_at)),
       );
 
+    const isTeacherLinked = user?.role === "teacher" && teacherLinks.some((t) => t.user_id === user.id);
+    const isParentLinked = user?.role === "parent" && parentLinks.some((p) => p.user_id === user.id);
+
+    if (user?.role === "teacher" && !isTeacherLinked) {
+      return null;
+    }
+
+    if (user?.role === "parent" && !isParentLinked) {
+      return null;
+    }
+
+    const activeSchedules = await db
+      .select({
+        id: ScheduleTable.id,
+        day_of_week_mask: ScheduleTable.day_of_week_mask,
+        start_time: ScheduleTable.start_time,
+        end_time: ScheduleTable.end_time,
+        cycle_start_date: ScheduleTable.cycle_start_date,
+        cycle_end_date: ScheduleTable.cycle_end_date,
+        site_id: LocationTable.id,
+        site_name: LocationTable.name,
+        teacher_id: TeacherProfileTable.id,
+        teacher_name: UserTable.name,
+      })
+      .from(EnrollmentTable)
+      .innerJoin(ScheduleTable, eq(EnrollmentTable.schedule_id, ScheduleTable.id))
+      .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(
+        and(
+          eq(EnrollmentTable.student_id, id),
+          isNull(EnrollmentTable.ended_at),
+          eq(ScheduleTable.is_active, true),
+        ),
+      )
+      .orderBy(desc(ScheduleTable.cycle_start_date), ScheduleTable.start_time);
+
     let canViewAttendance = false;
 
     if (user?.role === "administrator") {
@@ -355,6 +395,22 @@ export class StudentsService {
         relationship: p.relationship,
         is_primary: p.is_primary,
         linked_at: p.linked_at,
+      })),
+      active_schedules: activeSchedules.map((schedule) => ({
+        id: schedule.id,
+        day_of_week_mask: schedule.day_of_week_mask,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        cycle_start_date: schedule.cycle_start_date,
+        cycle_end_date: schedule.cycle_end_date,
+        site: {
+          id: schedule.site_id,
+          name: schedule.site_name,
+        },
+        teacher: {
+          id: schedule.teacher_id,
+          name: schedule.teacher_name,
+        },
       })),
       attendance_overview: attendanceOverview,
     };
