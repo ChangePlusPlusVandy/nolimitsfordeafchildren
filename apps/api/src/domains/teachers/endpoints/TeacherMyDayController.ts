@@ -20,7 +20,7 @@ export class GetTeachersMeDayController {
    * GET /v1/teachers/me/day
    */
   @Get("/teachers/me/day")
-  @Authorized(["teacher", "administrator"])
+  @Authorized(["teacher"])
   async handle(
     @QueryParam("date") date: string | undefined,
     @CurrentUser({ required: true }) currentUser: UserEntity,
@@ -33,10 +33,6 @@ export class GetTeachersMeDayController {
       .limit(1);
 
     if (teacherProfile.length === 0) {
-      // If user is an admin without a teacher profile, return empty
-      if (currentUser.role === "administrator") {
-        return { sessions: [] };
-      }
       throw new Error("Teacher profile not found for current user");
     }
 

@@ -67,7 +67,7 @@ createRoot(document.getElementById("root")!).render(
                       <Route
                         path="/my-day"
                         element={
-                          <RoleGuard allowedRoles={["teacher", "administrator"]}>
+                          <RoleGuard allowedRoles={["teacher"]}>
                             <MyDayPage />
                           </RoleGuard>
                         }
