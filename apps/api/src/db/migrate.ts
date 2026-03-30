@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import pg from "pg";
 import path from "path";
+import pg from "pg";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,18 +15,27 @@ const __dirname = path.dirname(__filename);
 export async function runMigrations(): Promise<void> {
   console.log("Running database migrations...");
 
-  // Always use SSL with rejectUnauthorized: false for DigitalOcean managed databases
-  // DO uses self-signed certificates that Node.js won't trust by default
+  const shouldUseSsl =
+    process.env.POSTGRES_SSL === "true" ||
+    (process.env.POSTGRES_URI?.includes("sslmode=require") ?? false);
+
   const pool = new pg.Pool({
     connectionString: process.env.POSTGRES_URI,
-    ssl: {
-      rejectUnauthorized: false,
-    },
+    ...(shouldUseSsl
+      ? {
+          ssl: {
+            rejectUnauthorized: false,
+          },
+        }
+      : {}),
   });
 
   const db = drizzle(pool);
 
   try {
+    await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+    await pool.query('CREATE EXTENSION IF NOT EXISTS "citext"');
+
     // The migrations folder path relative to this file
     const migrationsFolder = path.join(__dirname, "migrations");
 
