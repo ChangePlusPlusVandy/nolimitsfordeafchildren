@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,7 +26,10 @@ import {
   Stack,
   Divider,
   Skeleton,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material/Select";
 import {
   Check as CheckIcon,
   Close as CloseIcon,
@@ -97,15 +100,65 @@ export default function MyDayPage() {
   const [selectedStatus, setSelectedStatus] = useState<AttendanceStatus | null>(null);
   const [selectedReason, setSelectedReason] = useState<AbsenceReason | "">("");
   const [reasonText, setReasonText] = useState("");
+  const [view, setView] = useState<"day" | "week">("day");
   const [undoSnackbar, setUndoSnackbar] = useState<{
     open: boolean;
     session: SessionForDay | null;
     previousStatus: AttendanceStatus | null;
   }>({ open: false, session: null, previousStatus: null });
 
+  function getWeekDates(date: Date): string[] {
+    const start = new Date(date);
+    start.setDate(start.getDate() - start.getDay());
+
+    return Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d.toISOString().split("T")[0]!;
+    });
+  }
+
+  function getWeekRange(date: Date) {
+    const d = new Date(date);
+    const day = d.getDay();
+
+    const start = new Date(d);
+    start.setDate(d.getDate() - day);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+
+    return {
+      startOfWeek: start.toLocaleDateString("en-US", options),
+      endOfWeek: end.toLocaleDateString("en-US", options),
+    };
+  }
+
+  const weekDates = getWeekDates(new Date(selectedDate));
+  const { startOfWeek, endOfWeek } = getWeekRange(new Date(selectedDate));
+
   const { data, isLoading, error } = useQuery<MyDayResponse>({
-    queryKey: [teacherHttpService.key, "myDay", selectedDate],
-    queryFn: () => teacherHttpService.queries.myDay({ date: selectedDate }),
+    queryKey: [teacherHttpService.key, "myDay", view, selectedDate],
+    queryFn: async () => {
+      if (view === "day") {
+        return teacherHttpService.queries.myDay({ date: selectedDate });
+      }
+
+      const results = await Promise.all(
+        weekDates.map((date) => teacherHttpService.queries.myDay({ date })),
+      );
+
+      return {
+        sessions: results.flatMap((r) => r.sessions),
+      };
+    },
   });
 
   const markAttendanceMutation = useMutation({
@@ -210,14 +263,27 @@ export default function MyDayPage() {
     setUndoSnackbar({ open: false, session: null, previousStatus: null });
   };
 
+  const handleReasonChange = (event: SelectChangeEvent<string>) => {
+    const value = (event.target as { value: string }).value;
+    setSelectedReason(value as AbsenceReason);
+  };
+
+  const handleReasonTextChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = (event.target as any).value as string;
+    setReasonText(value);
+  };
+
   if (isLoading) {
     return (
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
           <Typography variant="h4" component="h1">
-            My Day
+            {view === "day" ? "My Day" : "My Week"}
           </Typography>
-          <Skeleton variant="text" width={200} />
+          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+            <Skeleton variant="text" width={200} />
+            <Skeleton variant="text" width={200} />
+          </Box>
         </Box>
         {/* Session cards skeleton */}
         <Paper sx={{ mb: 3, overflow: "hidden" }}>
@@ -279,21 +345,62 @@ export default function MyDayPage() {
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="h4" component="h1">
-          My Day
+          {view === "day" ? "My Day" : "My Week"}
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          {new Date(selectedDate).toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </Typography>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          <Typography variant="subtitle1" color="text.secondary">
+            {view === "day"
+              ? new Date(selectedDate).toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : `${startOfWeek} - ${endOfWeek}`}
+          </Typography>
+          <ToggleButtonGroup
+            value={view}
+            exclusive
+            onChange={(_, newView) => {
+              if (newView !== null) {
+                setView(newView);
+              }
+            }}
+            sx={{
+              height: 32,
+              borderRadius: "999px",
+              bgcolor: "grey.100",
+              p: 0.5,
+              "& .MuiToggleButton-root": {
+                border: "none",
+                borderRadius: "999px",
+                px: 2,
+                py: 0.5,
+                textTransform: "none",
+                fontSize: "0.85rem",
+                color: "text.secondary",
+              },
+              "& .MuiToggleButton-root.Mui-selected": {
+                backgroundColor: "primary.main",
+                color: "white",
+                fontWeight: 500,
+              },
+              "& .MuiToggleButton-root.Mui-selected:hover": {
+                backgroundColor: "primary.light",
+              },
+            }}
+          >
+            <ToggleButton value="day">Day</ToggleButton>
+            <ToggleButton value="week">Week</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
       </Box>
 
       {sessions.length === 0 ? (
         <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography color="text.secondary">No sessions scheduled for today.</Typography>
+          <Typography color="text.secondary">
+            {view === "day" ? "No sessions scheduled for today." : "No sessions scheduled for this week."}
+          </Typography>
         </Paper>
       ) : (
         <>
@@ -463,7 +570,7 @@ export default function MyDayPage() {
               <Select
                 value={selectedReason}
                 label="Reason"
-                onChange={(e) => setSelectedReason(e.target.value as AbsenceReason)}
+                onChange={handleReasonChange}
               >
                 {ABSENCE_REASONS.map((reason) => (
                   <MenuItem key={reason.value} value={reason.value}>
@@ -477,7 +584,7 @@ export default function MyDayPage() {
               <TextField
                 label="Please specify"
                 value={reasonText}
-                onChange={(e) => setReasonText(e.target.value)}
+                onChange={handleReasonTextChange}
                 multiline
                 rows={2}
                 fullWidth
