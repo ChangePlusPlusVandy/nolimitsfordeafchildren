@@ -48,10 +48,13 @@ import { LocationsController } from "./domains/locations/endpoints/LocationsCont
 
 // Teacher Controllers
 import {
+  DeleteTeacherLocationController,
   GetTeacherController,
+  GetTeacherLocationsController,
   GetTeacherStudentsController,
   GetTeachersController,
   PatchTeacherController,
+  PostTeacherLocationController,
   PostTeachersController,
 } from "./domains/teachers/endpoints/TeachersController";
 import { GetTeachersMeDayController } from "./domains/teachers/endpoints/TeacherMyDayController";
@@ -221,6 +224,9 @@ export function buildApplication() {
       GetTeacherController,
       PatchTeacherController,
       GetTeacherStudentsController,
+      GetTeacherLocationsController,
+      PostTeacherLocationController,
+      DeleteTeacherLocationController,
       GetTeachersMeDayController,
       PostTeacherSchedulesController,
       PatchSchedulesController,

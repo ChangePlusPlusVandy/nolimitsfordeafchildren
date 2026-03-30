@@ -10,6 +10,7 @@ import {
   integer,
   numeric,
   pgEnum,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -256,6 +257,28 @@ export const ParentStudentLinkTable = pgTable("parent_student_link", {
   revoked_at: timestamp("revoked_at", { withTimezone: true }),
 });
 
+/* ---------------- TEACHER-LOCATION LINK ---------------- */
+
+export const TeacherLocationTable = pgTable(
+  "teacher_locations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teacher_profile_id: uuid("teacher_profile_id")
+      .notNull()
+      .references(() => TeacherProfileTable.id),
+    location_id: uuid("location_id")
+      .notNull()
+      .references(() => LocationTable.id),
+    assigned_at: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    teacherLocationUnique: uniqueIndex("teacher_locations_teacher_profile_id_location_id_idx").on(
+      table.teacher_profile_id,
+      table.location_id,
+    ),
+  }),
+);
+
 // ==================== ATTENDANCE & NOTES ====================
 
 /* ---------------- ATTENDANCE ---------------- */
@@ -478,6 +501,7 @@ export const teacherProfileRelations = relations(TeacherProfileTable, ({ one, ma
   }),
   schedules: many(ScheduleTable),
   teacherStudents: many(TeacherStudentTable),
+  teacherLocations: many(TeacherLocationTable),
   sessionNotes: many(SessionNoteTable),
   assessments: many(AssessmentTable),
   makeupSessions: many(MakeupSessionTable),
@@ -493,6 +517,7 @@ export const parentProfileRelations = relations(ParentProfileTable, ({ one, many
 
 export const locationRelations = relations(LocationTable, ({ many }) => ({
   teachers: many(TeacherProfileTable),
+  teacherLocations: many(TeacherLocationTable),
   students: many(StudentTable),
   schedules: many(ScheduleTable),
   bulletins: many(BulletinTable),
@@ -568,6 +593,17 @@ export const parentStudentLinkRelations = relations(ParentStudentLinkTable, ({ o
   student: one(StudentTable, {
     fields: [ParentStudentLinkTable.student_id],
     references: [StudentTable.id],
+  }),
+}));
+
+export const teacherLocationRelations = relations(TeacherLocationTable, ({ one }) => ({
+  teacher: one(TeacherProfileTable, {
+    fields: [TeacherLocationTable.teacher_profile_id],
+    references: [TeacherProfileTable.id],
+  }),
+  location: one(LocationTable, {
+    fields: [TeacherLocationTable.location_id],
+    references: [LocationTable.id],
   }),
 }));
 
@@ -735,6 +771,9 @@ export type TeacherStudentInsert = typeof TeacherStudentTable.$inferInsert;
 
 export type ParentStudentLinkEntity = typeof ParentStudentLinkTable.$inferSelect;
 export type ParentStudentLinkInsert = typeof ParentStudentLinkTable.$inferInsert;
+
+export type TeacherLocationEntity = typeof TeacherLocationTable.$inferSelect;
+export type TeacherLocationInsert = typeof TeacherLocationTable.$inferInsert;
 
 export type AttendanceEntity = typeof AttendanceTable.$inferSelect;
 export type AttendanceInsert = typeof AttendanceTable.$inferInsert;

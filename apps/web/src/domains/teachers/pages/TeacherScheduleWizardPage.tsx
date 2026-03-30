@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
 import {
@@ -38,6 +38,7 @@ import {
   useLocationHttpService,
   type Location,
 } from "../../locations/services/LocationHttpService";
+import type { SelectChangeEvent } from "@mui/material/Select";
 
 const STEPS = ["Schedule Pattern", "Set Times", "Cycle Dates", "Review"];
 
@@ -71,6 +72,12 @@ export default function TeacherScheduleWizardPage() {
     enabled: !!teacherId,
   });
 
+  const { data: teacherLocations = [] } = useQuery({
+    queryKey: [teacherHttpService.key, "locations", teacherId],
+    queryFn: () => teacherHttpService.queries.getLocations(teacherId!),
+    enabled: !!teacherId,
+  });
+
   // Fetch locations
   const { data: locationsData, isLoading: locationsLoading } = useQuery({
     queryKey: [locationHttpService.key, "index"],
@@ -90,6 +97,10 @@ export default function TeacherScheduleWizardPage() {
   });
 
   const locations = (locationsData || []) as Location[];
+  const locationOptions =
+    teacherLocations.length > 0
+      ? locations.filter((location) => teacherLocations.some((assigned) => assigned.id === location.id))
+      : locations;
 
   // Calculate day mask based on selection
   const getDayMask = (): number => {
@@ -168,6 +179,30 @@ export default function TeacherScheduleWizardPage() {
     createSchedule(payload);
   };
 
+  const handleSiteChange = (event: SelectChangeEvent<string>) => {
+    setSiteId((event.target as { value: string }).value);
+  };
+
+  const handlePatternTypeChange = (event: SelectChangeEvent<"preset" | "custom">) => {
+    setPatternType((event.target as { value: "preset" | "custom" }).value);
+  };
+
+  const handleStartTimeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setStartTime((event.target as unknown as { value: string }).value);
+  };
+
+  const handleEndTimeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setEndTime((event.target as unknown as { value: string }).value);
+  };
+
+  const handleCycleStartDateChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleStartDateChange((event.target as unknown as { value: string }).value);
+  };
+
+  const handleCycleEndDateChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setCycleEndDate((event.target as unknown as { value: string }).value);
+  };
+
   const formatTime = (time: string): string => {
     const [hours, minutes] = time.split(":");
     const h = parseInt(hours!, 10);
@@ -234,10 +269,10 @@ export default function TeacherScheduleWizardPage() {
               <Select
                 value={siteId}
                 label="Site *"
-                onChange={(e) => setSiteId(e.target.value)}
+                onChange={handleSiteChange}
                 disabled={locationsLoading}
               >
-                {locations.map((location) => (
+                {locationOptions.map((location) => (
                   <MenuItem key={location.id} value={location.id}>
                     {location.name}
                   </MenuItem>
@@ -251,7 +286,7 @@ export default function TeacherScheduleWizardPage() {
               <Select
                 value={patternType}
                 label="Pattern Type"
-                onChange={(e) => setPatternType(e.target.value as "preset" | "custom")}
+                onChange={handlePatternTypeChange}
               >
                 <MenuItem value="preset">Preset Pattern</MenuItem>
                 <MenuItem value="custom">Custom Days</MenuItem>
@@ -319,7 +354,7 @@ export default function TeacherScheduleWizardPage() {
               label="Start Time *"
               type="time"
               value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
+              onChange={handleStartTimeChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
             />
@@ -328,7 +363,7 @@ export default function TeacherScheduleWizardPage() {
               label="End Time *"
               type="time"
               value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
+              onChange={handleEndTimeChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
             />
@@ -370,7 +405,7 @@ export default function TeacherScheduleWizardPage() {
               label="Cycle Start Date *"
               type="date"
               value={cycleStartDate}
-              onChange={(e) => handleStartDateChange(e.target.value)}
+              onChange={handleCycleStartDateChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
             />
@@ -379,7 +414,7 @@ export default function TeacherScheduleWizardPage() {
               label="Cycle End Date *"
               type="date"
               value={cycleEndDate}
-              onChange={(e) => setCycleEndDate(e.target.value)}
+              onChange={handleCycleEndDateChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
               helperText="Auto-calculated as 10 weeks from start date"

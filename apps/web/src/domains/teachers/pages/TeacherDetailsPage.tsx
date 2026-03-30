@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   Box,
@@ -17,7 +18,17 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
 } from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material/Select";
 import { DetailPageSkeleton } from "../../global/components/skeletons";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
@@ -26,19 +37,26 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 import SchoolIcon from "@mui/icons-material/School";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
 import {
   useTeacherHttpService,
   decodeDayMask,
   AGE_GROUP_LABELS,
   type AgeGroupSpecialty,
 } from "../services/TeacherHttpService";
+import { useLocationHttpService } from "../../locations/services/LocationHttpService";
 import { useAuth } from "../../../auth";
 
 export default function TeacherDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const teacherHttpService = useTeacherHttpService();
+  const locationHttpService = useLocationHttpService();
   const { isAdmin } = useAuth();
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
 
   const {
     data: teacher,
@@ -49,6 +67,67 @@ export default function TeacherDetailsPage() {
     queryFn: () => teacherHttpService.queries.show(id!),
     enabled: !!id,
   });
+
+  const { data: assignedLocations = [] } = useQuery({
+    queryKey: [teacherHttpService.key, "locations", id],
+    queryFn: () => teacherHttpService.queries.getLocations(id!),
+    enabled: !!id && isAdmin,
+  });
+
+  const { data: allLocations = [] } = useQuery({
+    queryKey: [locationHttpService.key, "index"],
+    queryFn: () => locationHttpService.queries.index(),
+    enabled: isAdmin,
+  });
+
+  const assignLocationMutation = useMutation({
+    mutationFn: teacherHttpService.mutations.assignLocation,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "locations", id] });
+      await queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "show", id] });
+      setIsAssignDialogOpen(false);
+      setSelectedLocationId("");
+    },
+  });
+
+  const unassignLocationMutation = useMutation({
+    mutationFn: teacherHttpService.mutations.unassignLocation,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "locations", id] });
+      await queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "show", id] });
+    },
+  });
+
+  const availableLocations = useMemo(
+    () => allLocations.filter((location) => !assignedLocations.some((assigned) => assigned.id === location.id)),
+    [allLocations, assignedLocations],
+  );
+
+  const handleAssignLocation = () => {
+    if (!id || !selectedLocationId || assignLocationMutation.isPending) {
+      return;
+    }
+
+    assignLocationMutation.mutate({
+      teacherId: id,
+      locationId: selectedLocationId,
+    });
+  };
+
+  const handleLocationSelectChange = (event: SelectChangeEvent<string>) => {
+    setSelectedLocationId((event.target as { value: string }).value);
+  };
+
+  const handleUnassignLocation = (locationId: string) => {
+    if (!id || unassignLocationMutation.isPending) {
+      return;
+    }
+
+    unassignLocationMutation.mutate({
+      teacherId: id,
+      locationId,
+    });
+  };
 
   if (isLoading) {
     return <DetailPageSkeleton sections={2} />;
@@ -252,6 +331,55 @@ export default function TeacherDetailsPage() {
         </CardContent>
       </Card>
 
+      {/* Assigned Locations Section */}
+      {isAdmin && (
+        <Card sx={{ mb: 3 }}>
+          <CardHeader
+            avatar={<AddLocationAltIcon />}
+            title="Assigned Locations"
+            subheader={`${assignedLocations.length} location(s)`}
+            action={
+              <Button
+                startIcon={<AddIcon />}
+                onClick={() => setIsAssignDialogOpen(true)}
+                disabled={availableLocations.length === 0}
+              >
+                Assign Location
+              </Button>
+            }
+          />
+          <Divider />
+          <CardContent sx={{ p: 0 }}>
+            {assignedLocations.length === 0 ? (
+              <Box sx={{ p: 3, textAlign: "center" }}>
+                <Typography color="text.secondary">No locations assigned</Typography>
+              </Box>
+            ) : (
+              <List disablePadding>
+                {assignedLocations.map((location, idx) => (
+                  <Box key={location.id}>
+                    {idx > 0 && <Divider />}
+                    <ListItem>
+                      <ListItemText primary={location.name} />
+                      <ListItemSecondaryAction>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleUnassignLocation(location.id)}
+                          disabled={unassignLocationMutation.isPending}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  </Box>
+                ))}
+              </List>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Assigned Students Section */}
       <Card>
         <CardHeader
@@ -295,6 +423,51 @@ export default function TeacherDetailsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={isAssignDialogOpen}
+        onClose={() => {
+          if (assignLocationMutation.isPending) return;
+          setIsAssignDialogOpen(false);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Assign Location</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 1 }}>
+            <InputLabel id="assign-location-label">Location</InputLabel>
+            <Select
+              labelId="assign-location-label"
+              value={selectedLocationId}
+              label="Location"
+              onChange={handleLocationSelectChange}
+            >
+              {availableLocations.map((location) => (
+                <MenuItem key={location.id} value={location.id}>
+                  {location.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setIsAssignDialogOpen(false)}
+            disabled={assignLocationMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAssignLocation}
+            variant="contained"
+            disabled={!selectedLocationId || assignLocationMutation.isPending}
+            startIcon={assignLocationMutation.isPending ? <CircularProgress size={16} /> : undefined}
+          >
+            Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

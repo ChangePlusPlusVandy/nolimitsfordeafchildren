@@ -35,6 +35,10 @@ export interface Teacher {
 }
 
 export interface TeacherDetails extends Teacher {
+  locations: Array<{
+    id: string;
+    name: string;
+  }>;
   schedules: Array<{
     id: string;
     teacher_id: string;
@@ -205,6 +209,11 @@ export function useTeacherHttpService() {
         const response = await httpClient.get("/v1/teachers/me/day", { params });
         return response.data;
       },
+
+      getLocations: async (teacherId: string): Promise<Array<{ id: string; name: string }>> => {
+        const response = await httpClient.get(`/v1/teachers/${teacherId}/locations`);
+        return response.data;
+      },
     },
 
     mutations: {
@@ -232,6 +241,28 @@ export function useTeacherHttpService() {
         ...data
       }: CreateScheduleInput & { teacherId: string }): Promise<Schedule> => {
         const response = await httpClient.post(`/v1/teachers/${teacherId}/schedules`, data);
+        return response.data;
+      },
+
+      assignLocation: async ({
+        teacherId,
+        locationId,
+      }: {
+        teacherId: string;
+        locationId: string;
+      }): Promise<{ success: boolean }> => {
+        const response = await httpClient.post(`/v1/teachers/${teacherId}/locations/${locationId}`);
+        return response.data;
+      },
+
+      unassignLocation: async ({
+        teacherId,
+        locationId,
+      }: {
+        teacherId: string;
+        locationId: string;
+      }): Promise<{ success: boolean }> => {
+        const response = await httpClient.delete(`/v1/teachers/${teacherId}/locations/${locationId}`);
         return response.data;
       },
     },

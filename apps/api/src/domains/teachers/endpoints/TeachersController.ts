@@ -1,4 +1,13 @@
-import { Body, Get, JsonController, Param, Patch, Post, QueryParam } from "routing-controllers";
+import {
+  Body,
+  Delete,
+  Get,
+  JsonController,
+  Param,
+  Patch,
+  Post,
+  QueryParam,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { Authorized } from "routing-controllers";
@@ -111,5 +120,52 @@ export class GetTeacherStudentsController {
     @QueryParam("limit") limit?: number,
   ) {
     return await this.teachersService.students(id, { page, limit });
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class GetTeacherLocationsController {
+  private teachersService: TeachersService;
+  constructor() {
+    this.teachersService = Container.get(TeachersService);
+  }
+
+  @Get("/teachers/:id/locations")
+  @Authorized(["administrator"])
+  async handle(@Param("id") id: string) {
+    return await this.teachersService.getTeacherLocations(id);
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class PostTeacherLocationController {
+  private teachersService: TeachersService;
+  constructor() {
+    this.teachersService = Container.get(TeachersService);
+  }
+
+  @Post("/teachers/:id/locations/:locationId")
+  @Authorized(["administrator"])
+  async handle(@Param("id") id: string, @Param("locationId") locationId: string) {
+    await this.teachersService.assignTeacherToLocation(id, locationId);
+    return { success: true };
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class DeleteTeacherLocationController {
+  private teachersService: TeachersService;
+  constructor() {
+    this.teachersService = Container.get(TeachersService);
+  }
+
+  @Delete("/teachers/:id/locations/:locationId")
+  @Authorized(["administrator"])
+  async handle(@Param("id") id: string, @Param("locationId") locationId: string) {
+    await this.teachersService.unassignTeacherFromLocation(id, locationId);
+    return { success: true };
   }
 }
