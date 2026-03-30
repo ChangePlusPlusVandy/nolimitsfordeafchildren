@@ -63,6 +63,50 @@ export interface ScheduleChangeRequestWithDetails extends ScheduleChangeRequestE
 
 @Service()
 export class ScheduleChangeService {
+  private async getParentStudentIds(parentUserId: string): Promise<string[]> {
+    const parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, parentUserId))
+      .limit(1);
+
+    if (parentProfile.length === 0) {
+      return [];
+    }
+
+    const linkedStudents = await db
+      .select({ student_id: ParentStudentLinkTable.student_id })
+      .from(ParentStudentLinkTable)
+      .where(
+        and(
+          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
+      );
+
+    return linkedStudents.map((row) => row.student_id);
+  }
+
+  async isRequestVisibleToParent(requestId: string, parentUserId: string): Promise<boolean> {
+    const studentIds = await this.getParentStudentIds(parentUserId);
+    if (studentIds.length === 0) {
+      return false;
+    }
+
+    const request = await db
+      .select({ id: ScheduleChangeRequestTable.id })
+      .from(ScheduleChangeRequestTable)
+      .where(
+        and(
+          eq(ScheduleChangeRequestTable.id, requestId),
+          sql`${ScheduleChangeRequestTable.student_id} IN ${studentIds}`,
+        ),
+      )
+      .limit(1);
+
+    return request.length > 0;
+  }
+
   /**
    * Create a schedule change request (parent)
    */
@@ -454,33 +498,10 @@ export class ScheduleChangeService {
   async listRequestsForParent(
     parentUserId: string,
   ): Promise<{ items: ScheduleChangeRequestWithDetails[] }> {
-    // Get parent profile
-    const parentProfile = await db
-      .select()
-      .from(ParentProfileTable)
-      .where(eq(ParentProfileTable.user_id, parentUserId))
-      .limit(1);
-
-    if (parentProfile.length === 0) {
+    const studentIds = await this.getParentStudentIds(parentUserId);
+    if (studentIds.length === 0) {
       return { items: [] };
     }
-
-    // Get linked students
-    const linkedStudents = await db
-      .select({ student_id: ParentStudentLinkTable.student_id })
-      .from(ParentStudentLinkTable)
-      .where(
-        and(
-          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
-          isNull(ParentStudentLinkTable.revoked_at),
-        ),
-      );
-
-    if (linkedStudents.length === 0) {
-      return { items: [] };
-    }
-
-    const studentIds = linkedStudents.map((s) => s.student_id);
 
     const results = await db
       .select({
