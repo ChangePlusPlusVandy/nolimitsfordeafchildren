@@ -116,7 +116,14 @@ export class GetScheduleChangeRequestController {
 
   @Get("/schedule-change-requests/:id")
   @Authorized(["administrator", "parent"])
-  async handle(@Param("id") id: string) {
+  async handle(@Param("id") id: string, @CurrentUser({ required: true }) currentUser: UserEntity) {
+    if (currentUser.role === "parent") {
+      const canView = await this.scheduleChangeService.isRequestVisibleToParent(id, currentUser.id);
+      if (!canView) {
+        throw new HttpError(404, "Schedule change request not found");
+      }
+    }
+
     const request = await this.scheduleChangeService.showRequest(id);
     if (!request) {
       throw new HttpError(404, "Schedule change request not found");

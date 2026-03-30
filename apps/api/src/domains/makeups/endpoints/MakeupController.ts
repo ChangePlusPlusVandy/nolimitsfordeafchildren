@@ -140,7 +140,14 @@ export class GetMakeupRequestController {
 
   @Get("/makeup-requests/:id")
   @Authorized(["administrator", "parent"])
-  async handle(@Param("id") id: string) {
+  async handle(@Param("id") id: string, @CurrentUser({ required: true }) currentUser: UserEntity) {
+    if (currentUser.role === "parent") {
+      const canView = await this.makeupService.isRequestVisibleToParent(id, currentUser.id);
+      if (!canView) {
+        throw new HttpError(404, "Makeup request not found");
+      }
+    }
+
     const request = await this.makeupService.showRequest(id);
     if (!request) {
       throw new HttpError(404, "Makeup request not found");
@@ -243,7 +250,18 @@ export class GetTeacherMakeupSessionsController {
 
   @Get("/teachers/:teacherId/makeup-sessions")
   @Authorized(["administrator", "teacher"])
-  async handle(@Param("teacherId") teacherId: string, @QueryParam("date") date?: string) {
+  async handle(
+    @Param("teacherId") teacherId: string,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+    @QueryParam("date") date?: string,
+  ) {
+    if (currentUser.role === "teacher") {
+      const canView = await this.makeupService.isTeacherAuthorizedForSession(currentUser.id, teacherId);
+      if (!canView) {
+        throw new HttpError(403, "You can only view your own makeup sessions");
+      }
+    }
+
     const result = await this.makeupService.listSessionsForTeacher(teacherId, date);
     return result;
   }

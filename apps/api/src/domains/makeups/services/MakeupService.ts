@@ -96,6 +96,68 @@ export interface MakeupSessionWithDetails extends MakeupSessionEntity {
 
 @Service()
 export class MakeupService {
+  private async getParentStudentIds(parentUserId: string): Promise<string[]> {
+    const parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, parentUserId))
+      .limit(1);
+
+    if (parentProfile.length === 0) {
+      return [];
+    }
+
+    const linkedStudents = await db
+      .select({ student_id: ParentStudentLinkTable.student_id })
+      .from(ParentStudentLinkTable)
+      .where(
+        and(
+          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
+      );
+
+    return linkedStudents.map((row) => row.student_id);
+  }
+
+  async isRequestVisibleToParent(requestId: string, parentUserId: string): Promise<boolean> {
+    const studentIds = await this.getParentStudentIds(parentUserId);
+    if (studentIds.length === 0) {
+      return false;
+    }
+
+    const request = await db
+      .select({ id: MakeupRequestTable.id })
+      .from(MakeupRequestTable)
+      .where(
+        and(
+          eq(MakeupRequestTable.id, requestId),
+          sql`${MakeupRequestTable.student_id} IN ${studentIds}`,
+        ),
+      )
+      .limit(1);
+
+    return request.length > 0;
+  }
+
+  async isTeacherAuthorizedForSession(
+    teacherUserId: string,
+    teacherProfileId: string,
+  ): Promise<boolean> {
+    const profile = await db
+      .select({ id: TeacherProfileTable.id })
+      .from(TeacherProfileTable)
+      .where(
+        and(
+          eq(TeacherProfileTable.id, teacherProfileId),
+          eq(TeacherProfileTable.user_id, teacherUserId),
+        ),
+      )
+      .limit(1);
+
+    return profile.length > 0;
+  }
+
   private async getMakeupSessionForRequest(requestId: string): Promise<
     | {
         id: string;
@@ -539,33 +601,10 @@ export class MakeupService {
   async listRequestsForParent(
     parentUserId: string,
   ): Promise<{ items: MakeupRequestWithDetails[] }> {
-    // Get parent profile
-    const parentProfile = await db
-      .select()
-      .from(ParentProfileTable)
-      .where(eq(ParentProfileTable.user_id, parentUserId))
-      .limit(1);
-
-    if (parentProfile.length === 0) {
+    const studentIds = await this.getParentStudentIds(parentUserId);
+    if (studentIds.length === 0) {
       return { items: [] };
     }
-
-    // Get linked students
-    const linkedStudents = await db
-      .select({ student_id: ParentStudentLinkTable.student_id })
-      .from(ParentStudentLinkTable)
-      .where(
-        and(
-          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
-          isNull(ParentStudentLinkTable.revoked_at),
-        ),
-      );
-
-    if (linkedStudents.length === 0) {
-      return { items: [] };
-    }
-
-    const studentIds = linkedStudents.map((s) => s.student_id);
 
     const results = await db
       .select({

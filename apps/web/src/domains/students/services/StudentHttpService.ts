@@ -34,6 +34,22 @@ export interface StudentDetails extends Student {
     name: string;
     type: string;
   } | null;
+  active_schedules?: Array<{
+    id: string;
+    day_of_week_mask: number;
+    start_time: string;
+    end_time: string;
+    cycle_start_date: string;
+    cycle_end_date: string;
+    site: {
+      id: string;
+      name: string;
+    };
+    teacher: {
+      id: string;
+      name: string;
+    };
+  }>;
   siblings: Sibling[];
   teachers: LinkedTeacher[];
   parents: LinkedParent[];
