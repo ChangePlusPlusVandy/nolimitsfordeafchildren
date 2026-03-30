@@ -8,6 +8,7 @@ export interface LinkedChild {
   last_name: string;
   initials: string;
   dob: string;
+  current_schedule_id: string | null;
   site: {
     id: string;
     name: string;

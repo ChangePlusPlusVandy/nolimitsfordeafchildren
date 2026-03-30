@@ -28,6 +28,7 @@ export interface LinkedChild {
     id: string;
     name: string;
   };
+  current_schedule_id: string | null;
   next_session?: {
     date: string;
     time: string;
@@ -145,6 +146,8 @@ export class ParentsService {
       // Get attendance summary
       const summary = await this.attendanceService.getSummary(student.student_id);
 
+      const currentScheduleId = await this.getCurrentScheduleId(student.student_id);
+
       // Get pending requests count
       const pendingMakeups = await db
         .select({ count: sql<number>`count(*)::int` })
@@ -182,6 +185,7 @@ export class ParentsService {
           id: student.site_id,
           name: student.site_name,
         },
+        current_schedule_id: currentScheduleId,
         next_session: nextSession,
         attendance_summary: {
           total: summary.total,
@@ -320,6 +324,23 @@ export class ParentsService {
       missed_sessions: missedSessions,
       relevant_bulletins: bulletins,
     };
+  }
+
+  /**
+   * Get the currently active schedule for a student.
+   * Uses latest active enrollment, if present.
+   */
+  private async getCurrentScheduleId(studentId: string): Promise<string | null> {
+    const enrollment = await db
+      .select({
+        schedule_id: EnrollmentTable.schedule_id,
+      })
+      .from(EnrollmentTable)
+      .where(and(eq(EnrollmentTable.student_id, studentId), isNull(EnrollmentTable.ended_at)))
+      .orderBy(desc(EnrollmentTable.enrolled_at))
+      .limit(1);
+
+    return enrollment[0]?.schedule_id ?? null;
   }
 
   /**
