@@ -8,6 +8,13 @@
       "when": 1770330817837,
       "tag": "0000_salty_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774911056019,
+      "tag": "0001_plain_senator_kelly",
+      "breakpoints": true
     }
   ]
 }

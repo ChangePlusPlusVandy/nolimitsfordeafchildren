@@ -4,6 +4,7 @@ import { eq, ilike, or, desc, asc, and, sql, isNull, gte, lte } from "drizzle-or
 import { db } from "@/db";
 import {
   TeacherProfileTable,
+  TeacherLocationTable,
   UserTable,
   ScheduleTable,
   TeacherStudentTable,
@@ -95,6 +96,10 @@ export interface TeacherWithUser extends TeacherProfileEntity {
 }
 
 export interface TeacherDetails extends TeacherWithUser {
+  locations: Array<{
+    id: string;
+    name: string;
+  }>;
   schedules: Array<ScheduleEntity & { site: { id: string; name: string } }>;
   students: Array<{
     id: string;
@@ -261,6 +266,8 @@ export class TeachersService {
 
     const row = teacherResults[0]!;
 
+    const teacherLocations = await this.getTeacherLocations(id);
+
     // Get schedules
     const scheduleResults = await db
       .select({
@@ -352,9 +359,60 @@ export class TeachersService {
             name: row.site_name!,
           }
         : null,
+      locations: teacherLocations,
       schedules,
       students,
     };
+  }
+
+  async getTeacherLocations(teacherProfileId: string): Promise<Array<{ id: string; name: string }>> {
+    const rows = await db
+      .select({
+        id: LocationTable.id,
+        name: LocationTable.name,
+      })
+      .from(TeacherLocationTable)
+      .innerJoin(LocationTable, eq(TeacherLocationTable.location_id, LocationTable.id))
+      .where(eq(TeacherLocationTable.teacher_profile_id, teacherProfileId))
+      .orderBy(asc(LocationTable.name));
+
+    return rows;
+  }
+
+  async assignTeacherToLocation(teacherProfileId: string, locationId: string): Promise<void> {
+    await db
+      .insert(TeacherLocationTable)
+      .values({
+        teacher_profile_id: teacherProfileId,
+        location_id: locationId,
+      })
+      .onConflictDoNothing();
+  }
+
+  async unassignTeacherFromLocation(teacherProfileId: string, locationId: string): Promise<void> {
+    await db
+      .delete(TeacherLocationTable)
+      .where(
+        and(
+          eq(TeacherLocationTable.teacher_profile_id, teacherProfileId),
+          eq(TeacherLocationTable.location_id, locationId),
+        ),
+      );
+  }
+
+  async isTeacherAssignedToLocation(teacherProfileId: string, locationId: string): Promise<boolean> {
+    const rows = await db
+      .select({ id: TeacherLocationTable.id })
+      .from(TeacherLocationTable)
+      .where(
+        and(
+          eq(TeacherLocationTable.teacher_profile_id, teacherProfileId),
+          eq(TeacherLocationTable.location_id, locationId),
+        ),
+      )
+      .limit(1);
+
+    return rows.length > 0;
   }
 
   /**
@@ -526,6 +584,11 @@ export class TeachersService {
       throw new Error("Teacher not found");
     }
 
+    const isAssigned = await this.isTeacherAssignedToLocation(teacherId, input.site_id);
+    if (!isAssigned) {
+      throw new Error("Teacher is not assigned to this location");
+    }
+
     // Check for conflicts
     const conflicts = await this.checkScheduleConflicts(teacherId, input);
     if (conflicts.length > 0) {
@@ -565,6 +628,13 @@ export class TeachersService {
 
     if (existing.length === 0) {
       return null;
+    }
+
+    if (input.site_id && input.site_id !== existing[0]!.site_id) {
+      const isAssigned = await this.isTeacherAssignedToLocation(existing[0]!.teacher_id, input.site_id);
+      if (!isAssigned) {
+        throw new Error("Teacher is not assigned to this location");
+      }
     }
 
     // If changing time/days, check for conflicts
