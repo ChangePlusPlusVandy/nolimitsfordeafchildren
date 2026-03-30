@@ -70,7 +70,7 @@ const navItems: NavItem[] = [
     text: "My Day",
     to: "/my-day",
     icon: <TodayIcon />,
-    roles: ["teacher", "administrator"],
+    roles: ["teacher"],
   },
   {
     text: "Make-Up Sessions",
