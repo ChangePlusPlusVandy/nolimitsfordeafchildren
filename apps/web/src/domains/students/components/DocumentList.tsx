@@ -18,6 +18,7 @@ import {
   Button,
   Tooltip,
   Paper,
+  Pagination,
 } from "@mui/material";
 import {
   Description as DescriptionIcon,
@@ -92,17 +93,23 @@ export default function DocumentList({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const documentsPerPage = 10;
 
   // Fetch documents
   const {
-    data: documents,
+    data: documentsResponse,
     isLoading,
     error,
   } = useQuery({
-    queryKey: [documentService.key, "student", studentId],
-    queryFn: () => documentService.queries.listForStudent(studentId),
+    queryKey: [documentService.key, "student", studentId, page, documentsPerPage],
+    queryFn: () => documentService.queries.listForStudent(studentId, page, documentsPerPage),
     enabled: !!studentId,
   });
+
+  const documents = documentsResponse?.items ?? [];
+  const totalPages = documentsResponse?.totalPages ?? 1;
+  const totalDocuments = documentsResponse?.total ?? documents.length;
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -112,6 +119,10 @@ export default function DocumentList({
       toast.success("Document deleted successfully");
       setDeleteDialogOpen(false);
       setDocumentToDelete(null);
+
+      if (documents.length === 1 && page > 1) {
+        setPage((prev) => prev - 1);
+      }
     },
     onError: () => {
       toast.error("Failed to delete document. Please try again.");
@@ -177,7 +188,7 @@ export default function DocumentList({
     );
   }
 
-  if (!documents || documents.length === 0) {
+  if (documents.length === 0) {
     return (
       <Box sx={{ py: 3, textAlign: "center" }}>
         <CloudUploadIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
@@ -306,6 +317,21 @@ export default function DocumentList({
           );
         })}
       </List>
+
+      {totalPages > 1 && (
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="caption" color="text.secondary">
+            Showing {documents.length} of {totalDocuments} documents
+          </Typography>
+          <Pagination
+            page={page}
+            count={totalPages}
+            onChange={(_, value) => setPage(value)}
+            size="small"
+            color="primary"
+          />
+        </Box>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
