@@ -30,6 +30,8 @@ import {
   Send as SendIcon,
   ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
+import type { ChangeEvent } from "react";
+import type { SelectChangeEvent } from "@mui/material/Select";
 import { useParentHttpService } from "../services/ParentHttpService";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
@@ -256,15 +258,40 @@ export default function BrowseSchedulesPage() {
   // Get the selected child's current schedule (for excluding from available)
   const selectedChildData = children.find((c) => c.id === selectedChild);
 
+  const handleChildChange = (event: SelectChangeEvent) => {
+    const value = (event.target as unknown as { value: string }).value;
+    setSelectedChild(value);
+    setSelectedSchedule(null);
+  };
+
+  const handleSiteFilterChange = (event: SelectChangeEvent) => {
+    setSiteFilter((event.target as unknown as { value: string }).value);
+  };
+
+  const handleDayPatternFilterChange = (event: SelectChangeEvent) => {
+    setDayPatternFilter((event.target as unknown as { value: string }).value);
+  };
+
+  const handleReasonChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setReason((event.target as unknown as { value: string }).value);
+  };
+
   const handleSubmitRequest = () => {
     if (!selectedChild || !selectedSchedule || !reason.trim()) return;
 
-    // Get current schedule ID from child data
-    // For now, we'll need to get this from somewhere - let's use child details
-    // This is a simplified version - in practice, you'd need the current schedule ID
+    const currentScheduleId = selectedChildData?.current_schedule_id;
+    if (!currentScheduleId) {
+      showToast({
+        message:
+          "We could not determine your child's current schedule. Please contact support.",
+        severity: "error",
+      });
+      return;
+    }
+
     createRequestMutation.mutate({
       student_id: selectedChild,
-      current_schedule_id: "current-schedule-id", // This would come from child details
+      current_schedule_id: currentScheduleId,
       requested_schedule_id: selectedSchedule.id,
       reason: reason.trim(),
     });
@@ -295,10 +322,7 @@ export default function BrowseSchedulesPage() {
               <InputLabel>Select a child</InputLabel>
               <Select
                 value={selectedChild}
-                onChange={(e) => {
-                  setSelectedChild(e.target.value);
-                  setSelectedSchedule(null);
-                }}
+                onChange={handleChildChange}
                 label="Select a child"
               >
                 {children.map((child) => (
@@ -327,7 +351,7 @@ export default function BrowseSchedulesPage() {
                   <InputLabel>Filter by Location</InputLabel>
                   <Select
                     value={siteFilter}
-                    onChange={(e) => setSiteFilter(e.target.value)}
+                    onChange={handleSiteFilterChange}
                     label="Filter by Location"
                   >
                     <MenuItem value="">All Locations</MenuItem>
@@ -343,7 +367,7 @@ export default function BrowseSchedulesPage() {
                   <InputLabel>Filter by Days</InputLabel>
                   <Select
                     value={dayPatternFilter}
-                    onChange={(e) => setDayPatternFilter(e.target.value)}
+                    onChange={handleDayPatternFilterChange}
                     label="Filter by Days"
                   >
                     <MenuItem value="">All Days</MenuItem>
@@ -394,7 +418,7 @@ export default function BrowseSchedulesPage() {
                   label="Reason for schedule change"
                   placeholder="Please explain why you're requesting this schedule change (e.g., new work schedule, transportation issues, etc.)"
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
+                  onChange={handleReasonChange}
                   sx={{ mb: 2 }}
                 />
                 <Button
