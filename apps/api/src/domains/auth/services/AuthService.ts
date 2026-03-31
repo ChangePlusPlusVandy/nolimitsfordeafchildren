@@ -70,6 +70,7 @@ export class AuthService implements IAuthService {
       email: auth0User.email,
       name: auth0User.name || auth0User.email.split("@")[0] || "User",
       phone: null,
+      photo_url: auth0User.picture || null,
       locale: "en-US",
       role: "parent", // Default role - admin can change
       is_active: true,

@@ -8,6 +8,7 @@ export interface Student {
   first_name: string;
   last_name: string;
   initials: string;
+  photo_url: string | null;
   dob: string;
   current_school: string | null;
   preferred_language: string;
@@ -131,6 +132,7 @@ export interface CreateStudentInput {
   first_name: string;
   last_name: string;
   initials?: string;
+  photo_url?: string;
   dob: string;
   current_school?: string;
   preferred_language?: string;
@@ -142,6 +144,7 @@ export interface UpdateStudentInput {
   first_name?: string;
   last_name?: string;
   initials?: string;
+  photo_url?: string;
   dob?: string;
   current_school?: string;
   preferred_language?: string;

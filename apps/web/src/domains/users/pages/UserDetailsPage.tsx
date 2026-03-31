@@ -22,6 +22,7 @@ import {
   DialogContentText,
   DialogActions,
   Skeleton,
+  Avatar,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
@@ -43,6 +44,7 @@ export default function UserDetailsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [role, setRole] = useState<UserRole>("parent");
   const [isEditing, setIsEditing] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
@@ -64,6 +66,7 @@ export default function UserDetailsPage() {
       setName(user.name);
       setEmail(user.email);
       setPhone(user.phone || "");
+      setPhotoUrl(user.photo_url || "");
       setRole(user.role);
     }
   }, [user]);
@@ -113,6 +116,7 @@ export default function UserDetailsPage() {
       name,
       email,
       phone: phone || undefined,
+      photo_url: photoUrl || undefined,
       role,
     });
   };
@@ -180,6 +184,9 @@ export default function UserDetailsPage() {
     <Box>
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+        <Avatar src={(isEditing ? photoUrl : user.photo_url) || undefined} sx={{ width: 56, height: 56 }}>
+          {user.name.charAt(0)}
+        </Avatar>
         <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/users")}>
           Back
         </Button>
@@ -251,6 +258,15 @@ export default function UserDetailsPage() {
             onChange={(e) => setPhone(e.target.value)}
             disabled={!isEditing}
             fullWidth
+          />
+
+          <TextField
+            label="Headshot URL"
+            value={isEditing ? photoUrl : user.photo_url || ""}
+            onChange={(e) => setPhotoUrl(e.target.value)}
+            disabled={!isEditing}
+            fullWidth
+            placeholder="https://..."
           />
 
           <FormControl fullWidth disabled={!isEditing}>

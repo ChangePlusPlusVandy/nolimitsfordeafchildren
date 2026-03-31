@@ -34,6 +34,7 @@ export interface CreateStudentInput {
   first_name: string;
   last_name: string;
   initials?: string;
+  photo_url?: string;
   dob: string;
   current_school?: string;
   preferred_language?: string;
@@ -45,6 +46,7 @@ export interface UpdateStudentInput {
   first_name?: string;
   last_name?: string;
   initials?: string;
+  photo_url?: string;
   dob?: string;
   current_school?: string;
   preferred_language?: string;
@@ -162,6 +164,7 @@ export class StudentsService {
           first_name: StudentTable.first_name,
           last_name: StudentTable.last_name,
           initials: StudentTable.initials,
+          photo_url: StudentTable.photo_url,
           dob: StudentTable.dob,
           current_school: StudentTable.current_school,
           preferred_language: StudentTable.preferred_language,
@@ -202,6 +205,7 @@ export class StudentsService {
           first_name: StudentTable.first_name,
           last_name: StudentTable.last_name,
           initials: StudentTable.initials,
+          photo_url: StudentTable.photo_url,
           dob: StudentTable.dob,
           current_school: StudentTable.current_school,
           preferred_language: StudentTable.preferred_language,
@@ -437,6 +441,7 @@ export class StudentsService {
         first_name: data.first_name,
         last_name: data.last_name,
         initials,
+        photo_url: data.photo_url,
         dob: data.dob,
         current_school: data.current_school,
         preferred_language: data.preferred_language || "English",

@@ -25,6 +25,7 @@ export interface LinkedChild {
   first_name: string;
   last_name: string;
   initials: string;
+  photo_url: string | null;
   dob: string;
   site: {
     id: string;
@@ -66,6 +67,7 @@ export interface ChildDetails {
   first_name: string;
   last_name: string;
   initials: string;
+  photo_url: string | null;
   dob: string;
   preferred_language: string;
   current_school: string | null;
@@ -186,7 +188,7 @@ export class ParentsService {
         name: UserTable.name,
         email: UserTable.email,
         bio: sql<string | null>`NULL`,
-        photo_url: sql<string | null>`NULL`,
+        photo_url: UserTable.photo_url,
       })
       .from(UserTable)
       .where(and(eq(UserTable.role, "administrator"), eq(UserTable.is_active, true)));
@@ -198,7 +200,7 @@ export class ParentsService {
         name: UserTable.name,
         email: UserTable.email,
         bio: TeacherProfileTable.bio,
-        photo_url: TeacherProfileTable.photo_url,
+        photo_url: sql<string | null>`COALESCE(${TeacherProfileTable.photo_url}, ${UserTable.photo_url})`,
       })
       .from(TeacherProfileTable)
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
@@ -353,6 +355,7 @@ export class ParentsService {
         first_name: StudentTable.first_name,
         last_name: StudentTable.last_name,
         initials: StudentTable.initials,
+        photo_url: StudentTable.photo_url,
         dob: StudentTable.dob,
         site_id: LocationTable.id,
         site_name: LocationTable.name,
@@ -408,6 +411,7 @@ export class ParentsService {
         first_name: student.first_name,
         last_name: student.last_name,
         initials: student.initials,
+        photo_url: student.photo_url,
         dob: student.dob,
         site: {
           id: student.site_id,
@@ -465,6 +469,7 @@ export class ParentsService {
         first_name: StudentTable.first_name,
         last_name: StudentTable.last_name,
         initials: StudentTable.initials,
+        photo_url: StudentTable.photo_url,
         dob: StudentTable.dob,
         preferred_language: StudentTable.preferred_language,
         current_school: StudentTable.current_school,
@@ -571,6 +576,7 @@ export class ParentsService {
       first_name: s.first_name,
       last_name: s.last_name,
       initials: s.initials,
+      photo_url: s.photo_url,
       dob: s.dob,
       preferred_language: s.preferred_language,
       current_school: s.current_school,

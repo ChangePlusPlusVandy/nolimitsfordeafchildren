@@ -12,6 +12,7 @@ import {
 export interface UpdateMeInput {
   name?: string;
   phone?: string;
+  photo_url?: string;
   locale?: string;
   address_line1?: string;
   address_line2?: string;
@@ -107,6 +108,7 @@ export class MeService {
 
     if (input.name !== undefined) updateData.name = input.name;
     if (input.phone !== undefined) updateData.phone = input.phone;
+    if (input.photo_url !== undefined) updateData.photo_url = input.photo_url;
     if (input.locale !== undefined) updateData.locale = input.locale;
 
     if (

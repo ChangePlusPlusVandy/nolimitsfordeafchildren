@@ -31,6 +31,7 @@ type FormData = {
   first_name: string;
   last_name: string;
   initials: string;
+  photo_url: string;
   dob: string;
   current_school: string;
   preferred_language: string;
@@ -75,6 +76,7 @@ export default function EditStudentPage() {
         first_name: student.first_name,
         last_name: student.last_name,
         initials: student.initials,
+        photo_url: student.photo_url || "",
         dob: student.dob.split("T")[0] ?? student.dob, // Format for date input
         current_school: student.current_school || "",
         preferred_language: student.preferred_language || "",
@@ -156,6 +158,7 @@ export default function EditStudentPage() {
       first_name: formData.first_name.trim(),
       last_name: formData.last_name.trim(),
       initials: formData.initials.trim() || undefined,
+      photo_url: formData.photo_url.trim() || undefined,
       dob: formData.dob,
       current_school: formData.current_school.trim() || undefined,
       preferred_language: formData.preferred_language.trim() || undefined,
@@ -237,6 +240,7 @@ export default function EditStudentPage() {
         </Button>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Avatar
+            src={formData.photo_url || undefined}
             sx={{
               width: 60,
               height: 60,
@@ -312,6 +316,15 @@ export default function EditStudentPage() {
                   }}
                 />
               </Box>
+
+              <TextField
+                label="Headshot URL"
+                value={formData.photo_url}
+                onChange={handleChange("photo_url")}
+                fullWidth
+                placeholder="https://..."
+                helperText="Optional profile photo URL for student cards and details"
+              />
 
               <FormControlLabel
                 control={

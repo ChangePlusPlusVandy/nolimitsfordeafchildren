@@ -223,6 +223,7 @@ export default function ChildDetailsPage() {
           alignItems={{ xs: "center", sm: "flex-start" }}
         >
           <Avatar
+            src={child.photo_url || undefined}
             sx={{
               width: 80,
               height: 80,

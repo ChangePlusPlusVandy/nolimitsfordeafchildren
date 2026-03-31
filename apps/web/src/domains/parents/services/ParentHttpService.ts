@@ -7,6 +7,7 @@ export interface LinkedChild {
   first_name: string;
   last_name: string;
   initials: string;
+  photo_url: string | null;
   dob: string;
   current_schedule_id: string | null;
   site: {
@@ -106,6 +107,7 @@ export interface ChildDetails {
   first_name: string;
   last_name: string;
   initials: string;
+  photo_url: string | null;
   dob: string;
   preferred_language: string;
   current_school: string | null;
