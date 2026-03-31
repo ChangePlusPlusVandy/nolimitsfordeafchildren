@@ -14,6 +14,7 @@ import {
   Select,
   MenuItem,
   Skeleton,
+  Avatar,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import { useHttpClient } from "../../../plugins/axios";
@@ -25,6 +26,7 @@ interface UserProfile {
   email: string;
   name: string;
   phone: string | null;
+  photo_url: string | null;
   locale: string;
   role: "administrator" | "teacher" | "parent";
   is_active: boolean;
@@ -34,6 +36,7 @@ interface UserProfile {
 interface UpdateProfileInput {
   name?: string;
   phone?: string;
+  photo_url?: string;
   locale?: string;
 }
 
@@ -46,6 +49,7 @@ export default function MyProfilePage() {
   // Form state
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [locale, setLocale] = useState("en-US");
   const [isEditing, setIsEditing] = useState(false);
 
@@ -67,6 +71,7 @@ export default function MyProfilePage() {
     if (profile) {
       setName(profile.name);
       setPhone(profile.phone || "");
+      setPhotoUrl(profile.photo_url || "");
       setLocale(profile.locale);
     }
   }, [profile]);
@@ -91,6 +96,7 @@ export default function MyProfilePage() {
     updateMutation.mutate({
       name,
       phone: phone || undefined,
+      photo_url: photoUrl || undefined,
       locale,
     });
   };
@@ -99,6 +105,7 @@ export default function MyProfilePage() {
     if (profile) {
       setName(profile.name);
       setPhone(profile.phone || "");
+      setPhotoUrl(profile.photo_url || "");
       setLocale(profile.locale);
     }
     setIsEditing(false);
@@ -141,6 +148,7 @@ export default function MyProfilePage() {
     email: authUser?.email || "",
     role: authUser?.role || "parent",
     phone: "",
+    photo_url: authUser?.picture || "",
     locale: "en-US",
     is_active: true,
     created_at: new Date().toISOString(),
@@ -194,6 +202,15 @@ export default function MyProfilePage() {
 
       <Paper sx={{ p: 3, maxWidth: 600 }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <Avatar
+              src={(isEditing ? photoUrl : displayProfile.photo_url) || undefined}
+              sx={{ width: 80, height: 80 }}
+            >
+              {displayProfile.name.charAt(0)}
+            </Avatar>
+          </Box>
+
           <TextField
             label="Name"
             value={isEditing ? name : displayProfile.name}
@@ -217,6 +234,15 @@ export default function MyProfilePage() {
             disabled={!isEditing}
             fullWidth
             placeholder="555-123-4567"
+          />
+
+          <TextField
+            label="Headshot URL"
+            value={isEditing ? photoUrl : displayProfile.photo_url || ""}
+            onChange={(e) => setPhotoUrl(e.target.value)}
+            disabled={!isEditing}
+            fullWidth
+            placeholder="https://..."
           />
 
           <FormControl fullWidth disabled={!isEditing}>

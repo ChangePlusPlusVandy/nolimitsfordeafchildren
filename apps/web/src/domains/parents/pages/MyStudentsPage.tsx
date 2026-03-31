@@ -81,6 +81,7 @@ function ChildCard({ child }: { child: LinkedChild }) {
             {/* Avatar and Name */}
             <Stack direction="row" spacing={2} alignItems="center">
               <Avatar
+                src={child.photo_url || undefined}
                 sx={{
                   width: 56,
                   height: 56,

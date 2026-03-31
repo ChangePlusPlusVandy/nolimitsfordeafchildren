@@ -8,6 +8,7 @@ export interface User {
   email: string;
   name: string;
   phone: string | null;
+  photo_url: string | null;
   locale: string;
   role: UserRole;
   is_active: boolean;
@@ -45,6 +46,7 @@ export interface UpdateUserInput {
   name?: string;
   email?: string;
   phone?: string;
+  photo_url?: string;
   locale?: string;
   role?: UserRole;
   is_active?: boolean;

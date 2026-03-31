@@ -32,6 +32,7 @@ export interface UpdateUserInput {
   name?: string;
   email?: string;
   phone?: string;
+  photo_url?: string;
   locale?: string;
   role?: "administrator" | "teacher" | "parent";
   is_active?: boolean;
@@ -201,6 +202,7 @@ export class UsersService {
     if (input.name !== undefined) updateData.name = input.name;
     if (input.email !== undefined) updateData.email = input.email.toLowerCase();
     if (input.phone !== undefined) updateData.phone = input.phone;
+    if (input.photo_url !== undefined) updateData.photo_url = input.photo_url;
     if (input.locale !== undefined) updateData.locale = input.locale;
     if (input.role !== undefined) updateData.role = input.role;
     if (input.is_active !== undefined) updateData.is_active = input.is_active;

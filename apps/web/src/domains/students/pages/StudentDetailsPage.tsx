@@ -313,6 +313,7 @@ export default function StudentDetailsPage() {
           <Paper sx={{ p: 3, mb: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 3, mb: 3 }}>
               <Avatar
+                src={student.photo_url || undefined}
                 sx={{
                   width: 80,
                   height: 80,
