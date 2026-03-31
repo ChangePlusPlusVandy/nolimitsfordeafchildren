@@ -48,21 +48,12 @@ export default function LoginPage() {
 
   const submitLabel = mode === "login" ? "Sign In" : "Create Account";
 
-  const authDisabled = import.meta.env.VITE_AUTH_DISABLED === "true";
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
 
     try {
-      if (authDisabled) {
-        const selectedRole = mode === "signup" ? "unassigned" : "administrator";
-        sessionStorage.setItem("devRole", selectedRole);
-        window.location.href = selectedRole === "unassigned" ? "/pending-approval" : "/";
-        return;
-      }
-
       if (mode === "login") {
         const result = await authClient.signIn.email({
           email: email.trim().toLowerCase(),
@@ -149,12 +140,6 @@ export default function LoginPage() {
                 ? "Sign in to continue to your dashboard."
                 : "New accounts are created as pending until an administrator approves your role."}
             </Typography>
-            {authDisabled && (
-              <Alert severity="info" sx={{ mt: 1.5 }}>
-                Development auth mode enabled. Sign in enters as administrator; sign up enters as
-                pending approval.
-              </Alert>
-            )}
           </Box>
 
             {error && <Alert severity="error">{error}</Alert>}

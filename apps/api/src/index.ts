@@ -192,7 +192,6 @@ useContainer({
 
 export function buildApplication() {
   const allowedOrigins = process.env.CORS_ORIGINS?.split(",") || ["http://localhost:5173"];
-  const authDisabled = process.env.AUTH_DISABLED === "true";
 
   // Create Express app first
   const app = express();
@@ -385,22 +384,6 @@ export function buildApplication() {
         return req.currentUser;
       }
 
-      // If auth is disabled, return dev user as fallback
-      if (authDisabled) {
-        return {
-          id: "00000000-0000-0000-0000-000000000000",
-          authUserId: "dev-admin",
-          email: "dev@example.com",
-          name: "Dev User",
-          phone: null,
-          locale: "en-US",
-          role: "administrator",
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        };
-      }
-
       return undefined;
     },
 
@@ -412,11 +395,6 @@ export function buildApplication() {
     authorizationChecker: async (action: Action, roles: string[]) => {
       const req = action.request as Request;
       const res = action.response as Response;
-
-      // If auth is disabled, allow all
-      if (authDisabled) {
-        return true;
-      }
 
       // Check if there was an auth error during middleware processing
       if (req.authError) {

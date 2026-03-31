@@ -78,55 +78,6 @@ async function fetchAppUser(): Promise<AuthMeResponse | null> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const authDisabled = import.meta.env.VITE_AUTH_DISABLED === "true";
-
-  if (authDisabled) {
-    const storedRole = (sessionStorage.getItem("devRole") as UserRole | null) || "administrator";
-    const devRole: UserRole =
-      storedRole === "administrator" ||
-      storedRole === "teacher" ||
-      storedRole === "parent" ||
-      storedRole === "unassigned"
-        ? storedRole
-        : "administrator";
-
-    const devUser: AuthUser = {
-      id: `dev-${devRole}`,
-      name:
-        devRole === "administrator"
-          ? "Dev Admin"
-          : devRole === "teacher"
-            ? "Dev Teacher"
-            : devRole === "parent"
-              ? "Dev Parent"
-              : "Pending User",
-      email: `${devRole}.dev@example.com`,
-      role: devRole,
-    };
-
-    const value: AuthContextValue = {
-      authEnabled: true,
-      isAuthenticated: true,
-      isLoading: false,
-      user: devUser,
-      login: async () => {
-        window.location.href = "/login";
-      },
-      logout: async () => {
-        sessionStorage.removeItem("devRole");
-        window.location.href = "/login";
-      },
-      isAdmin: devUser.role === "administrator",
-      isTeacher: devUser.role === "teacher",
-      isParent: devUser.role === "parent",
-      isUnassigned: devUser.role === "unassigned",
-      hasRole: (...roles: UserRole[]) => roles.includes(devUser.role),
-      refreshSession: async () => {},
-    };
-
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-  }
-
   const { data, isPending, refetch } = authClient.useSession();
   const session = (data ?? null) as SessionResponse | null;
 

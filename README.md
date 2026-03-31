@@ -36,14 +36,13 @@ cp apps/web/.env.example apps/web/.env
 ```
 
 The default `.env.example` files are pre-configured for local development with:
-- Auth disabled (mock admin user)
+- Better Auth email/password authentication
 - Local PostgreSQL connection
 - Local MinIO S3 storage
 
-For production auth, configure Better Auth in `apps/api/.env`:
+Configure Better Auth in `apps/api/.env`:
 
 ```bash
-AUTH_DISABLED=false
 BETTER_AUTH_URL=https://your-api-domain
 BETTER_AUTH_SECRET=replace-with-32-byte-random-secret
 BOOTSTRAP_ADMIN_EMAILS=admin1@example.com,admin2@example.com

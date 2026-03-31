@@ -22,81 +22,12 @@ declare global {
   }
 }
 
-const DEV_ROLE_HEADER = "x-dev-role";
-
-const DEV_USERS: Record<"administrator" | "teacher" | "parent" | "unassigned", Partial<UserEntity>> =
-  {
-    administrator: {
-      id: "5126c34f-4393-406c-8683-c9b696c02f38",
-      authUserId: "dev-admin",
-      email: "admin.dev@gmail.com",
-      name: "Dev Admin",
-      phone: null,
-      locale: "en-US",
-      role: "administrator",
-      is_active: true,
-    },
-    teacher: {
-      id: "cd7c3cb2-a14c-4a94-b320-b64ec164df2e",
-      authUserId: "dev-teacher",
-      email: "teacher.dev@gmail.com",
-      name: "Dev Teacher",
-      phone: null,
-      locale: "en-US",
-      role: "teacher",
-      is_active: true,
-    },
-    parent: {
-      id: "823e1615-9ec0-483e-910e-6cd27296712d",
-      authUserId: "dev-parent",
-      email: "parent.dev@gmail.com",
-      name: "Dev Parent",
-      phone: null,
-      locale: "en-US",
-      role: "parent",
-      is_active: true,
-    },
-    unassigned: {
-      id: "d1111111-1111-4111-8111-111111111111",
-      authUserId: "dev-unassigned",
-      email: "pending.dev@gmail.com",
-      name: "Pending User",
-      phone: null,
-      locale: "en-US",
-      role: "unassigned",
-      is_active: true,
-    },
-  };
-
 export async function loadCurrentUser(
   req: Request,
   _res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const authDisabled = process.env.AUTH_DISABLED === "true";
-
   if (req.path === "/health") {
-    next();
-    return;
-  }
-
-  if (authDisabled) {
-    const headerRole = (req.headers[DEV_ROLE_HEADER] as string | undefined) || "administrator";
-    const role =
-      headerRole === "administrator" ||
-      headerRole === "teacher" ||
-      headerRole === "parent" ||
-      headerRole === "unassigned"
-        ? headerRole
-        : "administrator";
-
-    const devUser = DEV_USERS[role];
-    req.currentUser = {
-      ...devUser,
-      created_at: new Date(),
-      updated_at: new Date(),
-    } as UserEntity;
-    delete req.authError;
     next();
     return;
   }
