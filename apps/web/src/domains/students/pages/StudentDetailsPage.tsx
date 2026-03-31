@@ -37,6 +37,7 @@ import LinkIcon from "@mui/icons-material/Link";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DescriptionIcon from "@mui/icons-material/Description";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 import {
   useStudentHttpService,
   type Sibling,
@@ -71,6 +72,26 @@ const ABSENCE_REASON_OPTIONS: { value: AbsenceReason; label: string }[] = [
   { value: "no_show_unknown", label: "No-show (Unknown)" },
   { value: "other", label: "Other" },
 ];
+
+function decodeDayMask(mask: number): string[] {
+  const days: string[] = [];
+  if (mask & 1) days.push("Sun");
+  if (mask & 2) days.push("Mon");
+  if (mask & 4) days.push("Tue");
+  if (mask & 8) days.push("Wed");
+  if (mask & 16) days.push("Thu");
+  if (mask & 32) days.push("Fri");
+  if (mask & 64) days.push("Sat");
+  return days;
+}
+
+function formatTime(time: string) {
+  const [hours, minutes] = time.split(":");
+  const hour = parseInt(hours!, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+}
 
 export default function StudentDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -409,6 +430,54 @@ export default function StudentDetailsPage() {
                 </Box>
               )}
             </Box>
+          </Paper>
+
+          {/* Schedule History */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              <ScheduleIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+              Schedule History
+            </Typography>
+
+            {(student.schedule_history?.length || 0) > 0 ? (
+              <List dense sx={{ p: 0 }}>
+                {student.schedule_history?.map((entry, index) => (
+                  <Box key={entry.enrollment_id}>
+                    {index > 0 && <Divider />}
+                    <ListItem sx={{ px: 0 }}>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                            <Typography variant="body1">
+                              {decodeDayMask(entry.schedule.day_of_week_mask).join("/")} at{" "}
+                              {formatTime(entry.schedule.start_time)}
+                            </Typography>
+                            {entry.is_current && <Chip size="small" label="Current" color="primary" />}
+                            {entry.schedule.session?.name && (
+                              <Chip size="small" label={entry.schedule.session.name} variant="outlined" />
+                            )}
+                          </Box>
+                        }
+                        secondary={
+                          <>
+                            {entry.schedule.site.name} with {entry.schedule.teacher.name}
+                            <br />
+                            Cycle: {entry.schedule.cycle_start_date} to {entry.schedule.cycle_end_date}
+                            <br />
+                            Enrollment: {new Date(entry.enrolled_at).toLocaleDateString()}
+                            {entry.ended_at
+                              ? ` to ${new Date(entry.ended_at).toLocaleDateString()}`
+                              : " to present"}
+                          </>
+                        }
+                      />
+                    </ListItem>
+                  </Box>
+                ))}
+              </List>
+            ) : (
+              <Typography color="text.secondary">No schedule history recorded.</Typography>
+            )}
           </Paper>
 
           {/* Siblings Section */}

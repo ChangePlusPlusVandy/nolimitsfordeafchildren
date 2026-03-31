@@ -10,6 +10,7 @@ import {
   TeacherStudentTable,
   StudentTable,
   LocationTable,
+  SessionTable,
   EnrollmentTable,
   AttendanceTable,
   type TeacherProfileEntity,
@@ -64,6 +65,7 @@ export interface UpdateTeacherInput {
 
 export interface CreateScheduleInput {
   site_id: string;
+  session_id?: string;
   day_of_week_mask: number;
   start_time: string;
   end_time: string;
@@ -73,6 +75,7 @@ export interface CreateScheduleInput {
 
 export interface UpdateScheduleInput {
   site_id?: string;
+  session_id?: string;
   day_of_week_mask?: number;
   start_time?: string;
   end_time?: string;
@@ -276,6 +279,7 @@ export class TeachersService {
         id: ScheduleTable.id,
         teacher_id: ScheduleTable.teacher_id,
         site_id: ScheduleTable.site_id,
+        session_id: ScheduleTable.session_id,
         day_of_week_mask: ScheduleTable.day_of_week_mask,
         start_time: ScheduleTable.start_time,
         end_time: ScheduleTable.end_time,
@@ -286,15 +290,18 @@ export class TeachersService {
         updated_at: ScheduleTable.updated_at,
         schedule_site_id: LocationTable.id,
         schedule_site_name: LocationTable.name,
+        session_name: SessionTable.name,
       })
       .from(ScheduleTable)
       .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .leftJoin(SessionTable, eq(ScheduleTable.session_id, SessionTable.id))
       .where(eq(ScheduleTable.teacher_id, id));
 
     const schedules = scheduleResults.map((s) => ({
       id: s.id,
       teacher_id: s.teacher_id,
       site_id: s.site_id,
+      session_id: s.session_id,
       day_of_week_mask: s.day_of_week_mask,
       start_time: s.start_time,
       end_time: s.end_time,
@@ -307,6 +314,12 @@ export class TeachersService {
         id: s.schedule_site_id,
         name: s.schedule_site_name,
       },
+      session: s.session_id
+        ? {
+            id: s.session_id,
+            name: s.session_name || "Session",
+          }
+        : null,
     }));
 
     // Get assigned students (active assignments only)
@@ -591,6 +604,22 @@ export class TeachersService {
       throw new Error("Teacher is not assigned to this location");
     }
 
+    if (input.session_id) {
+      const session = await db
+        .select({ id: SessionTable.id, is_archived: SessionTable.is_archived })
+        .from(SessionTable)
+        .where(eq(SessionTable.id, input.session_id))
+        .limit(1);
+
+      if (!session[0]) {
+        throw new Error("Session not found");
+      }
+
+      if (session[0].is_archived) {
+        throw new Error("Cannot assign an archived session to a schedule");
+      }
+    }
+
     // Check for conflicts
     const conflicts = await this.checkScheduleConflicts(teacherId, input);
     if (conflicts.length > 0) {
@@ -602,6 +631,7 @@ export class TeachersService {
     const newSchedule: ScheduleInsert = {
       teacher_id: teacherId,
       site_id: input.site_id,
+      session_id: input.session_id || null,
       day_of_week_mask: input.day_of_week_mask,
       start_time: input.start_time,
       end_time: input.end_time,
@@ -639,6 +669,22 @@ export class TeachersService {
       }
     }
 
+    if (input.session_id !== undefined && input.session_id !== null && input.session_id !== "") {
+      const session = await db
+        .select({ id: SessionTable.id, is_archived: SessionTable.is_archived })
+        .from(SessionTable)
+        .where(eq(SessionTable.id, input.session_id))
+        .limit(1);
+
+      if (!session[0]) {
+        throw new Error("Session not found");
+      }
+
+      if (session[0].is_archived) {
+        throw new Error("Cannot assign an archived session to a schedule");
+      }
+    }
+
     // If changing time/days, check for conflicts
     if (
       input.day_of_week_mask !== undefined ||
@@ -672,6 +718,7 @@ export class TeachersService {
     };
 
     if (input.site_id !== undefined) updateData.site_id = input.site_id;
+    if (input.session_id !== undefined) updateData.session_id = input.session_id || null;
     if (input.day_of_week_mask !== undefined) updateData.day_of_week_mask = input.day_of_week_mask;
     if (input.start_time !== undefined) updateData.start_time = input.start_time;
     if (input.end_time !== undefined) updateData.end_time = input.end_time;

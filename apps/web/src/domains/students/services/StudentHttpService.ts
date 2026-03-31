@@ -42,6 +42,10 @@ export interface StudentDetails extends Student {
     end_time: string;
     cycle_start_date: string;
     cycle_end_date: string;
+    session?: {
+      id: string;
+      name: string;
+    } | null;
     site: {
       id: string;
       name: string;
@@ -49,6 +53,33 @@ export interface StudentDetails extends Student {
     teacher: {
       id: string;
       name: string;
+    };
+  }>;
+  schedule_history?: Array<{
+    enrollment_id: string;
+    enrolled_at: string;
+    ended_at: string | null;
+    is_current: boolean;
+    schedule: {
+      id: string;
+      day_of_week_mask: number;
+      start_time: string;
+      end_time: string;
+      cycle_start_date: string;
+      cycle_end_date: string;
+      is_active: boolean;
+      session?: {
+        id: string;
+        name: string;
+      } | null;
+      site: {
+        id: string;
+        name: string;
+      };
+      teacher: {
+        id: string;
+        name: string;
+      };
     };
   }>;
   siblings: Sibling[];

@@ -10,6 +10,7 @@ import {
   EnrollmentTable,
   LocationTable,
   ScheduleTable,
+  SessionTable,
   TeacherProfileTable,
   UserTable,
   ParentProfileTable,
@@ -338,12 +339,15 @@ export class StudentsService {
         cycle_end_date: ScheduleTable.cycle_end_date,
         site_id: LocationTable.id,
         site_name: LocationTable.name,
+        session_id: SessionTable.id,
+        session_name: SessionTable.name,
         teacher_id: TeacherProfileTable.id,
         teacher_name: UserTable.name,
       })
       .from(EnrollmentTable)
       .innerJoin(ScheduleTable, eq(EnrollmentTable.schedule_id, ScheduleTable.id))
       .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .leftJoin(SessionTable, eq(ScheduleTable.session_id, SessionTable.id))
       .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .where(
@@ -354,6 +358,34 @@ export class StudentsService {
         ),
       )
       .orderBy(desc(ScheduleTable.cycle_start_date), ScheduleTable.start_time);
+
+    const scheduleHistoryRows = await db
+      .select({
+        enrollment_id: EnrollmentTable.id,
+        enrolled_at: EnrollmentTable.enrolled_at,
+        ended_at: EnrollmentTable.ended_at,
+        schedule_id: ScheduleTable.id,
+        day_of_week_mask: ScheduleTable.day_of_week_mask,
+        start_time: ScheduleTable.start_time,
+        end_time: ScheduleTable.end_time,
+        cycle_start_date: ScheduleTable.cycle_start_date,
+        cycle_end_date: ScheduleTable.cycle_end_date,
+        schedule_is_active: ScheduleTable.is_active,
+        site_id: LocationTable.id,
+        site_name: LocationTable.name,
+        session_id: SessionTable.id,
+        session_name: SessionTable.name,
+        teacher_id: TeacherProfileTable.id,
+        teacher_name: UserTable.name,
+      })
+      .from(EnrollmentTable)
+      .innerJoin(ScheduleTable, eq(EnrollmentTable.schedule_id, ScheduleTable.id))
+      .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .leftJoin(SessionTable, eq(ScheduleTable.session_id, SessionTable.id))
+      .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(eq(EnrollmentTable.student_id, id))
+      .orderBy(desc(EnrollmentTable.enrolled_at));
 
     let canViewAttendance = false;
 
@@ -413,6 +445,12 @@ export class StudentsService {
         end_time: schedule.end_time,
         cycle_start_date: schedule.cycle_start_date,
         cycle_end_date: schedule.cycle_end_date,
+        session: schedule.session_id
+          ? {
+              id: schedule.session_id,
+              name: schedule.session_name || "Session",
+            }
+          : null,
         site: {
           id: schedule.site_id,
           name: schedule.site_name,
@@ -420,6 +458,35 @@ export class StudentsService {
         teacher: {
           id: schedule.teacher_id,
           name: schedule.teacher_name,
+        },
+      })),
+      schedule_history: scheduleHistoryRows.map((row) => ({
+        enrollment_id: row.enrollment_id,
+        enrolled_at: row.enrolled_at,
+        ended_at: row.ended_at,
+        is_current: row.ended_at === null,
+        schedule: {
+          id: row.schedule_id,
+          day_of_week_mask: row.day_of_week_mask,
+          start_time: row.start_time,
+          end_time: row.end_time,
+          cycle_start_date: row.cycle_start_date,
+          cycle_end_date: row.cycle_end_date,
+          is_active: row.schedule_is_active,
+          session: row.session_id
+            ? {
+                id: row.session_id,
+                name: row.session_name || "Session",
+              }
+            : null,
+          site: {
+            id: row.site_id,
+            name: row.site_name,
+          },
+          teacher: {
+            id: row.teacher_id,
+            name: row.teacher_name,
+          },
         },
       })),
       attendance_overview: attendanceOverview,

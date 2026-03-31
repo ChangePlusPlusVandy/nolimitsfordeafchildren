@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
 import {
@@ -38,6 +38,7 @@ import {
   useLocationHttpService,
   type Location,
 } from "../../locations/services/LocationHttpService";
+import { useHttpClient } from "../../../plugins/axios";
 import type { SelectChangeEvent } from "@mui/material/Select";
 
 const STEPS = ["Schedule Pattern", "Set Times", "Cycle Dates", "Review"];
@@ -50,6 +51,7 @@ export default function TeacherScheduleWizardPage() {
   const queryClient = useQueryClient();
   const teacherHttpService = useTeacherHttpService();
   const locationHttpService = useLocationHttpService();
+  const httpClient = useHttpClient();
 
   // Wizard state
   const [activeStep, setActiveStep] = useState(0);
@@ -60,6 +62,7 @@ export default function TeacherScheduleWizardPage() {
   const [selectedPattern, setSelectedPattern] = useState<"MWS" | "TThS">("MWS");
   const [customDays, setCustomDays] = useState<string[]>([]);
   const [siteId, setSiteId] = useState("");
+  const [sessionId, setSessionId] = useState("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [cycleStartDate, setCycleStartDate] = useState("");
@@ -84,6 +87,42 @@ export default function TeacherScheduleWizardPage() {
     queryFn: () => locationHttpService.queries.index(),
   });
 
+  const { data: sessionsData } = useQuery({
+    queryKey: ["sessions", "list"],
+    queryFn: async () => {
+      const response = await httpClient.get("/v1/sessions", {
+        params: { include_archived: false },
+      });
+      return response.data as {
+        items: Array<{
+          id: string;
+          name: string;
+          start_date: string;
+          end_date: string;
+          is_active: boolean;
+          is_archived: boolean;
+        }>;
+      };
+    },
+  });
+
+  const { data: currentSessionData } = useQuery({
+    queryKey: ["sessions", "current"],
+    queryFn: async () => {
+      const response = await httpClient.get("/v1/sessions/current");
+      return response.data as {
+        item: {
+          id: string;
+          name: string;
+          start_date: string;
+          end_date: string;
+          is_active: boolean;
+          is_archived: boolean;
+        } | null;
+      };
+    },
+  });
+
   const { mutate: createSchedule, isPending } = useMutation({
     mutationKey: [teacherHttpService.key, "createSchedule"],
     mutationFn: teacherHttpService.mutations.createSchedule,
@@ -101,6 +140,29 @@ export default function TeacherScheduleWizardPage() {
     teacherLocations.length > 0
       ? locations.filter((location) => teacherLocations.some((assigned) => assigned.id === location.id))
       : locations;
+  const sessions = sessionsData?.items ?? [];
+
+  useEffect(() => {
+    if (sessionId || sessions.length === 0) {
+      return;
+    }
+
+    const currentSession = currentSessionData?.item;
+    const fallbackSession = sessions.find((session) => session.is_active) || sessions[0];
+    const targetSession = currentSession || fallbackSession;
+
+    if (!targetSession) {
+      return;
+    }
+
+    setSessionId(targetSession.id);
+    if (!cycleStartDate) {
+      setCycleStartDate(targetSession.start_date);
+    }
+    if (!cycleEndDate) {
+      setCycleEndDate(targetSession.end_date);
+    }
+  }, [sessionId, sessions, currentSessionData, cycleStartDate, cycleEndDate]);
 
   // Calculate day mask based on selection
   const getDayMask = (): number => {
@@ -169,6 +231,7 @@ export default function TeacherScheduleWizardPage() {
     const payload: CreateScheduleInput & { teacherId: string } = {
       teacherId: teacherId!,
       site_id: siteId,
+      session_id: sessionId || undefined,
       day_of_week_mask: getDayMask(),
       start_time: startTime,
       end_time: endTime,
@@ -185,6 +248,17 @@ export default function TeacherScheduleWizardPage() {
 
   const handlePatternTypeChange = (event: SelectChangeEvent<"preset" | "custom">) => {
     setPatternType((event.target as { value: "preset" | "custom" }).value);
+  };
+
+  const handleSessionChange = (event: SelectChangeEvent<string>) => {
+    const nextSessionId = (event.target as { value: string }).value;
+    setSessionId(nextSessionId);
+
+    const session = sessions.find((item) => item.id === nextSessionId);
+    if (session) {
+      setCycleStartDate(session.start_date);
+      setCycleEndDate(session.end_date);
+    }
   };
 
   const handleStartTimeChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -275,6 +349,24 @@ export default function TeacherScheduleWizardPage() {
                 {locationOptions.map((location) => (
                   <MenuItem key={location.id} value={location.id}>
                     {location.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Session (Optional)</InputLabel>
+              <Select
+                value={sessionId}
+                label="Session (Optional)"
+                onChange={handleSessionChange}
+              >
+                <MenuItem value="">
+                  <em>No session</em>
+                </MenuItem>
+                {sessions.map((session) => (
+                  <MenuItem key={session.id} value={session.id}>
+                    {session.name} ({session.start_date} to {session.end_date})
                   </MenuItem>
                 ))}
               </Select>
@@ -457,6 +549,13 @@ export default function TeacherScheduleWizardPage() {
               <Divider />
               <ListItem>
                 <ListItemText primary="Site" secondary={selectedSite?.name || "—"} />
+              </ListItem>
+              <Divider />
+              <ListItem>
+                <ListItemText
+                  primary="Session"
+                  secondary={sessions.find((session) => session.id === sessionId)?.name || "No session"}
+                />
               </ListItem>
               <Divider />
               <ListItem>

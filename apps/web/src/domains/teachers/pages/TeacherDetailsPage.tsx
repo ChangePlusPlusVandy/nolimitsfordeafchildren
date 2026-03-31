@@ -305,6 +305,9 @@ export default function TeacherDetailsPage() {
                           {!schedule.is_active && (
                             <Chip label="Inactive" size="small" variant="outlined" />
                           )}
+                          {schedule.session?.name && (
+                            <Chip label={schedule.session.name} size="small" color="info" variant="outlined" />
+                          )}
                         </Box>
                       }
                       secondary={
