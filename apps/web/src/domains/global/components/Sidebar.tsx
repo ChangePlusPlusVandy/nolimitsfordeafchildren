@@ -20,6 +20,7 @@ import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
+import CampaignIcon from "@mui/icons-material/Campaign";
 import BadgeIcon from "@mui/icons-material/Badge";
 import PinDropIcon from "@mui/icons-material/PinDrop";
 import ForumIcon from "@mui/icons-material/Forum";
@@ -92,6 +93,12 @@ const navItems: NavItem[] = [
     text: "Photo Gallery",
     to: "/admin/photo-gallery",
     icon: <PhotoLibraryIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Bulletin Moderation",
+    to: "/admin/bulletin-moderation",
+    icon: <CampaignIcon />,
     roles: ["administrator"],
   },
 

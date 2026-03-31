@@ -414,10 +414,15 @@ export const BulletinTable = pgTable("bulletins", {
   site_id: uuid("site_id").references(() => LocationTable.id),
   scope: bulletinScopeEnum("scope").notNull().default("global"),
   role_target: bulletinRoleTargetEnum("role_target").notNull().default("all"),
+  requires_approval: boolean("requires_approval").notNull().default(false),
+  approval_status: text("approval_status").notNull().default("approved"),
   title: text("title").notNull(),
   body: text("body"),
   publish_at: timestamp("publish_at", { withTimezone: true }),
   expire_at: timestamp("expire_at", { withTimezone: true }),
+  reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
+  reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+  review_notes: text("review_notes"),
   created_by: uuid("created_by")
     .notNull()
     .references(() => UserTable.id),

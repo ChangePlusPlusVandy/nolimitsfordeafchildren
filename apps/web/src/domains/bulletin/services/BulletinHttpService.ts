@@ -2,6 +2,7 @@ import { useHttpClient } from "../../../plugins/axios";
 
 export type BulletinScope = "global" | "site";
 export type BulletinRoleTarget = "all" | "administrator" | "teacher" | "parent";
+export type BulletinApprovalStatus = "draft" | "pending" | "approved" | "rejected";
 
 export interface BulletinAttachment {
   id: string;
@@ -18,6 +19,11 @@ export interface Bulletin {
   site_id: string | null;
   scope: BulletinScope;
   role_target: BulletinRoleTarget;
+  requires_approval: boolean;
+  approval_status: BulletinApprovalStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
   title: string;
   body: string | null;
   publish_at: string | null;
@@ -110,6 +116,7 @@ export interface CreateBulletinInput {
   scope: BulletinScope;
   site_id?: string | null;
   role_target: BulletinRoleTarget;
+  requires_approval?: boolean;
   publish_at?: string | null;
   expire_at?: string | null;
 }
@@ -120,8 +127,16 @@ export interface UpdateBulletinInput {
   scope?: BulletinScope;
   site_id?: string | null;
   role_target?: BulletinRoleTarget;
+  requires_approval?: boolean;
+  approval_status?: BulletinApprovalStatus;
+  review_notes?: string | null;
   publish_at?: string | null;
   expire_at?: string | null;
+}
+
+export interface ReviewBulletinInput {
+  status: "approved" | "rejected";
+  notes?: string;
 }
 
 export interface AddAttachmentInput {
@@ -161,6 +176,16 @@ export function useBulletinHttpService() {
 
       acknowledgementStats: async (id: string): Promise<BulletinAcknowledgementStats> => {
         const response = await httpClient.get(`/v1/bulletins/${id}/acknowledgements`);
+        return response.data;
+      },
+
+      pending: async (): Promise<{ items: Bulletin[] }> => {
+        const response = await httpClient.get(`/v1/bulletins/moderation/pending`);
+        return response.data;
+      },
+
+      moderationList: async (): Promise<{ items: Bulletin[] }> => {
+        const response = await httpClient.get(`/v1/bulletins/moderation/pending`);
         return response.data;
       },
     },
@@ -226,6 +251,16 @@ export function useBulletinHttpService() {
         payload: AcknowledgeBulletinInput,
       ): Promise<BulletinAcknowledgement> => {
         const response = await httpClient.post(`/v1/bulletins/${bulletinId}/acknowledge`, payload);
+        return response.data;
+      },
+
+      review: async (id: string, payload: ReviewBulletinInput): Promise<Bulletin> => {
+        const response = await httpClient.patch(`/v1/bulletins/${id}/review`, payload);
+        return response.data;
+      },
+
+      moderate: async (id: string, payload: ReviewBulletinInput): Promise<Bulletin> => {
+        const response = await httpClient.patch(`/v1/bulletins/${id}/review`, payload);
         return response.data;
       },
     },

@@ -63,6 +63,7 @@ export default function CreateBulletinModal({
   const [scope, setScope] = useState<BulletinScope>("global");
   const [siteId, setSiteId] = useState<string>("");
   const [roleTarget, setRoleTarget] = useState<BulletinRoleTarget>("all");
+  const [requiresApproval, setRequiresApproval] = useState(false);
   const [publishAt, setPublishAt] = useState<string>("");
   const [expireAt, setExpireAt] = useState<string>("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -121,6 +122,7 @@ export default function CreateBulletinModal({
     setScope("global");
     setSiteId("");
     setRoleTarget("all");
+    setRequiresApproval(false);
     setPublishAt("");
     setExpireAt("");
     setPendingAttachments([]);
@@ -203,6 +205,7 @@ export default function CreateBulletinModal({
       scope,
       site_id: scope === "site" ? siteId : null,
       role_target: roleTarget,
+      requires_approval: requiresApproval,
       publish_at: publishAt || null,
       expire_at: expireAt || null,
     };
@@ -288,6 +291,18 @@ export default function CreateBulletinModal({
                 <MenuItem value="administrator">Administrators Only</MenuItem>
                 <MenuItem value="teacher">Teachers Only</MenuItem>
                 <MenuItem value="parent">Parents Only</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl sx={{ minWidth: 220 }}>
+              <InputLabel>Moderation</InputLabel>
+              <Select
+                value={requiresApproval ? "approval" : "direct"}
+                label="Moderation"
+                onChange={(e) => setRequiresApproval(e.target.value === "approval")}
+              >
+                <MenuItem value="direct">Publish Directly</MenuItem>
+                <MenuItem value="approval">Require Admin Approval</MenuItem>
               </Select>
             </FormControl>
 
