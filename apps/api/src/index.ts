@@ -162,6 +162,14 @@ import {
   GetParentScheduleChangeRequestsController,
 } from "./domains/schedule-changes/endpoints/ScheduleChangeController";
 
+// Chat Controllers
+import {
+  GetChatMessagesController,
+  PostChatMessageController,
+  PatchChatMessageAnnouncementController,
+  DeleteChatMessageController,
+} from "./domains/chat/endpoints/ChatController";
+
 import { ProfilesController } from "./domains/profiles/endpoints/ProfilesController";
 import { SchedulesController } from "./domains/schedules/endpoints/SchedulesController";
 import { SitesController } from "./domains/sites/endpoints/SitesController";
@@ -320,6 +328,12 @@ export function buildApplication() {
       PatchScheduleChangeTeacherResponseController,
       GetAvailableSchedulesController,
       GetParentScheduleChangeRequestsController,
+
+      // Chat
+      GetChatMessagesController,
+      PostChatMessageController,
+      PatchChatMessageAnnouncementController,
+      DeleteChatMessageController,
 
       // Users
       GetUsersController,

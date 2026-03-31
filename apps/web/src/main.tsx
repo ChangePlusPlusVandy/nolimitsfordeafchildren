@@ -35,6 +35,7 @@ import MakeupSessionsPage from "./domains/teachers/pages/MakeupSessionsPage.tsx"
 import MyDayPage from "./domains/teachers/pages/MyDayPage.tsx";
 import NewTeacherPage from "./domains/teachers/pages/NewTeacherPage.tsx";
 import TeacherScheduleChangeRequestsPage from "./domains/teachers/pages/TeacherScheduleChangeRequestsPage.tsx";
+import TeacherChatPage from "./domains/teachers/pages/TeacherChatPage.tsx";
 import TeacherDetailsPage from "./domains/teachers/pages/TeacherDetailsPage.tsx";
 import TeacherScheduleWizardPage from "./domains/teachers/pages/TeacherScheduleWizardPage.tsx";
 import TeacherStudentDetailsPage from "./domains/teachers/pages/TeacherStudentDetailsPage.tsx";
@@ -73,6 +74,14 @@ createRoot(document.getElementById("root")!).render(
                         element={
                           <RoleGuard allowedRoles={["teacher"]}>
                             <MyDayPage />
+                          </RoleGuard>
+                        }
+                      />
+                      <Route
+                        path="/chat"
+                        element={
+                          <RoleGuard allowedRoles={["administrator", "teacher"]}>
+                            <TeacherChatPage />
                           </RoleGuard>
                         }
                       />

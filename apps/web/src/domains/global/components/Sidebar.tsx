@@ -22,6 +22,7 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import BadgeIcon from "@mui/icons-material/Badge";
 import PinDropIcon from "@mui/icons-material/PinDrop";
+import ForumIcon from "@mui/icons-material/Forum";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
@@ -98,6 +99,12 @@ const navItems: NavItem[] = [
     to: "/teachers/schedule-change-requests",
     icon: <SwapHorizIcon />,
     roles: ["teacher"],
+  },
+  {
+    text: "Staff Chat",
+    to: "/chat",
+    icon: <ForumIcon />,
+    roles: ["teacher", "administrator"],
   },
 
   // Parent items
