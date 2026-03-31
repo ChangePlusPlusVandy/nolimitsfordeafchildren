@@ -24,6 +24,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useStudentHttpService, type UpdateStudentInput } from "../services/StudentHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
 import { useToast } from "../../global/components/ToastProvider";
+import { useAuth } from "../../../auth";
 
 type FormData = {
   site_id: string;
@@ -44,6 +45,7 @@ export default function EditStudentPage() {
   const studentHttpService = useStudentHttpService();
   const locationHttpService = useLocationHttpService();
   const toast = useToast();
+  const { isAdmin, isTeacher } = useAuth();
 
   const [formData, setFormData] = useState<FormData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export default function EditStudentPage() {
         first_name: student.first_name,
         last_name: student.last_name,
         initials: student.initials,
-        dob: student.dob.split("T")[0], // Format for date input
+        dob: student.dob.split("T")[0] ?? student.dob, // Format for date input
         current_school: student.current_school || "",
         preferred_language: student.preferred_language || "",
         guardian_summary: student.guardian_summary || "",
@@ -106,7 +108,7 @@ export default function EditStudentPage() {
         prev
           ? {
               ...prev,
-              [field]: event.target.value,
+              [field]: (event.target as any).value,
             }
           : null,
       );
@@ -119,7 +121,7 @@ export default function EditStudentPage() {
         prev
           ? {
               ...prev,
-              [field]: event.target.checked,
+              [field]: (event.target as any).checked,
             }
           : null,
       );
@@ -157,9 +159,12 @@ export default function EditStudentPage() {
       dob: formData.dob,
       current_school: formData.current_school.trim() || undefined,
       preferred_language: formData.preferred_language.trim() || undefined,
-      guardian_summary: formData.guardian_summary.trim() || undefined,
       is_active: formData.is_active,
     };
+
+    if (isAdmin) {
+      payload.guardian_summary = formData.guardian_summary.trim() || undefined;
+    }
 
     mutate(payload);
   };
@@ -360,6 +365,16 @@ export default function EditStudentPage() {
                 multiline
                 rows={3}
                 placeholder="Brief notes about the student's guardians..."
+                InputProps={{
+                  readOnly: !isAdmin,
+                }}
+                helperText={
+                  isAdmin
+                    ? undefined
+                    : isTeacher
+                      ? "Teachers can update guardian summary from Teacher Student Details."
+                      : "Guardian summary can only be edited by staff."
+                }
               />
             </Box>
           </CardContent>
