@@ -57,7 +57,7 @@ export interface ChildScheduleSession {
     id: string;
     name: string;
   };
-  attendance_status?: "present" | "no_show" | "cancelled" | null;
+  attendance_status?: "present" | "late" | "no_show" | "cancelled" | null;
 }
 
 export interface ChildDetails {

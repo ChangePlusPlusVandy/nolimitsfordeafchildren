@@ -121,7 +121,7 @@ export interface Schedule {
   updated_at: string;
 }
 
-export type AttendanceStatus = "present" | "no_show" | "cancelled";
+export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
 export type AbsenceReason =
   | "sick"
   | "family_emergency"
@@ -143,6 +143,7 @@ export interface SessionForDay {
   attendance?: {
     id: string;
     status: AttendanceStatus;
+    late_minutes?: number | null;
     reason: AbsenceReason | null;
     reason_text: string | null;
     marked_at: string;

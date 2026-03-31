@@ -54,7 +54,7 @@ import UploadDocumentModal from "./UploadDocumentModal";
 import DocumentList from "../components/DocumentList";
 import { useHttpClient } from "../../../plugins/axios";
 
-type AttendanceStatus = "present" | "no_show" | "cancelled";
+type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
 type AbsenceReason =
   | "sick"
   | "family_emergency"
@@ -90,6 +90,7 @@ export default function StudentDetailsPage() {
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [editingAttendanceId, setEditingAttendanceId] = useState<string | null>(null);
   const [editingAttendanceStatus, setEditingAttendanceStatus] = useState<AttendanceStatus>("present");
+  const [editingAttendanceLateMinutes, setEditingAttendanceLateMinutes] = useState(10);
   const [editingAttendanceReason, setEditingAttendanceReason] = useState<AbsenceReason | "">("");
   const [editingAttendanceReasonText, setEditingAttendanceReasonText] = useState("");
 
@@ -148,11 +149,13 @@ export default function StudentDetailsPage() {
     mutationFn: async (payload: {
       id: string;
       status: AttendanceStatus;
+      late_minutes?: number | null;
       reason?: AbsenceReason;
       reason_text?: string;
     }) => {
       const response = await httpClient.patch(`/v1/attendance/${payload.id}`, {
         status: payload.status,
+        late_minutes: payload.late_minutes ?? null,
         reason: payload.reason ?? null,
         reason_text: payload.reason_text ?? null,
       });
@@ -163,6 +166,7 @@ export default function StudentDetailsPage() {
       setAttendanceDialogOpen(false);
       setEditingAttendanceId(null);
       setEditingAttendanceStatus("present");
+      setEditingAttendanceLateMinutes(10);
       setEditingAttendanceReason("");
       setEditingAttendanceReasonText("");
       toast.success("Attendance updated");
@@ -195,6 +199,7 @@ export default function StudentDetailsPage() {
   const openAttendanceDialog = (entry: {
     id: string;
     status: AttendanceStatus;
+    late_minutes: number | null;
     reason:
       | "sick"
       | "family_emergency"
@@ -207,6 +212,7 @@ export default function StudentDetailsPage() {
   }) => {
     setEditingAttendanceId(entry.id);
     setEditingAttendanceStatus(entry.status);
+    setEditingAttendanceLateMinutes(entry.late_minutes ?? 10);
     setEditingAttendanceReason(entry.reason || "");
     setEditingAttendanceReasonText(entry.reason_text || "");
     setAttendanceDialogOpen(true);
@@ -217,7 +223,8 @@ export default function StudentDetailsPage() {
       return;
     }
 
-    const requiresReason = editingAttendanceStatus !== "present";
+    const requiresReason =
+      editingAttendanceStatus === "no_show" || editingAttendanceStatus === "cancelled";
     if (requiresReason && !editingAttendanceReason) {
       return;
     }
@@ -229,6 +236,7 @@ export default function StudentDetailsPage() {
     patchAttendanceMutation.mutate({
       id: editingAttendanceId,
       status: editingAttendanceStatus,
+      late_minutes: editingAttendanceStatus === "late" ? editingAttendanceLateMinutes : undefined,
       reason: requiresReason ? (editingAttendanceReason as AbsenceReason) : undefined,
       reason_text:
         editingAttendanceReason === "other" ? editingAttendanceReasonText.trim() : undefined,
@@ -266,10 +274,12 @@ export default function StudentDetailsPage() {
 
   const attendanceOverview = student.attendance_overview;
 
-  const attendanceStatusColor = (status: "present" | "no_show" | "cancelled") => {
+  const attendanceStatusColor = (status: "present" | "late" | "no_show" | "cancelled") => {
     switch (status) {
       case "present":
         return "success";
+      case "late":
+        return "warning";
       case "no_show":
         return "error";
       case "cancelled":
@@ -604,6 +614,7 @@ export default function StudentDetailsPage() {
                 }}
               >
                 <Chip label={`Present: ${attendanceOverview.present}`} color="success" size="small" />
+                <Chip label={`Late: ${attendanceOverview.late}`} color="warning" size="small" />
                 <Chip label={`No-show: ${attendanceOverview.no_show}`} color="error" size="small" />
                 <Chip label={`Cancelled: ${attendanceOverview.cancelled}`} size="small" />
               </Box>
@@ -629,6 +640,7 @@ export default function StudentDetailsPage() {
                                 sx={{ mr: 1, textTransform: "capitalize" }}
                               />
                               {entry.reason && `Reason: ${entry.reason.replace(/_/g, " ")}`}
+                              {entry.late_minutes && `Late by ${entry.late_minutes} min`}
                               {entry.reason_text && ` (${entry.reason_text})`}
                               {entry.marked_by && (
                                 <>
@@ -718,22 +730,48 @@ export default function StudentDetailsPage() {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
             <FormControl fullWidth>
               <InputLabel>Status</InputLabel>
-              <Select
-                value={editingAttendanceStatus}
-                label="Status"
-                onChange={(event) =>
-                  setEditingAttendanceStatus(
-                    (event.target as unknown as { value: AttendanceStatus }).value,
-                  )
-                }
-              >
-                <MenuItem value="present">Present</MenuItem>
-                <MenuItem value="no_show">No Show</MenuItem>
-                <MenuItem value="cancelled">Cancelled</MenuItem>
-              </Select>
-            </FormControl>
+                <Select
+                  value={editingAttendanceStatus}
+                  label="Status"
+                  onChange={(event) => {
+                    const value = (event.target as unknown as { value: AttendanceStatus }).value;
+                    setEditingAttendanceStatus(value);
+                    if (value !== "late") {
+                      setEditingAttendanceLateMinutes(10);
+                    }
+                    if (value === "present" || value === "late") {
+                      setEditingAttendanceReason("");
+                      setEditingAttendanceReasonText("");
+                    }
+                  }}
+                >
+                  <MenuItem value="present">Present</MenuItem>
+                  <MenuItem value="late">Late</MenuItem>
+                  <MenuItem value="no_show">No Show</MenuItem>
+                  <MenuItem value="cancelled">Cancelled</MenuItem>
+                </Select>
+              </FormControl>
 
-            {editingAttendanceStatus !== "present" && (
+            {editingAttendanceStatus === "late" && (
+              <FormControl fullWidth>
+                <InputLabel>Late By</InputLabel>
+                <Select
+                  value={String(editingAttendanceLateMinutes)}
+                  label="Late By"
+                  onChange={(event) =>
+                    setEditingAttendanceLateMinutes(
+                      Number((event.target as unknown as { value: string }).value),
+                    )
+                  }
+                >
+                  <MenuItem value="10">10 minutes</MenuItem>
+                  <MenuItem value="15">15 minutes</MenuItem>
+                  <MenuItem value="30">30 minutes</MenuItem>
+                </Select>
+              </FormControl>
+            )}
+
+            {(editingAttendanceStatus === "no_show" || editingAttendanceStatus === "cancelled") && (
               <FormControl fullWidth>
                 <InputLabel>Reason</InputLabel>
                 <Select
@@ -776,7 +814,8 @@ export default function StudentDetailsPage() {
             onClick={handleAttendanceUpdate}
             disabled={
               patchAttendanceMutation.isPending ||
-              (editingAttendanceStatus !== "present" && !editingAttendanceReason) ||
+              ((editingAttendanceStatus === "no_show" || editingAttendanceStatus === "cancelled") &&
+                !editingAttendanceReason) ||
               (editingAttendanceReason === "other" && !editingAttendanceReasonText.trim())
             }
           >

@@ -41,7 +41,7 @@ interface MakeupSession {
   };
   scheduled_date: string;
   scheduled_time: string;
-  attendance_status: "pending" | "present" | "no_show" | null;
+  attendance_status: "pending" | "present" | "late" | "no_show" | null;
   notes: string | null;
   makeup_request?: {
     id: string;
@@ -72,10 +72,12 @@ function formatReason(reason: string): string {
   return reason.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function getAttendanceColor(status: string | null): "default" | "success" | "error" {
+function getAttendanceColor(status: string | null): "default" | "success" | "warning" | "error" {
   switch (status) {
     case "present":
       return "success";
+    case "late":
+      return "warning";
     case "no_show":
       return "error";
     default:
@@ -89,7 +91,7 @@ function MakeupSessionCard({
   isLoading,
 }: {
   session: MakeupSession;
-  onMarkAttendance: (sessionId: string, status: "present" | "no_show") => void;
+  onMarkAttendance: (sessionId: string, status: "present" | "late" | "no_show") => void;
   isLoading: boolean;
 }) {
   const attendanceMarked = session.attendance_status && session.attendance_status !== "pending";
@@ -126,8 +128,14 @@ function MakeupSessionCard({
 
             {attendanceMarked && (
               <Chip
-                icon={session.attendance_status === "present" ? <PresentIcon /> : <NoShowIcon />}
-                label={session.attendance_status === "present" ? "Present" : "No Show"}
+                icon={session.attendance_status === "no_show" ? <NoShowIcon /> : <PresentIcon />}
+                label={
+                  session.attendance_status === "present"
+                    ? "Present"
+                    : session.attendance_status === "late"
+                      ? "Late"
+                      : "No Show"
+                }
                 color={getAttendanceColor(session.attendance_status)}
                 size="small"
               />
@@ -182,6 +190,13 @@ function MakeupSessionCard({
                   disabled={isLoading}
                 >
                   Present
+                </Button>
+                <Button
+                  color="warning"
+                  onClick={() => onMarkAttendance(session.id, "late")}
+                  disabled={isLoading}
+                >
+                  Late
                 </Button>
                 <Button
                   startIcon={<NoShowIcon />}
@@ -269,7 +284,7 @@ export default function MakeupSessionsPage() {
       status,
     }: {
       sessionId: string;
-      status: "present" | "no_show";
+      status: "present" | "late" | "no_show";
     }) => {
       const response = await httpClient.patch(`/v1/makeup-sessions/${sessionId}/attendance`, {
         status,
@@ -295,7 +310,7 @@ export default function MakeupSessionsPage() {
   const upcomingSessions = sessions.filter((s) => s.scheduled_date > selectedDate);
   const pastSessions = sessions.filter((s) => s.scheduled_date < selectedDate);
 
-  const handleMarkAttendance = (sessionId: string, status: "present" | "no_show") => {
+  const handleMarkAttendance = (sessionId: string, status: "present" | "late" | "no_show") => {
     markAttendanceMutation.mutate({ sessionId, status });
   };
 
