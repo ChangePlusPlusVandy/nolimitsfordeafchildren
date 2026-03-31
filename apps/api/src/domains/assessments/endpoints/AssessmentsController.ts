@@ -23,12 +23,22 @@ interface CreateAssessmentBody {
   assessment_type: "pre" | "post";
   teaching_focus: string;
   summary?: string;
+  focuses?: Array<{
+    goal: string;
+    score: number;
+    max_score: number;
+  }>;
   score: number;
   notes?: string;
 }
 
 interface UpdateAssessmentBody {
   teaching_focus?: string;
+  focuses?: Array<{
+    goal: string;
+    score: number;
+    max_score: number;
+  }>;
   summary?: string;
   score?: number;
   notes?: string;
@@ -90,6 +100,7 @@ export class PostStudentAssessmentsController {
       cycle_start_date: body.cycle_start_date,
       assessment_type: body.assessment_type,
       teaching_focus: body.teaching_focus,
+      focuses: body.focuses,
       summary: body.summary,
       score: body.score,
       notes: body.notes,
@@ -103,6 +114,9 @@ export class PostStudentAssessmentsController {
         throw new HttpError(409, error.message);
       }
       if (error.message.includes("Score must be")) {
+        throw new HttpError(400, error.message);
+      }
+      if (error.message.includes("teaching focus") || error.message.includes("max score")) {
         throw new HttpError(400, error.message);
       }
       throw error;
@@ -171,6 +185,9 @@ export class PatchAssessmentController {
       return assessment;
     } catch (error: any) {
       if (error.message.includes("Score must be")) {
+        throw new HttpError(400, error.message);
+      }
+      if (error.message.includes("teaching focus") || error.message.includes("max score")) {
         throw new HttpError(400, error.message);
       }
       throw error;
