@@ -53,6 +53,15 @@ export interface AssessmentCycle {
   improvement?: number;
 }
 
+export interface CloneAssessmentTemplate {
+  cycle_start_date: string;
+  assessment_type: "pre" | "post";
+  teaching_focus: string;
+  focuses: AssessmentFocusInput[];
+  score: number;
+  notes: string | null;
+}
+
 function validateAssessmentFocuses(focuses?: AssessmentFocusInput[]): AssessmentFocusInput[] {
   if (!focuses || focuses.length === 0) {
     return [];
@@ -488,6 +497,49 @@ export class AssessmentsService {
     }
 
     return result[0] ?? null;
+  }
+
+  async cloneTemplate(id: string, teacherId: string): Promise<CloneAssessmentTemplate | null> {
+    const assessment = await db
+      .select({
+        id: AssessmentTable.id,
+        cycle_start_date: AssessmentTable.cycle_start_date,
+        assessment_type: AssessmentTable.assessment_type,
+        teaching_focus: AssessmentTable.teaching_focus,
+        score: AssessmentTable.score,
+        notes: AssessmentTable.notes,
+      })
+      .from(AssessmentTable)
+      .where(and(eq(AssessmentTable.id, id), eq(AssessmentTable.teacher_id, teacherId)))
+      .limit(1);
+
+    if (assessment.length === 0) {
+      return null;
+    }
+
+    const source = assessment[0]!;
+    const focusRows = await db
+      .select()
+      .from(AssessmentFocusTable)
+      .where(eq(AssessmentFocusTable.assessment_id, id));
+
+    const focuses = focusRows
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((focus) => ({
+        goal: focus.goal,
+        score: focus.score,
+        max_score: focus.max_score,
+      }));
+
+    return {
+      cycle_start_date: source.cycle_start_date,
+      assessment_type: source.assessment_type,
+      teaching_focus: source.teaching_focus,
+      focuses,
+      score: source.score,
+      notes: source.notes,
+    };
   }
 
   /**

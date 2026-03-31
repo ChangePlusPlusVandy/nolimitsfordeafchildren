@@ -135,6 +135,38 @@ export default function AssessmentHistory({
     },
   });
 
+  const cloneMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await httpClient.get(`/v1/assessments/${id}/clone`);
+      return response.data as {
+        cycle_start_date: string;
+        assessment_type: "pre" | "post";
+        teaching_focus: string;
+        focuses: Array<{ goal: string; score: number; max_score: number }>;
+        score: number;
+        notes: string | null;
+      };
+    },
+    onSuccess: (template) => {
+      setEditingAssessment(null);
+      setCycleStartDate(template.cycle_start_date);
+      setAssessmentType(template.assessment_type === "pre" ? "post" : "pre");
+      setTeachingFocus(template.teaching_focus);
+      setScore(template.score);
+      setNotes(template.notes || "");
+      setFocuses(
+        template.focuses.length > 0
+          ? template.focuses.map((focus) => ({
+              goal: focus.goal,
+              score: focus.score,
+              max_score: focus.max_score,
+            }))
+          : [{ goal: "", score: 0, max_score: 10 }],
+      );
+      setDialogOpen(true);
+    },
+  });
+
   // Update assessment mutation
   const updateMutation = useMutation({
     mutationFn: async ({
@@ -434,6 +466,16 @@ export default function AssessmentHistory({
                                 <Typography variant="subtitle2">Pre-Assessment</Typography>
                                 {canEdit && (
                                   <Stack direction="row" spacing={0.5}>
+                                    <Button
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        cloneMutation.mutate(cycle.pre_assessment!.id);
+                                      }}
+                                      disabled={cloneMutation.isPending}
+                                    >
+                                      Clone
+                                    </Button>
                                     <IconButton
                                       size="small"
                                       onClick={(e) => {
@@ -504,6 +546,16 @@ export default function AssessmentHistory({
                                 <Typography variant="subtitle2">Post-Assessment</Typography>
                                 {canEdit && (
                                   <Stack direction="row" spacing={0.5}>
+                                    <Button
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        cloneMutation.mutate(cycle.post_assessment!.id);
+                                      }}
+                                      disabled={cloneMutation.isPending}
+                                    >
+                                      Clone
+                                    </Button>
                                     <IconButton
                                       size="small"
                                       onClick={(e) => {

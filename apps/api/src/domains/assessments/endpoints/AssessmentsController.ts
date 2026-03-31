@@ -193,6 +193,40 @@ export class PatchAssessmentController {
 }
 
 /**
+ * Clone an assessment into a reusable template payload
+ * GET /v1/assessments/:id/clone
+ */
+@Service()
+@JsonController("/v1")
+export class GetCloneAssessmentController {
+  private assessmentsService: AssessmentsService;
+  constructor() {
+    this.assessmentsService = Container.get(AssessmentsService);
+  }
+
+  @Get("/assessments/:id/clone")
+  @Authorized(["teacher"])
+  async handle(@Param("id") id: string, @CurrentUser({ required: true }) currentUser: UserEntity) {
+    const teacherProfile = await db
+      .select()
+      .from(TeacherProfileTable)
+      .where(eq(TeacherProfileTable.user_id, currentUser.id))
+      .limit(1);
+
+    if (teacherProfile.length === 0) {
+      throw new HttpError(403, "Only teachers can clone assessments");
+    }
+
+    const cloneTemplate = await this.assessmentsService.cloneTemplate(id, teacherProfile[0]!.id);
+    if (!cloneTemplate) {
+      throw new HttpError(404, "Assessment not found or you don't have permission to clone it");
+    }
+
+    return cloneTemplate;
+  }
+}
+
+/**
  * Delete an assessment
  * DELETE /v1/assessments/:id
  */

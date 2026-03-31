@@ -130,6 +130,7 @@ import {
   GetStudentAssessmentsController,
   PostStudentAssessmentsController,
   GetAssessmentController,
+  GetCloneAssessmentController,
   PatchAssessmentController,
   DeleteAssessmentController,
 } from "./domains/assessments/endpoints/AssessmentsController";
@@ -288,6 +289,7 @@ export function buildApplication() {
       GetStudentAssessmentsController,
       PostStudentAssessmentsController,
       GetAssessmentController,
+      GetCloneAssessmentController,
       PatchAssessmentController,
       DeleteAssessmentController,
 
