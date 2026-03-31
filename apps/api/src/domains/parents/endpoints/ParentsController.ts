@@ -67,3 +67,22 @@ export class GetParentsDirectoryController {
     return await this.parentsService.directory(currentUser.id);
   }
 }
+
+@Service()
+@JsonController("/v1")
+export class GetParentsZipReportController {
+  private parentsService: ParentsService;
+  constructor() {
+    this.parentsService = Container.get(ParentsService);
+  }
+
+  /**
+   * Get parent zip-code report for grant reporting
+   * GET /v1/parents/zip-report
+   */
+  @Get("/parents/zip-report")
+  @Authorized(["administrator"])
+  async handle() {
+    return await this.parentsService.zipReport();
+  }
+}

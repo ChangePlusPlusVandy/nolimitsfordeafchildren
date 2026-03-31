@@ -155,6 +155,11 @@ export const ParentProfileTable = pgTable("parent_profiles", {
     .notNull()
     .references(() => UserTable.id)
     .unique(),
+  address_line1: text("address_line1"),
+  address_line2: text("address_line2"),
+  city: text("city"),
+  state: text("state"),
+  postal_code: text("postal_code"),
   household_notes: text("household_notes"),
   preferred_contact_method: text("preferred_contact_method").notNull().default("email"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
