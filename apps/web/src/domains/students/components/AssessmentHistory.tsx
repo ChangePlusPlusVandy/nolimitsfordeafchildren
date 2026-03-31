@@ -42,6 +42,7 @@ interface Assessment {
   cycle_start_date: string;
   assessment_type: "pre" | "post";
   teaching_focus: string;
+  focuses?: AssessmentFocus[];
   score: number;
   notes: string | null;
   assessed_at: string;
@@ -51,6 +52,14 @@ interface Assessment {
     id: string;
     name: string;
   };
+}
+
+interface AssessmentFocus {
+  id?: string;
+  goal: string;
+  score: number;
+  max_score: number;
+  sort_order?: number;
 }
 
 interface AssessmentCycle {
@@ -96,6 +105,7 @@ export default function AssessmentHistory({
   const [teachingFocus, setTeachingFocus] = useState("");
   const [score, setScore] = useState(10);
   const [notes, setNotes] = useState("");
+  const [focuses, setFocuses] = useState<AssessmentFocus[]>([{ goal: "", score: 0, max_score: 10 }]);
 
   // Fetch assessments
   const { data, isLoading, error } = useQuery({
@@ -112,6 +122,7 @@ export default function AssessmentHistory({
       cycle_start_date: string;
       assessment_type: "pre" | "post";
       teaching_focus: string;
+      focuses?: AssessmentFocus[];
       score: number;
       notes?: string;
     }) => {
@@ -131,7 +142,7 @@ export default function AssessmentHistory({
       data,
     }: {
       id: string;
-      data: { teaching_focus?: string; score?: number; notes?: string };
+      data: { teaching_focus?: string; focuses?: AssessmentFocus[]; score?: number; notes?: string };
     }) => {
       const response = await httpClient.patch(`/v1/assessments/${id}`, data);
       return response.data;
@@ -160,17 +171,30 @@ export default function AssessmentHistory({
       setTeachingFocus(assessment.teaching_focus);
       setScore(assessment.score);
       setNotes(assessment.notes || "");
+      setFocuses(
+        assessment.focuses && assessment.focuses.length > 0
+          ? assessment.focuses
+              .slice()
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .map((focus) => ({
+                goal: focus.goal,
+                score: focus.score,
+                max_score: focus.max_score,
+              }))
+          : [{ goal: assessment.teaching_focus || "", score: assessment.score, max_score: 20 }],
+      );
     } else {
       setEditingAssessment(null);
       // Default to today's Monday as cycle start
       const today = new Date();
       const monday = new Date(today);
       monday.setDate(today.getDate() - today.getDay() + 1);
-      setCycleStartDate(monday.toISOString().split("T")[0]);
+      setCycleStartDate(monday.toISOString().split("T")[0] ?? "");
       setAssessmentType("pre");
       setTeachingFocus("");
       setScore(10);
       setNotes("");
+      setFocuses([{ goal: "", score: 0, max_score: 10 }]);
     }
     setDialogOpen(true);
   };
@@ -183,17 +207,40 @@ export default function AssessmentHistory({
     setTeachingFocus("");
     setScore(10);
     setNotes("");
+    setFocuses([{ goal: "", score: 0, max_score: 10 }]);
   };
 
+  const sanitizedFocuses = focuses
+    .map((focus) => ({
+      goal: focus.goal.trim(),
+      score: Number(focus.score),
+      max_score: Number(focus.max_score),
+    }))
+    .filter((focus) => focus.goal.length > 0);
+
+  const hasInvalidFocuses = sanitizedFocuses.some(
+    (focus) => focus.max_score <= 0 || focus.score < 0 || focus.score > focus.max_score,
+  );
+
+  const legacyTeachingFocus =
+    sanitizedFocuses.length > 0 ? sanitizedFocuses.map((focus) => focus.goal).join(" | ") : teachingFocus;
+  const totalFocusScore = sanitizedFocuses.reduce((sum, focus) => sum + focus.score, 0);
+  const totalFocusMaxScore = sanitizedFocuses.reduce((sum, focus) => sum + focus.max_score, 0);
+  const legacyScore =
+    sanitizedFocuses.length > 0 && totalFocusMaxScore > 0
+      ? Math.round((totalFocusScore / totalFocusMaxScore) * 20)
+      : score;
+
   const handleSave = () => {
-    if (!teachingFocus.trim() || !cycleStartDate) return;
+    if (!cycleStartDate || hasInvalidFocuses || sanitizedFocuses.length === 0) return;
 
     if (editingAssessment) {
       updateMutation.mutate({
         id: editingAssessment.id,
         data: {
-          teaching_focus: teachingFocus,
-          score,
+          teaching_focus: legacyTeachingFocus,
+          focuses: sanitizedFocuses,
+          score: legacyScore,
           notes: notes || undefined,
         },
       });
@@ -201,15 +248,20 @@ export default function AssessmentHistory({
       createMutation.mutate({
         cycle_start_date: cycleStartDate,
         assessment_type: assessmentType,
-        teaching_focus: teachingFocus,
-        score,
+        teaching_focus: legacyTeachingFocus,
+        focuses: sanitizedFocuses,
+        score: legacyScore,
         notes: notes || undefined,
       });
     }
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this assessment?")) {
+    const confirmed = (
+      globalThis as unknown as { confirm?: (message?: string) => boolean }
+    ).confirm?.("Are you sure you want to delete this assessment?");
+
+    if (confirmed !== false) {
       deleteMutation.mutate(id);
     }
   };
@@ -407,6 +459,16 @@ export default function AssessmentHistory({
                               <Typography variant="body2">
                                 <strong>Focus:</strong> {cycle.pre_assessment.teaching_focus}
                               </Typography>
+                              {cycle.pre_assessment.focuses && cycle.pre_assessment.focuses.length > 0 && (
+                                <Box sx={{ mt: 1 }}>
+                                  {cycle.pre_assessment.focuses.map((focus, focusIndex) => (
+                                    <Typography key={`${cycle.pre_assessment?.id}-focus-${focusIndex}`} variant="body2">
+                                      <strong>Goal {focusIndex + 1}:</strong> {focus.goal} ({focus.score}/
+                                      {focus.max_score})
+                                    </Typography>
+                                  ))}
+                                </Box>
+                              )}
                               <Typography variant="body2">
                                 <strong>Score:</strong> {cycle.pre_assessment.score}/20
                               </Typography>
@@ -467,6 +529,16 @@ export default function AssessmentHistory({
                               <Typography variant="body2">
                                 <strong>Focus:</strong> {cycle.post_assessment.teaching_focus}
                               </Typography>
+                              {cycle.post_assessment.focuses && cycle.post_assessment.focuses.length > 0 && (
+                                <Box sx={{ mt: 1 }}>
+                                  {cycle.post_assessment.focuses.map((focus, focusIndex) => (
+                                    <Typography key={`${cycle.post_assessment?.id}-focus-${focusIndex}`} variant="body2">
+                                      <strong>Goal {focusIndex + 1}:</strong> {focus.goal} ({focus.score}/
+                                      {focus.max_score})
+                                    </Typography>
+                                  ))}
+                                </Box>
+                              )}
                               <Typography variant="body2">
                                 <strong>Score:</strong> {cycle.post_assessment.score}/20
                               </Typography>
@@ -535,7 +607,9 @@ export default function AssessmentHistory({
               label="Cycle Start Date"
               type="date"
               value={cycleStartDate}
-              onChange={(e) => setCycleStartDate(e.target.value)}
+              onChange={(e) =>
+                setCycleStartDate((e.target as unknown as { value: string }).value)
+              }
               disabled={!!editingAssessment}
               InputLabelProps={{ shrink: true }}
               fullWidth
@@ -545,7 +619,9 @@ export default function AssessmentHistory({
               select
               label="Assessment Type"
               value={assessmentType}
-              onChange={(e) => setAssessmentType(e.target.value as "pre" | "post")}
+              onChange={(e) =>
+                setAssessmentType((e.target as unknown as { value: "pre" | "post" }).value)
+              }
               disabled={!!editingAssessment}
               fullWidth
             >
@@ -555,11 +631,11 @@ export default function AssessmentHistory({
 
             <TextField
               select
-              label="Teaching Focus"
+              label="Legacy Focus Summary"
               value={teachingFocus}
-              onChange={(e) => setTeachingFocus(e.target.value)}
+              onChange={(e) => setTeachingFocus((e.target as unknown as { value: string }).value)}
               fullWidth
-              required
+              helperText="Auto-generated from focus goals below when goals are provided"
             >
               {TEACHING_FOCUS_OPTIONS.map((option) => (
                 <MenuItem key={option} value={option}>
@@ -567,6 +643,82 @@ export default function AssessmentHistory({
                 </MenuItem>
               ))}
             </TextField>
+
+            <Stack spacing={1}>
+              <Typography variant="subtitle2">Teaching Focuses (up to 4)</Typography>
+              {focuses.map((focus, index) => (
+                <Box key={`focus-${index}`} sx={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 1 }}>
+                  <TextField
+                    label={`Goal ${index + 1}`}
+                    value={focus.goal}
+                    onChange={(e) => {
+                      const next = [...focuses];
+                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
+                      next[index] = {
+                        ...current,
+                        goal: (e.target as unknown as { value: string }).value,
+                      };
+                      setFocuses(next);
+                    }}
+                    fullWidth
+                  />
+                  <TextField
+                    type="number"
+                    label="Score"
+                    value={focus.score}
+                    onChange={(e) => {
+                      const next = [...focuses];
+                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
+                      next[index] = {
+                        ...current,
+                        score: Number((e.target as unknown as { value: string }).value),
+                      };
+                      setFocuses(next);
+                    }}
+                    inputProps={{ min: 0 }}
+                  />
+                  <TextField
+                    type="number"
+                    label="Max"
+                    value={focus.max_score}
+                    onChange={(e) => {
+                      const next = [...focuses];
+                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
+                      next[index] = {
+                        ...current,
+                        max_score: Number((e.target as unknown as { value: string }).value),
+                      };
+                      setFocuses(next);
+                    }}
+                    inputProps={{ min: 1 }}
+                  />
+                  <Button
+                    color="error"
+                    onClick={() => {
+                      if (focuses.length === 1) {
+                        setFocuses([{ goal: "", score: 0, max_score: 10 }]);
+                        return;
+                      }
+                      setFocuses(focuses.filter((_, focusIndex) => focusIndex !== index));
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </Box>
+              ))}
+              <Box>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    if (focuses.length >= 4) return;
+                    setFocuses([...focuses, { goal: "", score: 0, max_score: 10 }]);
+                  }}
+                  disabled={focuses.length >= 4}
+                >
+                  Add Focus
+                </Button>
+              </Box>
+            </Stack>
 
             <Box>
               <Typography gutterBottom>Score: {score}/20</Typography>
@@ -590,7 +742,7 @@ export default function AssessmentHistory({
             <TextField
               label="Notes (optional)"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => setNotes((e.target as unknown as { value: string }).value)}
               multiline
               rows={3}
               fullWidth
@@ -603,8 +755,9 @@ export default function AssessmentHistory({
             variant="contained"
             onClick={handleSave}
             disabled={
-              !teachingFocus.trim() ||
               !cycleStartDate ||
+              sanitizedFocuses.length === 0 ||
+              hasInvalidFocuses ||
               createMutation.isPending ||
               updateMutation.isPending
             }

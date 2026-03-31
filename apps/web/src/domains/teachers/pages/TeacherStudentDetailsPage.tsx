@@ -54,6 +54,13 @@ interface Assessment {
   id: string;
   assessment_type: "pre" | "post";
   teaching_focus: string;
+  focuses?: Array<{
+    id?: string;
+    goal: string;
+    score: number;
+    max_score: number;
+    sort_order?: number;
+  }>;
   score: number;
   notes: string | null;
   assessed_at: string;
@@ -107,6 +114,9 @@ export default function TeacherStudentDetailsPage() {
   const [assessmentType, setAssessmentType] = useState<"pre" | "post">("pre");
   const [assessmentCycleStartDate, setAssessmentCycleStartDate] = useState("");
   const [assessmentFocus, setAssessmentFocus] = useState("");
+  const [assessmentFocuses, setAssessmentFocuses] = useState<
+    Array<{ goal: string; score: number; max_score: number }>
+  >([{ goal: "", score: 0, max_score: 10 }]);
   const [assessmentScore, setAssessmentScore] = useState("10");
   const [assessmentNotes, setAssessmentNotes] = useState("");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -185,10 +195,22 @@ export default function TeacherStudentDetailsPage() {
 
   const createAssessmentMutation = useMutation({
     mutationFn: async () => {
+      const normalizedFocuses = assessmentFocuses
+        .map((focus) => ({
+          goal: focus.goal.trim(),
+          score: Number(focus.score),
+          max_score: Number(focus.max_score),
+        }))
+        .filter((focus) => focus.goal.length > 0);
+
       const response = await httpClient.post(`/v1/students/${id}/assessments`, {
         cycle_start_date: assessmentCycleStartDate,
         assessment_type: assessmentType,
-        teaching_focus: assessmentFocus,
+        teaching_focus:
+          normalizedFocuses.length > 0
+            ? normalizedFocuses.map((focus) => focus.goal).join(" | ")
+            : assessmentFocus,
+        focuses: normalizedFocuses,
         score: Number.parseInt(assessmentScore, 10),
         notes: assessmentNotes || undefined,
       });
@@ -200,6 +222,7 @@ export default function TeacherStudentDetailsPage() {
       setAssessmentType("pre");
       setAssessmentCycleStartDate("");
       setAssessmentFocus("");
+      setAssessmentFocuses([{ goal: "", score: 0, max_score: 10 }]);
       setAssessmentScore("10");
       setAssessmentNotes("");
     },
@@ -469,6 +492,13 @@ export default function TeacherStudentDetailsPage() {
                                 Improvement: {cycle.improvement > 0 ? `+${cycle.improvement}` : cycle.improvement}
                               </Typography>
                             )}
+                            {(cycle.post_assessment?.focuses?.length || cycle.pre_assessment?.focuses?.length) && (
+                              <Typography component="div" variant="body2" sx={{ mt: 0.5 }}>
+                                Focuses: {(cycle.post_assessment?.focuses || cycle.pre_assessment?.focuses || [])
+                                  .map((focus) => `${focus.goal} (${focus.score}/${focus.max_score})`)
+                                  .join("; ")}
+                              </Typography>
+                            )}
                           </>
                         }
                       />
@@ -607,7 +637,88 @@ export default function TeacherStudentDetailsPage() {
               onChange={(event) =>
                 setAssessmentFocus((event.target as unknown as { value: string }).value)
               }
+              helperText="Used as a fallback summary when no detailed focuses are entered"
             />
+
+            <Stack spacing={1}>
+              <Typography variant="subtitle2">Teaching Focuses (up to 4)</Typography>
+              {assessmentFocuses.map((focus, index) => (
+                <Box key={`teacher-focus-${index}`} sx={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 1 }}>
+                  <TextField
+                    label={`Goal ${index + 1}`}
+                    value={focus.goal}
+                    onChange={(event) => {
+                      const next = [...assessmentFocuses];
+                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
+                      next[index] = {
+                        ...current,
+                        goal: (event.target as unknown as { value: string }).value,
+                      };
+                      setAssessmentFocuses(next);
+                    }}
+                  />
+                  <TextField
+                    type="number"
+                    label="Score"
+                    value={focus.score}
+                    onChange={(event) => {
+                      const next = [...assessmentFocuses];
+                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
+                      next[index] = {
+                        ...current,
+                        score: Number((event.target as unknown as { value: string }).value),
+                      };
+                      setAssessmentFocuses(next);
+                    }}
+                    inputProps={{ min: 0 }}
+                  />
+                  <TextField
+                    type="number"
+                    label="Max"
+                    value={focus.max_score}
+                    onChange={(event) => {
+                      const next = [...assessmentFocuses];
+                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
+                      next[index] = {
+                        ...current,
+                        max_score: Number((event.target as unknown as { value: string }).value),
+                      };
+                      setAssessmentFocuses(next);
+                    }}
+                    inputProps={{ min: 1 }}
+                  />
+                  <Button
+                    color="error"
+                    onClick={() => {
+                      if (assessmentFocuses.length === 1) {
+                        setAssessmentFocuses([{ goal: "", score: 0, max_score: 10 }]);
+                        return;
+                      }
+                      setAssessmentFocuses(
+                        assessmentFocuses.filter((_, focusIndex) => focusIndex !== index),
+                      );
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </Box>
+              ))}
+              <Box>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    if (assessmentFocuses.length >= 4) return;
+                    setAssessmentFocuses([
+                      ...assessmentFocuses,
+                      { goal: "", score: 0, max_score: 10 },
+                    ]);
+                  }}
+                  disabled={assessmentFocuses.length >= 4}
+                >
+                  Add Focus
+                </Button>
+              </Box>
+            </Stack>
 
             <TextField
               type="number"
