@@ -36,6 +36,7 @@ import { GetMeController, PatchMeController } from "./domains/me/endpoints/MeCon
 import {
   GetBulletinsController,
   GetBulletinController,
+  GetBulletinViewsController,
   PostBulletinsController,
   PatchBulletinController,
   DeleteBulletinController,
@@ -81,6 +82,7 @@ import { StudentParentsAdminController } from "./domains/students/endpoints/Stud
 // Parent Controllers
 import {
   GetParentsChildDetailController,
+  GetParentsDirectoryController,
   GetParentsMeChildrenController,
 } from "./domains/parents/endpoints/ParentsController";
 
@@ -210,6 +212,7 @@ export function buildApplication() {
       // Bulletins
       GetBulletinsController,
       GetBulletinController,
+      GetBulletinViewsController,
       PostBulletinsController,
       PatchBulletinController,
       DeleteBulletinController,
@@ -248,6 +251,7 @@ export function buildApplication() {
       // Parents
       GetParentsMeChildrenController,
       GetParentsChildDetailController,
+      GetParentsDirectoryController,
 
       // Enrollments & Attendance
       GetEnrollmentsController,

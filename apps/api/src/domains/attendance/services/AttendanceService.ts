@@ -67,6 +67,11 @@ export interface AttendanceRecentEntry {
   reason_text: string | null;
   marked_at: Date;
   schedule_id: string;
+  marked_by: {
+    id: string;
+    name: string;
+    role: "administrator" | "teacher" | "parent";
+  } | null;
 }
 
 export interface StudentAttendanceOverview {
@@ -460,15 +465,34 @@ export class AttendanceService {
         reason_text: AttendanceTable.reason_text,
         marked_at: AttendanceTable.marked_at,
         schedule_id: AttendanceTable.schedule_id,
+        marked_by_user_id: UserTable.id,
+        marked_by_user_name: UserTable.name,
+        marked_by_user_role: UserTable.role,
       })
       .from(AttendanceTable)
+      .leftJoin(UserTable, eq(AttendanceTable.marked_by, UserTable.id))
       .where(eq(AttendanceTable.student_id, studentId))
       .orderBy(desc(AttendanceTable.session_date), desc(AttendanceTable.marked_at))
       .limit(recentLimit);
 
     return {
       ...summary,
-      recent_entries: recentEntries,
+      recent_entries: recentEntries.map((entry) => ({
+        id: entry.id,
+        session_date: entry.session_date,
+        status: entry.status,
+        reason: entry.reason,
+        reason_text: entry.reason_text,
+        marked_at: entry.marked_at,
+        schedule_id: entry.schedule_id,
+        marked_by: entry.marked_by_user_id
+          ? {
+              id: entry.marked_by_user_id,
+              name: entry.marked_by_user_name!,
+              role: entry.marked_by_user_role!,
+            }
+          : null,
+      })),
     };
   }
 

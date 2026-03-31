@@ -15,6 +15,15 @@ import {
   ListItemText,
   IconButton,
   Alert,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
 } from "@mui/material";
 import { DetailPageSkeleton } from "../../global/components/skeletons";
 import { useToast } from "../../global/components/ToastProvider";
@@ -43,12 +52,32 @@ import LinkTeacherModal from "./LinkTeacherModal";
 import LinkParentModal from "./LinkParentModal";
 import UploadDocumentModal from "./UploadDocumentModal";
 import DocumentList from "../components/DocumentList";
+import { useHttpClient } from "../../../plugins/axios";
+
+type AttendanceStatus = "present" | "no_show" | "cancelled";
+type AbsenceReason =
+  | "sick"
+  | "family_emergency"
+  | "transportation"
+  | "schedule_conflict"
+  | "no_show_unknown"
+  | "other";
+
+const ABSENCE_REASON_OPTIONS: { value: AbsenceReason; label: string }[] = [
+  { value: "sick", label: "Sick" },
+  { value: "family_emergency", label: "Family Emergency" },
+  { value: "transportation", label: "Transportation" },
+  { value: "schedule_conflict", label: "Schedule Conflict" },
+  { value: "no_show_unknown", label: "No-show (Unknown)" },
+  { value: "other", label: "Other" },
+];
 
 export default function StudentDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const studentHttpService = useStudentHttpService();
+  const httpClient = useHttpClient();
   const { isAdmin, isTeacher } = useAuth();
   const toast = useToast();
 
@@ -58,6 +87,11 @@ export default function StudentDetailsPage() {
   const [linkTeacherModalOpen, setLinkTeacherModalOpen] = useState(false);
   const [linkParentModalOpen, setLinkParentModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  const [editingAttendanceId, setEditingAttendanceId] = useState<string | null>(null);
+  const [editingAttendanceStatus, setEditingAttendanceStatus] = useState<AttendanceStatus>("present");
+  const [editingAttendanceReason, setEditingAttendanceReason] = useState<AbsenceReason | "">("");
+  const [editingAttendanceReasonText, setEditingAttendanceReasonText] = useState("");
 
   // Fetch student details
   const {
@@ -110,6 +144,34 @@ export default function StudentDetailsPage() {
     },
   });
 
+  const patchAttendanceMutation = useMutation({
+    mutationFn: async (payload: {
+      id: string;
+      status: AttendanceStatus;
+      reason?: AbsenceReason;
+      reason_text?: string;
+    }) => {
+      const response = await httpClient.patch(`/v1/attendance/${payload.id}`, {
+        status: payload.status,
+        reason: payload.reason ?? null,
+        reason_text: payload.reason_text ?? null,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
+      setAttendanceDialogOpen(false);
+      setEditingAttendanceId(null);
+      setEditingAttendanceStatus("present");
+      setEditingAttendanceReason("");
+      setEditingAttendanceReasonText("");
+      toast.success("Attendance updated");
+    },
+    onError: () => {
+      toast.error("Failed to update attendance");
+    },
+  });
+
   const handleAddSibling = (data: AddSiblingInput) => {
     addSiblingMutation.mutate({ ...data, studentId: id! });
   };
@@ -128,6 +190,49 @@ export default function StudentDetailsPage() {
     if (confirmed !== false) {
       removeSiblingMutation.mutate(siblingId);
     }
+  };
+
+  const openAttendanceDialog = (entry: {
+    id: string;
+    status: AttendanceStatus;
+    reason:
+      | "sick"
+      | "family_emergency"
+      | "transportation"
+      | "schedule_conflict"
+      | "no_show_unknown"
+      | "other"
+      | null;
+    reason_text: string | null;
+  }) => {
+    setEditingAttendanceId(entry.id);
+    setEditingAttendanceStatus(entry.status);
+    setEditingAttendanceReason(entry.reason || "");
+    setEditingAttendanceReasonText(entry.reason_text || "");
+    setAttendanceDialogOpen(true);
+  };
+
+  const handleAttendanceUpdate = () => {
+    if (!editingAttendanceId) {
+      return;
+    }
+
+    const requiresReason = editingAttendanceStatus !== "present";
+    if (requiresReason && !editingAttendanceReason) {
+      return;
+    }
+
+    if (editingAttendanceReason === "other" && !editingAttendanceReasonText.trim()) {
+      return;
+    }
+
+    patchAttendanceMutation.mutate({
+      id: editingAttendanceId,
+      status: editingAttendanceStatus,
+      reason: requiresReason ? (editingAttendanceReason as AbsenceReason) : undefined,
+      reason_text:
+        editingAttendanceReason === "other" ? editingAttendanceReasonText.trim() : undefined,
+    });
   };
 
   // Calculate age from DOB
@@ -171,6 +276,12 @@ export default function StudentDetailsPage() {
       default:
         return "default";
     }
+  };
+
+  const formatRoleLabel = (role: "administrator" | "teacher" | "parent") => {
+    if (role === "administrator") return "Admin";
+    if (role === "teacher") return "Teacher";
+    return "Parent";
   };
 
   return (
@@ -519,9 +630,21 @@ export default function StudentDetailsPage() {
                               />
                               {entry.reason && `Reason: ${entry.reason.replace(/_/g, " ")}`}
                               {entry.reason_text && ` (${entry.reason_text})`}
+                              {entry.marked_by && (
+                                <>
+                                  {" "}
+                                  - Marked by {entry.marked_by.name} ({formatRoleLabel(entry.marked_by.role)}) on {" "}
+                                  {new Date(entry.marked_at).toLocaleString()}
+                                </>
+                              )}
                             </>
                           }
                         />
+                        {isAdmin && (
+                          <IconButton size="small" onClick={() => openAttendanceDialog(entry)}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </ListItem>
                     </Box>
                   ))}
@@ -583,6 +706,84 @@ export default function StudentDetailsPage() {
         studentId={id!}
         studentName={student ? `${student.first_name} ${student.last_name}` : undefined}
       />
+
+      <Dialog
+        open={attendanceDialogOpen}
+        onClose={() => setAttendanceDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Update Attendance</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={editingAttendanceStatus}
+                label="Status"
+                onChange={(event) =>
+                  setEditingAttendanceStatus(
+                    (event.target as unknown as { value: AttendanceStatus }).value,
+                  )
+                }
+              >
+                <MenuItem value="present">Present</MenuItem>
+                <MenuItem value="no_show">No Show</MenuItem>
+                <MenuItem value="cancelled">Cancelled</MenuItem>
+              </Select>
+            </FormControl>
+
+            {editingAttendanceStatus !== "present" && (
+              <FormControl fullWidth>
+                <InputLabel>Reason</InputLabel>
+                <Select
+                  value={editingAttendanceReason}
+                  label="Reason"
+                  onChange={(event) =>
+                    setEditingAttendanceReason(
+                      (event.target as unknown as { value: AbsenceReason | "" }).value,
+                    )
+                  }
+                >
+                  {ABSENCE_REASON_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {editingAttendanceReason === "other" && (
+              <TextField
+                label="Reason Details"
+                value={editingAttendanceReasonText}
+                onChange={(event) =>
+                  setEditingAttendanceReasonText(
+                    (event.target as unknown as { value: string }).value,
+                  )
+                }
+                multiline
+                minRows={2}
+              />
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAttendanceDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAttendanceUpdate}
+            disabled={
+              patchAttendanceMutation.isPending ||
+              (editingAttendanceStatus !== "present" && !editingAttendanceReason) ||
+              (editingAttendanceReason === "other" && !editingAttendanceReasonText.trim())
+            }
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

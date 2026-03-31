@@ -106,11 +106,105 @@ export interface ChildDetails {
   }>;
 }
 
+export interface DirectoryPerson {
+  id: string;
+  role: "administrator" | "teacher";
+  name: string;
+  email: string;
+  bio: string | null;
+  photo_url: string | null;
+}
+
 @Service()
 export class ParentsService {
   private attendanceService: AttendanceService;
   constructor() {
     this.attendanceService = Container.get(AttendanceService);
+  }
+
+  async directory(parentUserId: string): Promise<{ items: DirectoryPerson[] }> {
+    const parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, parentUserId))
+      .limit(1);
+
+    if (parentProfile.length === 0) {
+      return { items: [] };
+    }
+
+    const linkedSiteRows = await db
+      .select({ site_id: StudentTable.site_id })
+      .from(ParentStudentLinkTable)
+      .innerJoin(StudentTable, eq(ParentStudentLinkTable.student_id, StudentTable.id))
+      .where(
+        and(
+          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+          isNull(ParentStudentLinkTable.revoked_at),
+          eq(StudentTable.is_active, true),
+        ),
+      );
+
+    const linkedSiteIds = Array.from(
+      new Set(linkedSiteRows.map((row: { site_id: string }) => row.site_id)),
+    );
+
+    if (linkedSiteIds.length === 0) {
+      return { items: [] };
+    }
+
+    const admins = await db
+      .select({
+        id: UserTable.id,
+        role: UserTable.role,
+        name: UserTable.name,
+        email: UserTable.email,
+        bio: sql<string | null>`NULL`,
+        photo_url: sql<string | null>`NULL`,
+      })
+      .from(UserTable)
+      .where(and(eq(UserTable.role, "administrator"), eq(UserTable.is_active, true)));
+
+    const teachers = await db
+      .select({
+        id: UserTable.id,
+        role: UserTable.role,
+        name: UserTable.name,
+        email: UserTable.email,
+        bio: TeacherProfileTable.bio,
+        photo_url: TeacherProfileTable.photo_url,
+      })
+      .from(TeacherProfileTable)
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(
+        and(
+          eq(UserTable.role, "teacher"),
+          eq(UserTable.is_active, true),
+          sql`${TeacherProfileTable.primary_site_id} = ANY(${linkedSiteIds}::uuid[])`,
+        ),
+      );
+
+    const combined = [...admins, ...teachers];
+
+    const uniqueById = new Map<string, DirectoryPerson>();
+    for (const person of combined) {
+      if (person.role !== "administrator" && person.role !== "teacher") {
+        continue;
+      }
+
+      uniqueById.set(person.id, {
+        id: person.id,
+        role: person.role,
+        name: person.name,
+        email: person.email,
+        bio: person.bio,
+        photo_url: person.photo_url,
+      });
+    }
+
+    const items = Array.from(uniqueById.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+    return { items };
   }
 
   /**

@@ -20,6 +20,7 @@ import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
+import BadgeIcon from "@mui/icons-material/Badge";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
@@ -103,6 +104,12 @@ const navItems: NavItem[] = [
     text: "My Requests",
     to: "/parents/my-requests",
     icon: <ListAltIcon />,
+    roles: ["parent"],
+  },
+  {
+    text: "Directory",
+    to: "/parents/directory",
+    icon: <BadgeIcon />,
     roles: ["parent"],
   },
 

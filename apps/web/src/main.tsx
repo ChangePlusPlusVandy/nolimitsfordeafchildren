@@ -25,6 +25,7 @@ import BrowseSchedulesPage from "./domains/parents/pages/BrowseSchedulesPage.tsx
 import ChildDetailsPage from "./domains/parents/pages/ChildDetailsPage.tsx";
 import MyRequestsPage from "./domains/parents/pages/MyRequestsPage.tsx";
 import MyStudentsPage from "./domains/parents/pages/MyStudentsPage.tsx";
+import ParentDirectoryPage from "./domains/parents/pages/ParentDirectoryPage.tsx";
 import EditStudentPage from "./domains/students/pages/EditStudentPage.tsx";
 import StudentDetailsPage from "./domains/students/pages/StudentDetailsPage.tsx";
 import StudentsIndexPage from "./domains/students/pages/StudentsIndexPage.tsx";
@@ -89,6 +90,7 @@ createRoot(document.getElementById("root")!).render(
                       <Route path="/parents" element={<Navigate to="/my-students" replace />} />
                       <Route path="/my-students" element={<MyStudentsPage />} />
                       <Route path="/parents/children/:studentId" element={<ChildDetailsPage />} />
+                      <Route path="/parents/directory" element={<ParentDirectoryPage />} />
                       <Route path="/parents/schedule-change" element={<BrowseSchedulesPage />} />
                       <Route path="/parents/my-requests" element={<MyRequestsPage />} />
                       <Route path="/bulletin" element={<BulletinBoardPage />} />

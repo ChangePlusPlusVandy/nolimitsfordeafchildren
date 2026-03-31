@@ -410,6 +410,31 @@ export const BulletinAttachmentTable = pgTable("bulletin_attachments", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ---------------- BULLETIN VIEW ---------------- */
+
+export const BulletinViewTable = pgTable(
+  "bulletin_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bulletin_id: uuid("bulletin_id")
+      .notNull()
+      .references(() => BulletinTable.id),
+    user_id: uuid("user_id")
+      .notNull()
+      .references(() => UserTable.id),
+    viewed_at: timestamp("viewed_at", { withTimezone: true }).notNull().defaultNow(),
+    last_viewed_at: timestamp("last_viewed_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    bulletinViewUnique: uniqueIndex("bulletin_views_bulletin_id_user_id_idx").on(
+      table.bulletin_id,
+      table.user_id,
+    ),
+  }),
+);
+
 // ==================== MAKE-UP SYSTEM ====================
 
 /* ---------------- MAKEUP REQUEST ---------------- */
@@ -683,12 +708,24 @@ export const bulletinRelations = relations(BulletinTable, ({ one, many }) => ({
     references: [UserTable.id],
   }),
   attachments: many(BulletinAttachmentTable),
+  views: many(BulletinViewTable),
 }));
 
 export const bulletinAttachmentRelations = relations(BulletinAttachmentTable, ({ one }) => ({
   bulletin: one(BulletinTable, {
     fields: [BulletinAttachmentTable.bulletin_id],
     references: [BulletinTable.id],
+  }),
+}));
+
+export const bulletinViewRelations = relations(BulletinViewTable, ({ one }) => ({
+  bulletin: one(BulletinTable, {
+    fields: [BulletinViewTable.bulletin_id],
+    references: [BulletinTable.id],
+  }),
+  user: one(UserTable, {
+    fields: [BulletinViewTable.user_id],
+    references: [UserTable.id],
   }),
 }));
 
@@ -810,6 +847,9 @@ export type BulletinInsert = typeof BulletinTable.$inferInsert;
 
 export type BulletinAttachmentEntity = typeof BulletinAttachmentTable.$inferSelect;
 export type BulletinAttachmentInsert = typeof BulletinAttachmentTable.$inferInsert;
+
+export type BulletinViewEntity = typeof BulletinViewTable.$inferSelect;
+export type BulletinViewInsert = typeof BulletinViewTable.$inferInsert;
 
 export type MakeupRequestEntity = typeof MakeupRequestTable.$inferSelect;
 export type MakeupRequestInsert = typeof MakeupRequestTable.$inferInsert;

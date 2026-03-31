@@ -3,6 +3,7 @@ import PublicIcon from "@mui/icons-material/Public";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import ScheduleIcon from "@mui/icons-material/Schedule";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import type { Bulletin, BulletinScope, BulletinRoleTarget } from "../services/BulletinHttpService";
 
 interface BulletinCardProps {
@@ -127,6 +128,14 @@ export default function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
               {formatDate(publishDate)}
               {bulletin.created_by_name && ` by ${bulletin.created_by_name}`}
             </Typography>
+            {typeof bulletin.view_count === "number" && (
+              <Chip
+                icon={<VisibilityIcon />}
+                label={bulletin.view_count}
+                size="small"
+                variant="outlined"
+              />
+            )}
           </Box>
         </CardContent>
       </CardActionArea>

@@ -28,6 +28,28 @@ export interface Bulletin {
   attachments: BulletinAttachment[];
   created_by_name?: string;
   site_name?: string;
+  view_count?: number;
+}
+
+export interface BulletinView {
+  id: string;
+  bulletin_id: string;
+  user_id: string;
+  viewed_at: string;
+  last_viewed_at: string;
+  created_at: string;
+  updated_at: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "administrator" | "teacher" | "parent";
+  };
+}
+
+export interface BulletinViewStats {
+  count: number;
+  viewers: BulletinView[];
 }
 
 export interface ListBulletinsParams {
@@ -95,6 +117,11 @@ export function useBulletinHttpService() {
        */
       show: async (id: string): Promise<Bulletin> => {
         const response = await httpClient.get(`/v1/bulletins/${id}`);
+        return response.data;
+      },
+
+      viewStats: async (id: string): Promise<BulletinViewStats> => {
+        const response = await httpClient.get(`/v1/bulletins/${id}/views`);
         return response.data;
       },
     },
