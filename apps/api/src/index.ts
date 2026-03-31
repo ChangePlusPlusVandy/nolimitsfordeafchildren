@@ -84,6 +84,7 @@ import {
   GetParentsChildDetailController,
   GetParentsDirectoryController,
   GetParentsMeChildrenController,
+  GetParentsZipReportController,
 } from "./domains/parents/endpoints/ParentsController";
 
 // Other Controllers
@@ -252,6 +253,7 @@ export function buildApplication() {
       GetParentsMeChildrenController,
       GetParentsChildDetailController,
       GetParentsDirectoryController,
+      GetParentsZipReportController,
 
       // Enrollments & Attendance
       GetEnrollmentsController,

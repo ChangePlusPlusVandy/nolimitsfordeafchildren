@@ -29,12 +29,28 @@ interface UserProfile {
   role: "administrator" | "teacher" | "parent";
   is_active: boolean;
   created_at: string;
+  parentAddress?: {
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    state: string | null;
+    postal_code: string | null;
+  } | null;
 }
 
 interface UpdateProfileInput {
   name?: string;
   phone?: string;
   locale?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+}
+
+function getEventValue(event: unknown): string {
+  return ((event as any)?.target?.value ?? "") as string;
 }
 
 export default function MyProfilePage() {
@@ -47,6 +63,11 @@ export default function MyProfilePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [locale, setLocale] = useState("en-US");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch profile
@@ -68,6 +89,11 @@ export default function MyProfilePage() {
       setName(profile.name);
       setPhone(profile.phone || "");
       setLocale(profile.locale);
+      setAddressLine1(profile.parentAddress?.address_line1 || "");
+      setAddressLine2(profile.parentAddress?.address_line2 || "");
+      setCity(profile.parentAddress?.city || "");
+      setState(profile.parentAddress?.state || "");
+      setPostalCode(profile.parentAddress?.postal_code || "");
     }
   }, [profile]);
 
@@ -92,6 +118,15 @@ export default function MyProfilePage() {
       name,
       phone: phone || undefined,
       locale,
+      ...(displayProfile.role === "parent"
+        ? {
+            address_line1: addressLine1 || undefined,
+            address_line2: addressLine2 || undefined,
+            city: city || undefined,
+            state: state || undefined,
+            postal_code: postalCode || undefined,
+          }
+        : {}),
     });
   };
 
@@ -100,6 +135,11 @@ export default function MyProfilePage() {
       setName(profile.name);
       setPhone(profile.phone || "");
       setLocale(profile.locale);
+      setAddressLine1(profile.parentAddress?.address_line1 || "");
+      setAddressLine2(profile.parentAddress?.address_line2 || "");
+      setCity(profile.parentAddress?.city || "");
+      setState(profile.parentAddress?.state || "");
+      setPostalCode(profile.parentAddress?.postal_code || "");
     }
     setIsEditing(false);
   };
@@ -144,6 +184,7 @@ export default function MyProfilePage() {
     locale: "en-US",
     is_active: true,
     created_at: new Date().toISOString(),
+    parentAddress: null,
   };
 
   return (
@@ -194,13 +235,13 @@ export default function MyProfilePage() {
 
       <Paper sx={{ p: 3, maxWidth: 600 }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <TextField
-            label="Name"
-            value={isEditing ? name : displayProfile.name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={!isEditing}
-            fullWidth
-          />
+            <TextField
+              label="Name"
+              value={isEditing ? name : displayProfile.name}
+              onChange={(e) => setName(getEventValue(e))}
+              disabled={!isEditing}
+              fullWidth
+            />
 
           <TextField
             label="Email"
@@ -210,26 +251,73 @@ export default function MyProfilePage() {
             helperText="Contact an administrator to change your email"
           />
 
-          <TextField
-            label="Phone"
-            value={isEditing ? phone : displayProfile.phone || ""}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={!isEditing}
-            fullWidth
-            placeholder="555-123-4567"
-          />
+            <TextField
+              label="Phone"
+              value={isEditing ? phone : displayProfile.phone || ""}
+              onChange={(e) => setPhone(getEventValue(e))}
+              disabled={!isEditing}
+              fullWidth
+              placeholder="555-123-4567"
+            />
 
           <FormControl fullWidth disabled={!isEditing}>
             <InputLabel>Locale</InputLabel>
             <Select
               value={isEditing ? locale : displayProfile.locale}
               label="Locale"
-              onChange={(e) => setLocale(e.target.value)}
+              onChange={(e) => setLocale(getEventValue(e))}
             >
               <MenuItem value="en-US">English (US)</MenuItem>
               <MenuItem value="es-ES">Spanish</MenuItem>
             </Select>
           </FormControl>
+
+          {displayProfile.role === "parent" && (
+            <>
+              <Divider />
+              <Typography variant="subtitle1">Address</Typography>
+
+              <TextField
+                label="Address Line 1"
+                value={isEditing ? addressLine1 : displayProfile.parentAddress?.address_line1 || ""}
+                onChange={(e) => setAddressLine1(getEventValue(e))}
+                disabled={!isEditing}
+                fullWidth
+              />
+
+              <TextField
+                label="Address Line 2"
+                value={isEditing ? addressLine2 : displayProfile.parentAddress?.address_line2 || ""}
+                onChange={(e) => setAddressLine2(getEventValue(e))}
+                disabled={!isEditing}
+                fullWidth
+              />
+
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, gap: 2 }}>
+                <TextField
+                  label="City"
+                  value={isEditing ? city : displayProfile.parentAddress?.city || ""}
+                  onChange={(e) => setCity(getEventValue(e))}
+                  disabled={!isEditing}
+                  fullWidth
+                />
+                <TextField
+                  label="State"
+                  value={isEditing ? state : displayProfile.parentAddress?.state || ""}
+                  onChange={(e) => setState(getEventValue(e))}
+                  disabled={!isEditing}
+                  fullWidth
+                />
+                <TextField
+                  label="ZIP Code"
+                  value={isEditing ? postalCode : displayProfile.parentAddress?.postal_code || ""}
+                  onChange={(e) => setPostalCode(getEventValue(e))}
+                  disabled={!isEditing}
+                  fullWidth
+                />
+              </Box>
+            </>
+          )}
 
           <Divider />
 

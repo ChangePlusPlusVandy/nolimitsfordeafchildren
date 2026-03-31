@@ -21,6 +21,7 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import BadgeIcon from "@mui/icons-material/Badge";
+import PinDropIcon from "@mui/icons-material/PinDrop";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
@@ -70,6 +71,12 @@ const navItems: NavItem[] = [
     text: "Document Reviews",
     to: "/admin/document-reviews",
     icon: <FactCheckIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Parent ZIP Report",
+    to: "/admin/parent-zip-report",
+    icon: <PinDropIcon />,
     roles: ["administrator"],
   },
 
