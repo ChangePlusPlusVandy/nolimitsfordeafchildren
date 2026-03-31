@@ -211,8 +211,6 @@ export function buildApplication() {
 
   app.all("/api/auth/*splat", toNodeHandler(auth));
 
-  app.use(express.json());
-
   const authMiddleware = createAuthMiddleware();
   app.use(authMiddleware);
 
