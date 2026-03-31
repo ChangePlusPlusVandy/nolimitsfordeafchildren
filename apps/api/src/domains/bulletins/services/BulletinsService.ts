@@ -43,6 +43,7 @@ export interface CreateBulletinInput {
   scope: BulletinScope;
   site_id?: string | null;
   role_target: BulletinRoleTarget;
+  requires_approval?: boolean;
   publish_at?: Date | string | null;
   expire_at?: Date | string | null;
 }
@@ -53,6 +54,11 @@ export interface UpdateBulletinInput {
   scope?: BulletinScope;
   site_id?: string | null;
   role_target?: BulletinRoleTarget;
+  requires_approval?: boolean;
+  approval_status?: "draft" | "pending" | "approved" | "rejected";
+  reviewed_by?: string | null;
+  reviewed_at?: Date | string | null;
+  review_notes?: string | null;
   publish_at?: Date | string | null;
   expire_at?: Date | string | null;
 }
@@ -100,6 +106,11 @@ export interface GetBulletinAttachmentUploadUrlInput {
 
 export interface AcknowledgeBulletinInput {
   initials: string;
+}
+
+export interface ReviewBulletinInput {
+  status: "approved" | "rejected";
+  notes?: string;
 }
 
 @Service()
@@ -332,6 +343,8 @@ export class BulletinsService {
       conditions.push(
         or(eq(BulletinTable.role_target, "all"), eq(BulletinTable.role_target, userRole)),
       );
+
+      conditions.push(eq(BulletinTable.approval_status, "approved"));
     }
 
     // Time-based filters (unless admin wants to see all)
@@ -537,13 +550,31 @@ export class BulletinsService {
   /**
    * Create a new bulletin (admin only)
    */
-  async create(data: CreateBulletinInput, userId: string): Promise<BulletinEntity> {
+  async create(data: CreateBulletinInput, userId: string, userRole: UserRole): Promise<BulletinEntity> {
+    let scope = data.scope;
+    let siteId = data.scope === "site" ? data.site_id : null;
+
+    if (userRole === "teacher") {
+      const teacherSiteId = await this.getUserSiteId(userId, "teacher");
+      if (!teacherSiteId) {
+        throw new Error("Teacher must have an assigned site to create bulletins");
+      }
+
+      scope = "site";
+      siteId = teacherSiteId;
+    }
+
     const newBulletin: BulletinInsert = {
       title: data.title,
       body: data.body || null,
-      scope: data.scope,
-      site_id: data.scope === "site" ? data.site_id : null,
+      scope,
+      site_id: siteId,
       role_target: data.role_target,
+      requires_approval: data.requires_approval || false,
+      approval_status: data.requires_approval ? "pending" : "approved",
+      reviewed_by: null,
+      reviewed_at: null,
+      review_notes: null,
       publish_at: data.publish_at ? new Date(data.publish_at) : null,
       expire_at: data.expire_at ? new Date(data.expire_at) : null,
       created_by: userId,
@@ -578,6 +609,13 @@ export class BulletinsService {
         data.scope === "site" || existing[0]!.scope === "site" ? data.site_id : null;
     }
     if (data.role_target !== undefined) updateData.role_target = data.role_target;
+    if (data.requires_approval !== undefined) updateData.requires_approval = data.requires_approval;
+    if (data.approval_status !== undefined) updateData.approval_status = data.approval_status;
+    if (data.reviewed_by !== undefined) updateData.reviewed_by = data.reviewed_by;
+    if (data.reviewed_at !== undefined) {
+      updateData.reviewed_at = data.reviewed_at ? new Date(data.reviewed_at) : null;
+    }
+    if (data.review_notes !== undefined) updateData.review_notes = data.review_notes;
     if (data.publish_at !== undefined) {
       updateData.publish_at = data.publish_at ? new Date(data.publish_at) : null;
     }
@@ -713,5 +751,79 @@ export class BulletinsService {
       .returning();
 
     return result.length > 0;
+  }
+
+  async listPendingApproval(): Promise<{ items: BulletinWithDetails[] }> {
+    const rows = await db
+      .select({
+        bulletin: BulletinTable,
+        created_by_name: UserTable.name,
+        site_name: LocationTable.name,
+      })
+      .from(BulletinTable)
+      .leftJoin(UserTable, eq(BulletinTable.created_by, UserTable.id))
+      .leftJoin(LocationTable, eq(BulletinTable.site_id, LocationTable.id))
+      .where(eq(BulletinTable.approval_status, "pending"))
+      .orderBy(desc(BulletinTable.created_at));
+
+    const bulletinIds = rows.map((row) => row.bulletin.id);
+    const attachmentsMap = new Map<string, BulletinAttachmentEntity[]>();
+
+    if (bulletinIds.length > 0) {
+      const attachments = await db
+        .select()
+        .from(BulletinAttachmentTable)
+        .where(inArray(BulletinAttachmentTable.bulletin_id, bulletinIds));
+
+      for (const attachment of attachments) {
+        const list = attachmentsMap.get(attachment.bulletin_id) ?? [];
+        list.push(attachment);
+        attachmentsMap.set(attachment.bulletin_id, list);
+      }
+    }
+
+    return {
+      items: rows.map((row) => ({
+        ...row.bulletin,
+        attachments: attachmentsMap.get(row.bulletin.id) ?? [],
+        created_by_name: row.created_by_name ?? undefined,
+        site_name: row.site_name ?? undefined,
+        view_count: 0,
+      })),
+    };
+  }
+
+  async reviewBulletin(
+    bulletinId: string,
+    reviewerUserId: string,
+    input: ReviewBulletinInput,
+  ): Promise<BulletinEntity | null> {
+    const existing = await db
+      .select()
+      .from(BulletinTable)
+      .where(eq(BulletinTable.id, bulletinId))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return null;
+    }
+
+    if (existing[0]!.approval_status !== "pending") {
+      throw new Error("Only pending bulletins can be reviewed");
+    }
+
+    const result = await db
+      .update(BulletinTable)
+      .set({
+        approval_status: input.status,
+        reviewed_by: reviewerUserId,
+        reviewed_at: new Date(),
+        review_notes: input.notes || null,
+        updated_at: new Date(),
+      })
+      .where(eq(BulletinTable.id, bulletinId))
+      .returning();
+
+    return result[0] ?? null;
   }
 }

@@ -4,6 +4,8 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import BlockIcon from "@mui/icons-material/Block";
 import type { Bulletin, BulletinScope, BulletinRoleTarget } from "../services/BulletinHttpService";
 
 interface BulletinCardProps {
@@ -96,6 +98,24 @@ export default function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
                   label="Scheduled"
                   size="small"
                   color="warning"
+                  variant="outlined"
+                />
+              )}
+              {bulletin.approval_status === "pending" && (
+                <Chip
+                  icon={<HourglassEmptyIcon />}
+                  label="Pending Approval"
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                />
+              )}
+              {bulletin.approval_status === "rejected" && (
+                <Chip
+                  icon={<BlockIcon />}
+                  label="Rejected"
+                  size="small"
+                  color="error"
                   variant="outlined"
                 />
               )}

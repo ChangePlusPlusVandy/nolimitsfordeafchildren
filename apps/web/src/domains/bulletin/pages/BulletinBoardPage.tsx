@@ -40,7 +40,7 @@ import BulletinCard from "../components/BulletinCard";
 import CreateBulletinModal from "../components/CreateBulletinModal";
 
 export default function BulletinBoardPage() {
-  const { isAdmin, isParent } = useAuth();
+  const { isAdmin, isTeacher, isParent } = useAuth();
   const bulletinHttpService = useBulletinHttpService();
   const locationHttpService = useLocationHttpService();
   const queryClient = useQueryClient();
@@ -165,7 +165,7 @@ export default function BulletinBoardPage() {
         <Typography variant="h4" component="h1">
           Bulletin Board
         </Typography>
-        {isAdmin && (
+        {(isAdmin || isTeacher) && (
           <Button
             variant="contained"
             startIcon={<AddIcon />}

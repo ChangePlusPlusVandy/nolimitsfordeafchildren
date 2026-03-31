@@ -12,6 +12,7 @@ import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequ
 import DocumentReviewPage from "./domains/admin/pages/DocumentReviewPage.tsx";
 import ParentZipReportPage from "./domains/admin/pages/ParentZipReportPage.tsx";
 import SessionsPage from "./domains/admin/pages/SessionsPage.tsx";
+import BulletinModerationPage from "./domains/admin/pages/BulletinModerationPage.tsx";
 import BulletinBoardPage from "./domains/bulletin/pages/BulletinBoardPage.tsx";
 import AuthGuard from "./domains/global/components/AuthGuard.tsx";
 import ErrorBoundary from "./domains/global/components/ErrorBoundary.tsx";
@@ -125,6 +126,10 @@ createRoot(document.getElementById("root")!).render(
                       <Route path="/admin/document-reviews" element={<DocumentReviewPage />} />
                       <Route path="/admin/parent-zip-report" element={<ParentZipReportPage />} />
                       <Route path="/admin/photo-gallery" element={<PhotoGalleryPage />} />
+                      <Route
+                        path="/admin/bulletin-moderation"
+                        element={<BulletinModerationPage />}
+                      />
                     </Route>
                   </Routes>
                 </ThemeProvider>

@@ -27,6 +27,7 @@ import {
   type GetBulletinAttachmentUploadUrlInput,
   type BulletinScope,
   type BulletinRoleTarget,
+  type ReviewBulletinInput,
 } from "../services/BulletinsService";
 import type { UserEntity } from "@/db/schema";
 
@@ -137,7 +138,7 @@ export class PostBulletinsController {
   }
 
   @Post("/bulletins")
-  @Authorized(["administrator"])
+  @Authorized(["administrator", "teacher"])
   @HttpCode(201)
   async handle(@Req() req: Request, @Body() body: CreateBulletinInput) {
     const currentUser = req.currentUser;
@@ -167,7 +168,14 @@ export class PostBulletinsController {
       );
     }
 
-    return await this.bulletinsService.create(body, currentUser.id);
+    try {
+      return await this.bulletinsService.create(body, currentUser.id, currentUser.role);
+    } catch (error: any) {
+      if (error?.message?.includes("assigned site")) {
+        throw new BadRequestError(error.message);
+      }
+      throw error;
+    }
   }
 }
 
@@ -365,5 +373,54 @@ export class GetBulletinAcknowledgementsController {
     }
 
     return await this.bulletinsService.getAcknowledgementStats(id);
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class GetBulletinsPendingController {
+  private bulletinsService: BulletinsService;
+  constructor() {
+    this.bulletinsService = Container.get(BulletinsService);
+  }
+
+  @Get("/bulletins/moderation/pending")
+  @Authorized(["administrator"])
+  async handle() {
+    return await this.bulletinsService.listPendingApproval();
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class PatchBulletinReviewController {
+  private bulletinsService: BulletinsService;
+  constructor() {
+    this.bulletinsService = Container.get(BulletinsService);
+  }
+
+  @Patch("/bulletins/:id/review")
+  @Authorized(["administrator"])
+  async handle(
+    @Param("id") id: string,
+    @Body() body: ReviewBulletinInput,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+  ) {
+    if (!body.status || !["approved", "rejected"].includes(body.status)) {
+      throw new BadRequestError("status must be 'approved' or 'rejected'");
+    }
+
+    try {
+      const bulletin = await this.bulletinsService.reviewBulletin(id, currentUser.id, body);
+      if (!bulletin) {
+        throw new NotFoundError("Bulletin not found");
+      }
+      return bulletin;
+    } catch (error: any) {
+      if (error?.message?.includes("Only pending bulletins")) {
+        throw new BadRequestError(error.message);
+      }
+      throw error;
+    }
   }
 }
