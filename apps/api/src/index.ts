@@ -37,10 +37,13 @@ import {
   GetBulletinsController,
   GetBulletinController,
   GetBulletinViewsController,
+  GetBulletinAcknowledgementsController,
   PostBulletinsController,
   PatchBulletinController,
   DeleteBulletinController,
   PostBulletinAttachmentController,
+  PostBulletinAttachmentUploadUrlController,
+  PostBulletinAcknowledgeController,
   DeleteBulletinAttachmentController,
 } from "./domains/bulletins/endpoints/BulletinsController";
 
@@ -215,10 +218,13 @@ export function buildApplication() {
       GetBulletinsController,
       GetBulletinController,
       GetBulletinViewsController,
+      GetBulletinAcknowledgementsController,
       PostBulletinsController,
       PatchBulletinController,
       DeleteBulletinController,
       PostBulletinAttachmentController,
+      PostBulletinAttachmentUploadUrlController,
+      PostBulletinAcknowledgeController,
       DeleteBulletinAttachmentController,
 
       // Locations (consolidated controller handles all routes with proper ordering)

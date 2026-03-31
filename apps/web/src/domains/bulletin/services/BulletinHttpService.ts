@@ -29,6 +29,10 @@ export interface Bulletin {
   created_by_name?: string;
   site_name?: string;
   view_count?: number;
+  acknowledgement_count?: number;
+  acknowledged?: boolean;
+  acknowledged_at?: string | null;
+  acknowledged_initials?: string | null;
 }
 
 export interface BulletinView {
@@ -50,6 +54,36 @@ export interface BulletinView {
 export interface BulletinViewStats {
   count: number;
   viewers: BulletinView[];
+}
+
+export interface BulletinAcknowledgement {
+  id: string;
+  bulletin_id: string;
+  user_id: string;
+  initials: string;
+  acknowledged_at: string;
+  created_at: string;
+  updated_at: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "administrator" | "teacher" | "parent";
+  };
+}
+
+export interface BulletinAcknowledgementStats {
+  count: number;
+  acknowledgements: BulletinAcknowledgement[];
+}
+
+export interface GetAttachmentUploadUrlInput {
+  file_name: string;
+  content_type: string;
+}
+
+export interface AcknowledgeBulletinInput {
+  initials: string;
 }
 
 export interface ListBulletinsParams {
@@ -124,6 +158,11 @@ export function useBulletinHttpService() {
         const response = await httpClient.get(`/v1/bulletins/${id}/views`);
         return response.data;
       },
+
+      acknowledgementStats: async (id: string): Promise<BulletinAcknowledgementStats> => {
+        const response = await httpClient.get(`/v1/bulletins/${id}/acknowledgements`);
+        return response.data;
+      },
     },
 
     mutations: {
@@ -162,6 +201,13 @@ export function useBulletinHttpService() {
         return response.data;
       },
 
+      getAttachmentUploadUrl: async (
+        payload: GetAttachmentUploadUrlInput,
+      ): Promise<{ upload_url: string; file_key: string; file_url: string }> => {
+        const response = await httpClient.post(`/v1/bulletins/attachments/upload-url`, payload);
+        return response.data;
+      },
+
       /**
        * Delete an attachment from a bulletin
        */
@@ -172,6 +218,14 @@ export function useBulletinHttpService() {
         const response = await httpClient.delete(
           `/v1/bulletins/${bulletinId}/attachments/${attachmentId}`,
         );
+        return response.data;
+      },
+
+      acknowledge: async (
+        bulletinId: string,
+        payload: AcknowledgeBulletinInput,
+      ): Promise<BulletinAcknowledgement> => {
+        const response = await httpClient.post(`/v1/bulletins/${bulletinId}/acknowledge`, payload);
         return response.data;
       },
     },

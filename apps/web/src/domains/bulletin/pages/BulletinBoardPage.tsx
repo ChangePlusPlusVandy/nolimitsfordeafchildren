@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
   Paper,
   Button,
+  TextField,
   Select,
   MenuItem,
   FormControl,
@@ -39,9 +40,12 @@ import BulletinCard from "../components/BulletinCard";
 import CreateBulletinModal from "../components/CreateBulletinModal";
 
 export default function BulletinBoardPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isParent } = useAuth();
   const bulletinHttpService = useBulletinHttpService();
   const locationHttpService = useLocationHttpService();
+  const queryClient = useQueryClient();
+
+  const [ackInitials, setAckInitials] = useState("");
 
   // Filter state (admin only)
   const [siteFilter, setSiteFilter] = useState<string>("");
@@ -60,6 +64,21 @@ export default function BulletinBoardPage() {
     queryKey: [bulletinHttpService.key, "view-stats", selectedBulletinId],
     queryFn: () => bulletinHttpService.queries.viewStats(selectedBulletinId!),
     enabled: isAdmin && !!selectedBulletinId,
+  });
+
+  const { data: acknowledgementStats } = useQuery({
+    queryKey: [bulletinHttpService.key, "ack-stats", selectedBulletinId],
+    queryFn: () => bulletinHttpService.queries.acknowledgementStats(selectedBulletinId!),
+    enabled: isAdmin && !!selectedBulletinId,
+  });
+
+  const acknowledgeMutation = useMutation({
+    mutationFn: async ({ bulletinId, initials }: { bulletinId: string; initials: string }) => {
+      return await bulletinHttpService.mutations.acknowledge(bulletinId, { initials });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [bulletinHttpService.key] });
+    },
   });
 
   const viewerRows = useMemo(() => {
@@ -100,13 +119,30 @@ export default function BulletinBoardPage() {
     try {
       const latest = await bulletinHttpService.queries.show(bulletin.id);
       setSelectedBulletin(latest);
+      setAckInitials(latest.acknowledged_initials || "");
     } catch {
       setSelectedBulletin(bulletin);
+      setAckInitials(bulletin.acknowledged_initials || "");
     }
   };
 
   const handleCloseDetail = () => {
     setSelectedBulletin(null);
+    setAckInitials("");
+  };
+
+  const handleAcknowledge = async () => {
+    if (!selectedBulletin || !ackInitials.trim()) {
+      return;
+    }
+
+    await acknowledgeMutation.mutateAsync({
+      bulletinId: selectedBulletin.id,
+      initials: ackInitials.trim(),
+    });
+
+    const latest = await bulletinHttpService.queries.show(selectedBulletin.id);
+    setSelectedBulletin(latest);
   };
 
   const formatDate = (dateString: string | null): string => {
@@ -348,6 +384,73 @@ export default function BulletinBoardPage() {
                       ))}
                     </List>
                   )}
+                </Box>
+              )}
+
+              {isAdmin && (
+                <Box sx={{ mt: 3 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" gutterBottom>
+                    Acknowledgements ({acknowledgementStats?.count ?? selectedBulletin.acknowledgement_count ?? 0})
+                  </Typography>
+
+                  {(acknowledgementStats?.acknowledgements ?? []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No acknowledgements yet.
+                    </Typography>
+                  ) : (
+                    <List dense sx={{ p: 0 }}>
+                      {(acknowledgementStats?.acknowledgements ?? []).map((ack) => (
+                        <ListItem key={ack.id} sx={{ px: 0 }}>
+                          <ListItemText
+                            primary={`${ack.user.name} (${ack.initials})`}
+                            secondary={new Date(ack.acknowledged_at).toLocaleString()}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </Box>
+              )}
+
+              {isParent && (
+                <Box sx={{ mt: 3 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" gutterBottom>
+                    Parent Acknowledgement
+                  </Typography>
+                  {selectedBulletin.acknowledged ? (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      Acknowledged as {selectedBulletin.acknowledged_initials} on{" "}
+                      {selectedBulletin.acknowledged_at
+                        ? new Date(selectedBulletin.acknowledged_at).toLocaleString()
+                        : ""}
+                    </Alert>
+                  ) : (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      Enter your initials to confirm you reviewed this announcement.
+                    </Alert>
+                  )}
+
+                  <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                    <TextField
+                      size="small"
+                      label="Initials"
+                      value={ackInitials}
+                      onChange={(event) =>
+                        setAckInitials((event.target as unknown as { value: string }).value.toUpperCase())
+                      }
+                      inputProps={{ maxLength: 8 }}
+                      sx={{ width: 140 }}
+                    />
+                    <Button
+                      variant="contained"
+                      disabled={!ackInitials.trim() || acknowledgeMutation.isPending}
+                      onClick={handleAcknowledge}
+                    >
+                      {selectedBulletin.acknowledged ? "Update" : "Acknowledge"}
+                    </Button>
+                  </Box>
                 </Box>
               )}
             </DialogContent>
