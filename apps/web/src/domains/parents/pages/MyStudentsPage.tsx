@@ -198,7 +198,7 @@ export default function MyStudentsPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          My Children
+          My Students
         </Typography>
         <LoadingSkeleton />
       </Box>
@@ -209,7 +209,7 @@ export default function MyStudentsPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          My Children
+          My Students
         </Typography>
         <Alert severity="error">Failed to load your children. Please try again later.</Alert>
       </Box>
@@ -221,7 +221,7 @@ export default function MyStudentsPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        My Children
+        My Students
       </Typography>
 
       {children.length === 0 ? (
