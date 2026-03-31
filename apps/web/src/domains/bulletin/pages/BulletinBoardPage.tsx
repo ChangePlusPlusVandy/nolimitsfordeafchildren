@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Box,
@@ -18,10 +18,14 @@ import {
   Stack,
   Link,
   Divider,
+  List,
+  ListItem,
+  ListItemText,
 } from "@mui/material";
 import { CardGridSkeleton } from "../../global/components/skeletons";
 import AddIcon from "@mui/icons-material/Add";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useAuth } from "../../../auth";
 import {
   useBulletinHttpService,
@@ -50,6 +54,25 @@ export default function BulletinBoardPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
 
+  const selectedBulletinId = selectedBulletin?.id ?? null;
+
+  const { data: viewStats } = useQuery({
+    queryKey: [bulletinHttpService.key, "view-stats", selectedBulletinId],
+    queryFn: () => bulletinHttpService.queries.viewStats(selectedBulletinId!),
+    enabled: isAdmin && !!selectedBulletinId,
+  });
+
+  const viewerRows = useMemo(() => {
+    if (!viewStats) {
+      return [] as string[];
+    }
+
+    return viewStats.viewers.map((viewer) => {
+      const seenAt = new Date(viewer.last_viewed_at).toLocaleString();
+      return `${viewer.user.name} (${viewer.user.role}) - ${seenAt}`;
+    });
+  }, [viewStats]);
+
   // Build query params
   const queryParams: ListBulletinsParams = {
     ...(siteFilter && { siteId: siteFilter }),
@@ -73,8 +96,13 @@ export default function BulletinBoardPage() {
     enabled: isAdmin,
   });
 
-  const handleBulletinClick = (bulletin: Bulletin) => {
-    setSelectedBulletin(bulletin);
+  const handleBulletinClick = async (bulletin: Bulletin) => {
+    try {
+      const latest = await bulletinHttpService.queries.show(bulletin.id);
+      setSelectedBulletin(latest);
+    } catch {
+      setSelectedBulletin(bulletin);
+    }
   };
 
   const handleCloseDetail = () => {
@@ -121,11 +149,13 @@ export default function BulletinBoardPage() {
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <InputLabel>Site</InputLabel>
-              <Select
-                value={siteFilter}
-                label="Site"
-                onChange={(e) => setSiteFilter(e.target.value)}
-              >
+                <Select
+                  value={siteFilter}
+                  label="Site"
+                  onChange={(event) =>
+                    setSiteFilter((event.target as unknown as { value: string }).value)
+                  }
+                >
                 <MenuItem value="">All Sites</MenuItem>
                 {(locations ?? []).map((location: any) => (
                   <MenuItem key={location.id} value={location.id}>
@@ -137,11 +167,13 @@ export default function BulletinBoardPage() {
 
             <FormControl size="small" sx={{ minWidth: 120 }}>
               <InputLabel>Scope</InputLabel>
-              <Select
-                value={scopeFilter}
-                label="Scope"
-                onChange={(e) => setScopeFilter(e.target.value as BulletinScope | "")}
-              >
+                <Select
+                  value={scopeFilter}
+                  label="Scope"
+                  onChange={(event) =>
+                    setScopeFilter((event.target as unknown as { value: BulletinScope | "" }).value)
+                  }
+                >
                 <MenuItem value="">All</MenuItem>
                 <MenuItem value="global">Global</MenuItem>
                 <MenuItem value="site">Site-specific</MenuItem>
@@ -150,11 +182,15 @@ export default function BulletinBoardPage() {
 
             <FormControl size="small" sx={{ minWidth: 120 }}>
               <InputLabel>Audience</InputLabel>
-              <Select
-                value={roleTargetFilter}
-                label="Audience"
-                onChange={(e) => setRoleTargetFilter(e.target.value as BulletinRoleTarget | "")}
-              >
+                <Select
+                  value={roleTargetFilter}
+                  label="Audience"
+                  onChange={(event) =>
+                    setRoleTargetFilter(
+                      (event.target as unknown as { value: BulletinRoleTarget | "" }).value,
+                    )
+                  }
+                >
                 <MenuItem value="">All</MenuItem>
                 <MenuItem value="all">All Users</MenuItem>
                 <MenuItem value="administrator">Admins</MenuItem>
@@ -288,6 +324,30 @@ export default function BulletinBoardPage() {
                       </Link>
                     ))}
                   </Stack>
+                </Box>
+              )}
+
+              {isAdmin && (
+                <Box sx={{ mt: 3 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" gutterBottom>
+                    <VisibilityIcon sx={{ fontSize: 16, verticalAlign: "middle", mr: 0.5 }} />
+                    Views ({viewStats?.count ?? selectedBulletin.view_count ?? 0})
+                  </Typography>
+
+                  {viewerRows.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No views recorded yet.
+                    </Typography>
+                  ) : (
+                    <List dense sx={{ p: 0 }}>
+                      {viewerRows.map((row) => (
+                        <ListItem key={row} sx={{ px: 0 }}>
+                          <ListItemText primary={row} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
                 </Box>
               )}
             </DialogContent>

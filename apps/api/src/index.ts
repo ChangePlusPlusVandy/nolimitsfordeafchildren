@@ -36,6 +36,7 @@ import { GetMeController, PatchMeController } from "./domains/me/endpoints/MeCon
 import {
   GetBulletinsController,
   GetBulletinController,
+  GetBulletinViewsController,
   PostBulletinsController,
   PatchBulletinController,
   DeleteBulletinController,
@@ -210,6 +211,7 @@ export function buildApplication() {
       // Bulletins
       GetBulletinsController,
       GetBulletinController,
+      GetBulletinViewsController,
       PostBulletinsController,
       PatchBulletinController,
       DeleteBulletinController,

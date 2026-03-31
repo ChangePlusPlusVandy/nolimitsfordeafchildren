@@ -4,6 +4,7 @@ import { db } from "@/db";
 import {
   BulletinTable,
   BulletinAttachmentTable,
+  BulletinViewTable,
   UserTable,
   LocationTable,
   TeacherProfileTable,
@@ -14,6 +15,7 @@ import {
   type BulletinInsert,
   type BulletinAttachmentEntity,
   type BulletinAttachmentInsert,
+  type BulletinViewEntity,
 } from "@/db/schema";
 
 export type BulletinScope = "global" | "site";
@@ -61,6 +63,16 @@ export interface BulletinWithDetails extends BulletinEntity {
   attachments: BulletinAttachmentEntity[];
   created_by_name?: string;
   site_name?: string;
+  view_count?: number;
+}
+
+export interface BulletinViewWithUser extends BulletinViewEntity {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "administrator" | "teacher" | "parent";
+  };
 }
 
 @Service()
@@ -112,6 +124,76 @@ export class BulletinsService {
     }
 
     return null;
+  }
+
+  async recordView(bulletinId: string, userId: string): Promise<void> {
+    const existing = await db
+      .select()
+      .from(BulletinViewTable)
+      .where(and(eq(BulletinViewTable.bulletin_id, bulletinId), eq(BulletinViewTable.user_id, userId)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db
+        .update(BulletinViewTable)
+        .set({
+          last_viewed_at: new Date(),
+          updated_at: new Date(),
+        })
+        .where(eq(BulletinViewTable.id, existing[0]!.id));
+      return;
+    }
+
+    await db.insert(BulletinViewTable).values({
+      bulletin_id: bulletinId,
+      user_id: userId,
+      viewed_at: new Date(),
+      last_viewed_at: new Date(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  }
+
+  async getViewStats(bulletinId: string): Promise<{
+    count: number;
+    viewers: BulletinViewWithUser[];
+  }> {
+    const rows = await db
+      .select({
+        id: BulletinViewTable.id,
+        bulletin_id: BulletinViewTable.bulletin_id,
+        user_id: BulletinViewTable.user_id,
+        viewed_at: BulletinViewTable.viewed_at,
+        last_viewed_at: BulletinViewTable.last_viewed_at,
+        created_at: BulletinViewTable.created_at,
+        updated_at: BulletinViewTable.updated_at,
+        user_name: UserTable.name,
+        user_email: UserTable.email,
+        user_role: UserTable.role,
+      })
+      .from(BulletinViewTable)
+      .innerJoin(UserTable, eq(BulletinViewTable.user_id, UserTable.id))
+      .where(eq(BulletinViewTable.bulletin_id, bulletinId))
+      .orderBy(desc(BulletinViewTable.last_viewed_at));
+
+    return {
+      count: rows.length,
+      viewers: rows.map((row) => ({
+        id: row.id,
+        bulletin_id: row.bulletin_id,
+        user_id: row.user_id,
+        viewed_at: row.viewed_at,
+        last_viewed_at: row.last_viewed_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        user: {
+          id: row.user_id,
+          name: row.user_name,
+          email: row.user_email,
+          role: row.user_role,
+        },
+      })),
+    };
   }
 
   /**
@@ -223,6 +305,7 @@ export class BulletinsService {
     const bulletinIds = bulletins.map((b) => b.bulletin.id);
 
     let attachmentsMap: Map<string, BulletinAttachmentEntity[]> = new Map();
+    let viewCountMap: Map<string, number> = new Map();
 
     if (bulletinIds.length > 0) {
       const attachments = await db
@@ -236,6 +319,19 @@ export class BulletinsService {
         existing.push(attachment);
         attachmentsMap.set(attachment.bulletin_id, existing);
       }
+
+      const viewCounts = await db
+        .select({
+          bulletin_id: BulletinViewTable.bulletin_id,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(BulletinViewTable)
+        .where(inArray(BulletinViewTable.bulletin_id, bulletinIds))
+        .groupBy(BulletinViewTable.bulletin_id);
+
+      for (const row of viewCounts) {
+        viewCountMap.set(row.bulletin_id, row.count);
+      }
     }
 
     // Combine bulletins with their attachments
@@ -244,6 +340,7 @@ export class BulletinsService {
       attachments: attachmentsMap.get(b.bulletin.id) || [],
       created_by_name: b.created_by_name ?? undefined,
       site_name: b.site_name ?? undefined,
+      view_count: viewCountMap.get(b.bulletin.id) ?? 0,
     }));
 
     return {
@@ -288,6 +385,7 @@ export class BulletinsService {
       attachments,
       created_by_name: bulletin.created_by_name ?? undefined,
       site_name: bulletin.site_name ?? undefined,
+      view_count: 0,
     };
   }
 
