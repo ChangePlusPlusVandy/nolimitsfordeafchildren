@@ -8,6 +8,7 @@ import {
   Post,
   QueryParam,
   Req,
+  CurrentUser,
   Authorized,
   NotFoundError,
   BadRequestError,
@@ -25,6 +26,7 @@ import {
   type BulletinScope,
   type BulletinRoleTarget,
 } from "../services/BulletinsService";
+import type { UserEntity } from "@/db/schema";
 
 /**
  * GET /v1/bulletins
@@ -84,12 +86,38 @@ export class GetBulletinController {
 
   @Get("/bulletins/:id")
   @Authorized()
+  async handle(
+    @Param("id") id: string,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+  ) {
+    const bulletin = await this.bulletinsService.show(id);
+    if (!bulletin) {
+      throw new NotFoundError("Bulletin not found");
+    }
+
+    await this.bulletinsService.recordView(id, currentUser.id);
+
+    return bulletin;
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class GetBulletinViewsController {
+  private bulletinsService: BulletinsService;
+  constructor() {
+    this.bulletinsService = Container.get(BulletinsService);
+  }
+
+  @Get("/bulletins/:id/views")
+  @Authorized(["administrator"])
   async handle(@Param("id") id: string) {
     const bulletin = await this.bulletinsService.show(id);
     if (!bulletin) {
       throw new NotFoundError("Bulletin not found");
     }
-    return bulletin;
+
+    return await this.bulletinsService.getViewStats(id);
   }
 }
 
