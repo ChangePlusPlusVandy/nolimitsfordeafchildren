@@ -191,10 +191,10 @@ export default function ChildDetailsPage() {
       <Box sx={{ p: 3 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/parent/children")}
+          onClick={() => navigate("/my-students")}
           sx={{ mb: 2 }}
         >
-          Back to My Children
+          Back to My Students
         </Button>
         <Alert severity="error">Failed to load child details. Please try again later.</Alert>
       </Box>
@@ -208,10 +208,10 @@ export default function ChildDetailsPage() {
       {/* Back Button */}
       <Button
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate("/parent/children")}
+        onClick={() => navigate("/my-students")}
         sx={{ mb: 3 }}
       >
-        Back to My Children
+        Back to My Students
       </Button>
 
       {/* Header with Avatar and Basic Info */}

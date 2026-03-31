@@ -89,7 +89,7 @@ const navItems: NavItem[] = [
 
   // Parent items
   {
-    text: "My Students",
+    text: "My Children",
     to: "/my-students",
     icon: <ChildCareIcon />,
     roles: ["parent"],
