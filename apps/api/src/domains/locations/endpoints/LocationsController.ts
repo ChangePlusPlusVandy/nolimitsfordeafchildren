@@ -12,7 +12,11 @@ import {
 import { Service } from "typedi";
 import Container from "@/container";
 import { LocationsService } from "../services/LocationsService";
-import type { CreateLocationDto, UpdateLocationDto } from "../services/LocationsService";
+import type {
+  CreateLocationDto,
+  UpdateLocationDto,
+  ListLocationsQuery,
+} from "../services/LocationsService";
 
 /**
  * Consolidated Locations Controller
@@ -34,8 +38,17 @@ export class LocationsController {
    * List all locations with optional filtering
    */
   @Get()
-  async index(@QueryParam("is_active") is_active?: boolean) {
-    return await this.locationsService.index({ is_active });
+  async index(
+    @QueryParam("search") search?: string,
+    @QueryParam("type") type?: "education_center" | "pop_up" | "remote",
+    @QueryParam("is_active") is_active?: boolean,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+    @QueryParam("sort") sort?: "name" | "created_at",
+    @QueryParam("order") order?: "asc" | "desc",
+  ) {
+    const query: ListLocationsQuery = { search, type, is_active, page, limit, sort, order };
+    return await this.locationsService.index(query);
   }
 
   /**

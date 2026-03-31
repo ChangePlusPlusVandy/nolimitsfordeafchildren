@@ -2,8 +2,14 @@ import { Service } from "typedi";
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { SessionTable, type SessionEntity, type SessionInsert } from "@/db/schema";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedQuery,
+  type PaginatedResponse,
+} from "@/utils/pagination";
 
-export interface ListSessionsQuery {
+export interface ListSessionsQuery extends PaginatedQuery {
   include_archived?: boolean;
   active_only?: boolean;
 }
@@ -25,7 +31,7 @@ export interface UpdateSessionInput {
 
 @Service()
 export class SessionsService {
-  async index(query: ListSessionsQuery): Promise<{ items: SessionEntity[] }> {
+  async index(query: ListSessionsQuery): Promise<PaginatedResponse<SessionEntity>> {
     const conditions = [];
 
     if (!query.include_archived) {
@@ -40,14 +46,23 @@ export class SessionsService {
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
+    const totalResult = await db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(SessionTable)
+      .where(whereClause);
+    const count = totalResult[0]?.count ?? 0;
 
     const items = await db
       .select()
       .from(SessionTable)
       .where(whereClause)
-      .orderBy(asc(SessionTable.start_date));
+      .orderBy(asc(SessionTable.start_date))
+      .limit(limit)
+      .offset(offset);
 
-    return { items };
+    return buildPaginatedResponse(items, count ?? 0, page, limit);
   }
 
   async create(input: CreateSessionInput): Promise<SessionEntity> {

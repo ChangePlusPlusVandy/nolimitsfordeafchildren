@@ -83,14 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [appUser, setAppUser] = useState<AuthUser | null>(null);
   const [roleLoading, setRoleLoading] = useState(false);
+  const [resolvedSessionUserId, setResolvedSessionUserId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const sessionUserId = session?.user?.id ?? null;
 
     async function syncAppUser() {
-      if (!session?.user) {
+      if (!sessionUserId || !session?.user) {
         setAppUser(null);
         setRoleLoading(false);
+        setResolvedSessionUserId(null);
         return;
       }
 
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         if (!cancelled) {
           setRoleLoading(false);
+          setResolvedSessionUserId(sessionUserId);
         }
       }
     }
@@ -126,12 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.user?.id, session?.user?.email, session?.user?.name]);
 
   const value = useMemo<AuthContextValue>(() => {
-    const isAuthenticated = Boolean(session?.user && appUser);
+    const hasSessionUser = Boolean(session?.user);
+    const isSessionResolved = !session?.user || resolvedSessionUserId === session.user.id;
+    const isAuthenticated = Boolean(hasSessionUser && appUser && isSessionResolved);
 
     return {
       authEnabled: true,
       isAuthenticated,
-      isLoading: isPending || (!!session?.user && roleLoading),
+      isLoading: isPending || (hasSessionUser && (!isSessionResolved || roleLoading)),
       user: isAuthenticated ? appUser : null,
       login: async () => {
         window.location.href = "/login";
@@ -150,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await refetch();
       },
     };
-  }, [appUser, isPending, refetch, roleLoading, session?.user]);
+  }, [appUser, isPending, refetch, roleLoading, resolvedSessionUserId, session?.user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

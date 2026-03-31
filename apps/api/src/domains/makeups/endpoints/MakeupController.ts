@@ -114,12 +114,14 @@ export class GetMakeupRequestsController {
     @QueryParam("status") status?: RequestStatus,
     @QueryParam("student_id") studentId?: string,
     @QueryParam("site_id") siteId?: string,
+    @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
   ) {
     const result = await this.makeupService.listRequests({
       status,
       student_id: studentId,
       site_id: siteId,
+      page,
       limit,
     });
     return result;
@@ -254,6 +256,8 @@ export class GetTeacherMakeupSessionsController {
     @Param("teacherId") teacherId: string,
     @CurrentUser({ required: true }) currentUser: UserEntity,
     @QueryParam("date") date?: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
   ) {
     if (currentUser.role === "teacher") {
       const canView = await this.makeupService.isTeacherAuthorizedForSession(currentUser.id, teacherId);
@@ -262,7 +266,7 @@ export class GetTeacherMakeupSessionsController {
       }
     }
 
-    const result = await this.makeupService.listSessionsForTeacher(teacherId, date);
+    const result = await this.makeupService.listSessionsForTeacher(teacherId, { date, page, limit });
     return result;
   }
 }
@@ -304,8 +308,12 @@ export class GetParentMakeupRequestsController {
 
   @Get("/parents/me/makeup-requests")
   @Authorized(["parent"])
-  async handle(@CurrentUser({ required: true }) currentUser: UserEntity) {
-    const result = await this.makeupService.listRequestsForParent(currentUser.id);
+  async handle(
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    const result = await this.makeupService.listRequestsForParent(currentUser.id, { page, limit });
     return result;
   }
 }

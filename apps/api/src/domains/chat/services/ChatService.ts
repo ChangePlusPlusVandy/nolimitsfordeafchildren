@@ -1,7 +1,8 @@
 import { Service } from "typedi";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ChatMessageTable, UserTable, type ChatMessageEntity } from "@/db/schema";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export type ChatChannel = "community" | "teacher";
 
@@ -16,9 +17,10 @@ export interface CreateChatMessageInput {
 export class ChatService {
   async listMessages(input: {
     channel: ChatChannel;
+    page?: number;
     limit?: number;
-  }): Promise<{
-    items: Array<
+  }): Promise<
+    PaginatedResponse<
       ChatMessageEntity & {
         created_by_user: {
           id: string;
@@ -26,9 +28,17 @@ export class ChatService {
           role: "administrator" | "teacher" | "parent" | "unassigned";
         };
       }
-    >;
-  }> {
-    const limit = Math.min(input.limit ?? 50, 200);
+    >
+  > {
+    const { page, limit, offset } = getPagination(input, 50, 200);
+    const whereClause = and(eq(ChatMessageTable.channel, input.channel), isNull(ChatMessageTable.deleted_at));
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(ChatMessageTable)
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
 
     const rows = await db
       .select({
@@ -47,28 +57,29 @@ export class ChatService {
       })
       .from(ChatMessageTable)
       .innerJoin(UserTable, eq(ChatMessageTable.created_by, UserTable.id))
-      .where(and(eq(ChatMessageTable.channel, input.channel), isNull(ChatMessageTable.deleted_at)))
+      .where(whereClause)
       .orderBy(desc(ChatMessageTable.is_announcement), desc(ChatMessageTable.created_at))
-      .limit(limit);
+      .limit(limit)
+      .offset(offset);
 
-    return {
-      items: rows.map((row) => ({
-        id: row.id,
-        channel: row.channel,
-        message: row.message,
-        is_announcement: row.is_announcement,
-        created_by: row.created_by,
-        deleted_at: row.deleted_at,
-        deleted_by: row.deleted_by,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        created_by_user: {
-          id: row.created_by_user_id,
-          name: row.created_by_user_name,
-          role: row.created_by_user_role,
-        },
-      })),
-    };
+    const items = rows.map((row) => ({
+      id: row.id,
+      channel: row.channel,
+      message: row.message,
+      is_announcement: row.is_announcement,
+      created_by: row.created_by,
+      deleted_at: row.deleted_at,
+      deleted_by: row.deleted_by,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      created_by_user: {
+        id: row.created_by_user_id,
+        name: row.created_by_user_name,
+        role: row.created_by_user_role,
+      },
+    }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   async createMessage(input: CreateChatMessageInput): Promise<ChatMessageEntity> {

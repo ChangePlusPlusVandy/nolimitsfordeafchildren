@@ -30,10 +30,14 @@ export class GetSessionsController {
   async handle(
     @QueryParam("include_archived") includeArchived?: boolean,
     @QueryParam("active_only") activeOnly?: boolean,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
   ) {
     return await this.sessionsService.index({
       include_archived: includeArchived,
       active_only: activeOnly,
+      page,
+      limit,
     });
   }
 }

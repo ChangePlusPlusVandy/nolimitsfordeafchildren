@@ -10,6 +10,7 @@ import {
   Skeleton,
   Stack,
   Chip,
+  TablePagination,
 } from "@mui/material";
 import {
   EventRepeat as MakeupIcon,
@@ -376,6 +377,9 @@ function LoadingSkeleton() {
 export default function MyRequestsPage() {
   const httpClient = useHttpClient();
   const [tabValue, setTabValue] = useState(0);
+  const [makeupPage, setMakeupPage] = useState(1);
+  const [schedulePage, setSchedulePage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Fetch makeup requests
   const {
@@ -383,9 +387,14 @@ export default function MyRequestsPage() {
     isLoading: makeupLoading,
     error: makeupError,
   } = useQuery({
-    queryKey: ["parents", "me", "makeup-requests"],
+    queryKey: ["parents", "me", "makeup-requests", makeupPage, rowsPerPage],
     queryFn: async () => {
-      const response = await httpClient.get("/v1/parents/me/makeup-requests");
+      const response = await httpClient.get("/v1/parents/me/makeup-requests", {
+        params: {
+          page: makeupPage,
+          limit: rowsPerPage,
+        },
+      });
       return response.data;
     },
   });
@@ -396,9 +405,14 @@ export default function MyRequestsPage() {
     isLoading: scheduleChangeLoading,
     error: scheduleChangeError,
   } = useQuery({
-    queryKey: ["parents", "me", "schedule-change-requests"],
+    queryKey: ["parents", "me", "schedule-change-requests", schedulePage, rowsPerPage],
     queryFn: async () => {
-      const response = await httpClient.get("/v1/parents/me/schedule-change-requests");
+      const response = await httpClient.get("/v1/parents/me/schedule-change-requests", {
+        params: {
+          page: schedulePage,
+          limit: rowsPerPage,
+        },
+      });
       return response.data;
     },
   });
@@ -464,6 +478,19 @@ export default function MyRequestsPage() {
               {makeupRequests.map((request) => (
                 <MakeupRequestCard key={request.id} request={request} />
               ))}
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 20]}
+                component="div"
+                count={makeupData?.total ?? 0}
+                rowsPerPage={rowsPerPage}
+                page={Math.max(makeupPage - 1, 0)}
+                onPageChange={(_event, nextPage) => setMakeupPage(nextPage + 1)}
+                onRowsPerPageChange={(event) => {
+                  setRowsPerPage(Number(event.target.value));
+                  setMakeupPage(1);
+                  setSchedulePage(1);
+                }}
+              />
             </>
           )}
         </>
@@ -485,6 +512,19 @@ export default function MyRequestsPage() {
               {scheduleChangeRequests.map((request) => (
                 <ScheduleChangeRequestCard key={request.id} request={request} />
               ))}
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 20]}
+                component="div"
+                count={scheduleChangeData?.total ?? 0}
+                rowsPerPage={rowsPerPage}
+                page={Math.max(schedulePage - 1, 0)}
+                onPageChange={(_event, nextPage) => setSchedulePage(nextPage + 1)}
+                onRowsPerPageChange={(event) => {
+                  setRowsPerPage(Number(event.target.value));
+                  setMakeupPage(1);
+                  setSchedulePage(1);
+                }}
+              />
             </>
           )}
         </>

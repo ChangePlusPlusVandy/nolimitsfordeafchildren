@@ -179,13 +179,15 @@ export function useBulletinHttpService() {
         return response.data;
       },
 
-      pending: async (): Promise<{ items: Bulletin[] }> => {
-        const response = await httpClient.get(`/v1/bulletins/moderation/pending`);
+      pending: async (params?: { page?: number; limit?: number }): Promise<ListBulletinsResponse> => {
+        const response = await httpClient.get(`/v1/bulletins/moderation/pending`, { params });
         return response.data;
       },
 
-      moderationList: async (): Promise<{ items: Bulletin[] }> => {
-        const response = await httpClient.get(`/v1/bulletins/moderation/pending`);
+      moderationList: async (
+        params?: { page?: number; limit?: number },
+      ): Promise<ListBulletinsResponse> => {
+        const response = await httpClient.get(`/v1/bulletins/moderation/pending`, { params });
         return response.data;
       },
     },

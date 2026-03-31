@@ -27,6 +27,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  TablePagination,
 } from "@mui/material";
 import {
   CheckCircle as ApproveIcon,
@@ -38,6 +39,7 @@ import {
 import { useHttpClient } from "../../../plugins/axios";
 import { useTeacherHttpService } from "../../teachers/services/TeacherHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 type RequestStatus = "pending" | "approved" | "denied" | "completed";
 
@@ -113,8 +115,9 @@ export default function MakeupRequestsPage() {
   const queryClient = useQueryClient();
   const teacherHttpService = useTeacherHttpService();
   const locationHttpService = useLocationHttpService();
+  const table = useServerTable({ defaultLimit: 20 });
 
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("");
+  const statusFilter = (table.getFilter("status") || "") as RequestStatus | "";
   const [selectedRequest, setSelectedRequest] = useState<MakeupRequest | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState<"approved" | "denied">("approved");
@@ -131,12 +134,22 @@ export default function MakeupRequestsPage() {
 
   // Fetch requests
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["admin-makeup-requests", statusFilter],
+    queryKey: ["admin-makeup-requests", table.queryParams],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (statusFilter) params.append("status", statusFilter);
-      const response = await httpClient.get(`/v1/makeup-requests?${params}`);
-      return response.data as { items: MakeupRequest[] };
+      const response = await httpClient.get(`/v1/makeup-requests`, {
+        params: {
+          page: table.page,
+          limit: table.limit,
+          ...(statusFilter ? { status: statusFilter } : {}),
+        },
+      });
+      return response.data as {
+        items: MakeupRequest[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
   });
 
@@ -278,7 +291,7 @@ export default function MakeupRequestsPage() {
             size="small"
             label="Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "")}
+            onChange={(e) => table.setFilter("status", e.target.value as RequestStatus | "")}
             sx={{ minWidth: 150 }}
           >
             <MenuItem value="">All</MenuItem>
@@ -420,6 +433,15 @@ export default function MakeupRequestsPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            rowsPerPageOptions={[10, 20, 50]}
+            component="div"
+            count={data?.total ?? 0}
+            rowsPerPage={table.limit}
+            page={Math.max(table.page - 1, 0)}
+            onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+          />
         </TableContainer>
       )}
 

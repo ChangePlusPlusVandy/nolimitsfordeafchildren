@@ -19,6 +19,7 @@ import {
   IconButton,
   Chip,
   Stack,
+  TablePagination,
 } from "@mui/material";
 import NotesIcon from "@mui/icons-material/Notes";
 import AddIcon from "@mui/icons-material/Add";
@@ -58,13 +59,26 @@ export default function SessionNotes({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<SessionNote | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Fetch notes
   const { data, isLoading, error } = useQuery({
-    queryKey: ["session-notes", studentId],
+    queryKey: ["session-notes", studentId, page, rowsPerPage],
     queryFn: async () => {
-      const response = await httpClient.get(`/v1/students/${studentId}/notes`);
-      return response.data as { items: SessionNote[] };
+      const response = await httpClient.get(`/v1/students/${studentId}/notes`, {
+        params: {
+          page,
+          limit: rowsPerPage,
+        },
+      });
+      return response.data as {
+        items: SessionNote[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
   });
 
@@ -181,59 +195,72 @@ export default function SessionNotes({
       )}
 
       {notes.length > 0 && (
-        <List sx={{ maxHeight: 400, overflow: "auto" }}>
-          {notes.map((note) => (
-            <ListItem
-              key={note.id}
-              sx={{
-                flexDirection: "column",
-                alignItems: "flex-start",
-                borderBottom: "1px solid",
-                borderColor: "divider",
-                "&:last-child": {
-                  borderBottom: "none",
-                },
-              }}
-              secondaryAction={
-                canEdit && (
-                  <Stack direction="row" spacing={0.5}>
-                    <IconButton size="small" onClick={() => handleOpenDialog(note)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleDelete(note.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                )
-              }
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1, width: "100%" }}>
-                <Avatar
-                  sx={{ width: 28, height: 28, fontSize: "0.75rem", bgcolor: "primary.main" }}
-                >
-                  {note.teacher?.name?.charAt(0) || "T"}
-                </Avatar>
-                <Typography variant="subtitle2">{note.teacher?.name || "Teacher"}</Typography>
-                <Chip
-                  label={formatDate(note.created_at)}
-                  size="small"
-                  variant="outlined"
-                  sx={{ ml: "auto" }}
-                />
-              </Box>
-              <ListItemText
-                primary={note.note}
-                primaryTypographyProps={{
-                  sx: { whiteSpace: "pre-wrap", pr: canEdit ? 8 : 0 },
+        <>
+          <List sx={{ maxHeight: 400, overflow: "auto" }}>
+            {notes.map((note) => (
+              <ListItem
+                key={note.id}
+                sx={{
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  "&:last-child": {
+                    borderBottom: "none",
+                  },
                 }}
-                secondary={
-                  note.session_date &&
-                  `Session: ${new Date(note.session_date).toLocaleDateString()}`
+                secondaryAction={
+                  canEdit && (
+                    <Stack direction="row" spacing={0.5}>
+                      <IconButton size="small" onClick={() => handleOpenDialog(note)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(note.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  )
                 }
-              />
-            </ListItem>
-          ))}
-        </List>
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1, width: "100%" }}>
+                  <Avatar
+                    sx={{ width: 28, height: 28, fontSize: "0.75rem", bgcolor: "primary.main" }}
+                  >
+                    {note.teacher?.name?.charAt(0) || "T"}
+                  </Avatar>
+                  <Typography variant="subtitle2">{note.teacher?.name || "Teacher"}</Typography>
+                  <Chip
+                    label={formatDate(note.created_at)}
+                    size="small"
+                    variant="outlined"
+                    sx={{ ml: "auto" }}
+                  />
+                </Box>
+                <ListItemText
+                  primary={note.note}
+                  primaryTypographyProps={{
+                    sx: { whiteSpace: "pre-wrap", pr: canEdit ? 8 : 0 },
+                  }}
+                  secondary={
+                    note.session_date && `Session: ${new Date(note.session_date).toLocaleDateString()}`
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 20]}
+            component="div"
+            count={data?.total ?? 0}
+            rowsPerPage={rowsPerPage}
+            page={Math.max(page - 1, 0)}
+            onPageChange={(_event, nextPage) => setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(Number(event.target.value));
+              setPage(1);
+            }}
+          />
+        </>
       )}
 
       {/* Add/Edit Note Dialog */}

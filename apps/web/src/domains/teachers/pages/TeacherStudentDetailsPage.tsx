@@ -144,7 +144,12 @@ export default function TeacherStudentDetailsPage() {
   } = useQuery({
     queryKey: ["session-notes", id, "teacher-scope"],
     queryFn: async () => {
-      const response = await httpClient.get(`/v1/students/${id}/notes`);
+      const response = await httpClient.get(`/v1/students/${id}/notes`, {
+        params: {
+          page: 1,
+          limit: 100,
+        },
+      });
       return response.data as { items: SessionNote[] };
     },
     enabled: !!id && !!student,
@@ -157,7 +162,12 @@ export default function TeacherStudentDetailsPage() {
   } = useQuery({
     queryKey: ["assessments", id, "teacher-scope"],
     queryFn: async () => {
-      const response = await httpClient.get(`/v1/students/${id}/assessments`);
+      const response = await httpClient.get(`/v1/students/${id}/assessments`, {
+        params: {
+          page: 1,
+          limit: 100,
+        },
+      });
       return response.data as { items: AssessmentCycle[] };
     },
     enabled: !!id && !!student,

@@ -16,6 +16,7 @@ import {
   getPublicUrl,
 } from "@/s3";
 import { randomUUID } from "crypto";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export type DocumentType =
   | "audiogram"
@@ -347,40 +348,73 @@ export class DocumentsService {
   /**
    * Get overdue audiograms (for admin alerts and cron jobs)
    */
-  async getOverdueAudiograms(daysAhead: number = 0): Promise<DocumentWithMetadata[]> {
+  async getOverdueAudiograms(
+    daysAhead: number = 0,
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<DocumentWithMetadata>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
     const today = new Date();
     today.setDate(today.getDate() + daysAhead);
     const checkDate = today.toISOString().split("T")[0]!;
 
+    const whereClause = and(
+      eq(DocumentTable.document_type, "audiogram"),
+      sql`${DocumentTable.next_due_date} <= ${checkDate}`,
+    );
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(DocumentTable)
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
+
     const results = await db
       .select()
       .from(DocumentTable)
-      .where(
-        and(
-          eq(DocumentTable.document_type, "audiogram"),
-          sql`${DocumentTable.next_due_date} <= ${checkDate}`,
-        ),
-      )
-      .orderBy(DocumentTable.next_due_date);
+      .where(whereClause)
+      .orderBy(DocumentTable.next_due_date)
+      .limit(limit)
+      .offset(offset);
 
-    return results.map((doc) => this.addMetadata(doc));
+    const items = results.map((doc) => this.addMetadata(doc));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
    * Get audiograms due within N days (for reminder emails)
    */
-  async getAudiogramsDueSoon(daysAhead: number = 30): Promise<
-    Array<
+  async getAudiogramsDueSoon(
+    daysAhead: number = 30,
+    query: { page?: number; limit?: number } = {},
+  ): Promise<
+    PaginatedResponse<
       DocumentWithMetadata & {
         student?: { id: string; first_name: string; last_name: string; initials: string };
       }
     >
   > {
+    const { page, limit, offset } = getPagination(query, 20, 100);
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + daysAhead);
     const todayStr = today.toISOString().split("T")[0]!;
     const futureDateStr = futureDate.toISOString().split("T")[0]!;
+
+    const whereClause = and(
+      eq(DocumentTable.document_type, "audiogram"),
+      eq(DocumentTable.entity_type, "student"),
+      sql`${DocumentTable.next_due_date} >= ${todayStr}`,
+      sql`${DocumentTable.next_due_date} <= ${futureDateStr}`,
+    );
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(DocumentTable)
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
 
     const results = await db
       .select({
@@ -410,17 +444,12 @@ export class DocumentsService {
       })
       .from(DocumentTable)
       .leftJoin(StudentTable, eq(DocumentTable.entity_id, StudentTable.id))
-      .where(
-        and(
-          eq(DocumentTable.document_type, "audiogram"),
-          eq(DocumentTable.entity_type, "student"),
-          sql`${DocumentTable.next_due_date} >= ${todayStr}`,
-          sql`${DocumentTable.next_due_date} <= ${futureDateStr}`,
-        ),
-      )
-      .orderBy(DocumentTable.next_due_date);
+      .where(whereClause)
+      .orderBy(DocumentTable.next_due_date)
+      .limit(limit)
+      .offset(offset);
 
-    return results.map((row) => ({
+    const items = results.map((row) => ({
       ...this.addMetadata({
         id: row.id,
         entity_type: row.entity_type,
@@ -451,6 +480,8 @@ export class DocumentsService {
           }
         : undefined,
     }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**

@@ -12,6 +12,7 @@ import {
   Alert,
   Stack,
   Badge,
+  TablePagination,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -21,6 +22,7 @@ import {
   NotificationsActive as NotificationsIcon,
 } from "@mui/icons-material";
 import { useParentHttpService, type LinkedChild } from "../services/ParentHttpService";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -189,10 +191,11 @@ function LoadingSkeleton() {
 
 export default function MyStudentsPage() {
   const parentHttpService = useParentHttpService();
+  const table = useServerTable({ defaultLimit: 12 });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: [parentHttpService.key, "myChildren"],
-    queryFn: parentHttpService.queries.myChildren,
+    queryKey: [parentHttpService.key, "myChildren", table.page, table.limit],
+    queryFn: () => parentHttpService.queries.myChildren({ page: table.page, limit: table.limit }),
   });
 
   if (isLoading) {
@@ -231,19 +234,30 @@ export default function MyStudentsPage() {
           this is an error.
         </Alert>
       ) : (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-          {children.map((child) => (
-            <Box
-              key={child.id}
-              sx={{
-                flex: "1 1 300px",
-                maxWidth: { xs: "100%", sm: "calc(50% - 12px)", md: "calc(33.33% - 16px)" },
-              }}
-            >
-              <ChildCard child={child} />
-            </Box>
-          ))}
-        </Box>
+        <>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+            {children.map((child) => (
+              <Box
+                key={child.id}
+                sx={{
+                  flex: "1 1 300px",
+                  maxWidth: { xs: "100%", sm: "calc(50% - 12px)", md: "calc(33.33% - 16px)" },
+                }}
+              >
+                <ChildCard child={child} />
+              </Box>
+            ))}
+          </Box>
+          <TablePagination
+            rowsPerPageOptions={[6, 12, 24]}
+            component="div"
+            count={data?.total ?? 0}
+            rowsPerPage={table.limit}
+            page={Math.max(table.page - 1, 0)}
+            onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+          />
+        </>
       )}
     </Box>
   );

@@ -225,13 +225,7 @@ export default function MyProfilePage() {
       <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
         <Chip
           label={displayProfile.role}
-          color={
-            displayProfile.role === "administrator"
-              ? "primary"
-              : displayProfile.role === "teacher"
-                ? "secondary"
-                : "success"
-          }
+          variant="outlined"
           sx={{ textTransform: "capitalize" }}
         />
         <Chip

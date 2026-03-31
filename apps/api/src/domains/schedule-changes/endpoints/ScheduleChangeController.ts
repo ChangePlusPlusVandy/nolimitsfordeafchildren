@@ -102,6 +102,7 @@ export class GetScheduleChangeRequestsController {
     @QueryParam("status") status?: RequestStatus,
     @QueryParam("student_id") studentId?: string,
     @QueryParam("site_id") siteId?: string,
+    @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
   ) {
     const currentUser = req.currentUser;
@@ -110,6 +111,7 @@ export class GetScheduleChangeRequestsController {
         status,
         student_id: studentId,
         site_id: siteId,
+        page,
         limit,
       });
     }
@@ -118,6 +120,7 @@ export class GetScheduleChangeRequestsController {
       status,
       student_id: studentId,
       site_id: siteId,
+      page,
       limit,
     });
   }
@@ -236,34 +239,6 @@ export class PatchScheduleChangeTeacherResponseController {
 }
 
 /**
- * Get available schedules for parents to browse
- * GET /v1/schedules/available
- */
-@Service()
-@JsonController("/v1")
-export class GetAvailableSchedulesController {
-  private scheduleChangeService: ScheduleChangeService;
-  constructor() {
-    this.scheduleChangeService = Container.get(ScheduleChangeService);
-  }
-
-  @Get("/schedules/available")
-  @Authorized(["parent", "administrator"])
-  async handle(
-    @QueryParam("site_id") siteId?: string,
-    @QueryParam("day_pattern") dayPattern?: "mws" | "tths",
-    @QueryParam("exclude_current_schedule_id") excludeCurrentScheduleId?: string,
-  ) {
-    const result = await this.scheduleChangeService.getAvailableSchedules({
-      site_id: siteId,
-      day_pattern: dayPattern,
-      exclude_current_schedule_id: excludeCurrentScheduleId,
-    });
-    return result;
-  }
-}
-
-/**
  * Get schedule change requests for the current parent's children
  * GET /v1/parents/me/schedule-change-requests
  */
@@ -277,8 +252,15 @@ export class GetParentScheduleChangeRequestsController {
 
   @Get("/parents/me/schedule-change-requests")
   @Authorized(["parent"])
-  async handle(@CurrentUser({ required: true }) currentUser: UserEntity) {
-    const result = await this.scheduleChangeService.listRequestsForParent(currentUser.id);
+  async handle(
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    const result = await this.scheduleChangeService.listRequestsForParent(currentUser.id, {
+      page,
+      limit,
+    });
     return result;
   }
 }

@@ -386,8 +386,8 @@ export class GetBulletinsPendingController {
 
   @Get("/bulletins/moderation/pending")
   @Authorized(["administrator"])
-  async handle() {
-    return await this.bulletinsService.listPendingApproval();
+  async handle(@QueryParam("page") page?: number, @QueryParam("limit") limit?: number) {
+    return await this.bulletinsService.listPendingApproval({ page, limit });
   }
 }
 

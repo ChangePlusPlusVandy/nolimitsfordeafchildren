@@ -2,7 +2,8 @@ import { Service } from "typedi";
 import { db } from "@/db";
 import { LocationTable, ScheduleTable } from "@/db/schema";
 import type { LocationEntity, LocationInsert } from "@/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { eq, and, gte, lte, ilike, or, asc, desc, sql } from "drizzle-orm";
 
 export type CreateLocationDto = Omit<LocationInsert, "id" | "created_at" | "updated_at">;
 export type UpdateLocationDto = Partial<CreateLocationDto>;
@@ -16,27 +17,65 @@ export type LocationMapPin = {
   is_active: boolean;
 };
 
+export interface ListLocationsQuery {
+  search?: string;
+  type?: "education_center" | "pop_up" | "remote";
+  is_active?: boolean;
+  page?: number;
+  limit?: number;
+  sort?: "name" | "created_at";
+  order?: "asc" | "desc";
+}
+
 @Service()
 export class LocationsService {
   /**
    * List all locations with optional filtering
    */
-  async index(query?: { is_active?: boolean }): Promise<LocationEntity[]> {
+  async index(query: ListLocationsQuery = {}): Promise<PaginatedResponse<LocationEntity>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
     const conditions = [];
 
-    if (query?.is_active !== undefined) {
+    if (query.search) {
+      const searchQuery = `%${query.search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(LocationTable.name, searchQuery),
+          ilike(LocationTable.city, searchQuery),
+          ilike(LocationTable.state, searchQuery),
+        ),
+      );
+    }
+
+    if (query.type) {
+      conditions.push(eq(LocationTable.type, query.type));
+    }
+
+    if (query.is_active !== undefined) {
       conditions.push(eq(LocationTable.is_active, query.is_active));
     }
 
-    if (conditions.length > 0) {
-      return await db
-        .select()
-        .from(LocationTable)
-        .where(and(...conditions))
-        .orderBy(LocationTable.name);
-    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    return await db.select().from(LocationTable).orderBy(LocationTable.name);
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(LocationTable)
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
+
+    const sortColumn = query.sort === "created_at" ? LocationTable.created_at : LocationTable.name;
+    const orderFn = query.order === "desc" ? desc : asc;
+
+    const items = await db
+      .select()
+      .from(LocationTable)
+      .where(whereClause)
+      .orderBy(orderFn(sortColumn), asc(LocationTable.id))
+      .limit(limit)
+      .offset(offset);
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**

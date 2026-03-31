@@ -12,25 +12,28 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
+  TablePagination,
   TextField,
   Typography,
 } from "@mui/material";
 import { useState } from "react";
 import { useBulletinHttpService, type Bulletin } from "../../bulletin/services/BulletinHttpService";
 import { useToast } from "../../global/components/ToastProvider";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 export default function BulletinModerationPage() {
   const bulletinService = useBulletinHttpService();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const table = useServerTable({ defaultLimit: 20 });
 
   const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
   const [action, setAction] = useState<"approved" | "rejected" | null>(null);
   const [notes, setNotes] = useState("");
 
   const { data, isLoading, error } = useQuery({
-    queryKey: [bulletinService.key, "pending"],
-    queryFn: bulletinService.queries.pending,
+    queryKey: [bulletinService.key, "pending", table.queryParams],
+    queryFn: () => bulletinService.queries.pending({ page: table.page, limit: table.limit }),
   });
 
   const reviewMutation = useMutation({
@@ -75,59 +78,70 @@ export default function BulletinModerationPage() {
       {pendingItems.length === 0 ? (
         <Alert severity="info">No bulletins awaiting approval.</Alert>
       ) : (
-        <Stack spacing={2}>
-          {pendingItems.map((bulletin) => (
-            <Card key={bulletin.id} variant="outlined">
-              <CardContent>
-                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                  <Box>
-                    <Typography variant="h6">{bulletin.title}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      By {bulletin.created_by_name || "Unknown"}
-                      {bulletin.site_name ? ` • ${bulletin.site_name}` : ""}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Audience: {bulletin.role_target}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
-                      {bulletin.body || "No content"}
-                    </Typography>
-                    {bulletin.attachments.length > 0 && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        Attachments: {bulletin.attachments.length}
+        <>
+          <Stack spacing={2}>
+            {pendingItems.map((bulletin) => (
+              <Card key={bulletin.id} variant="outlined">
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+                    <Box>
+                      <Typography variant="h6">{bulletin.title}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        By {bulletin.created_by_name || "Unknown"}
+                        {bulletin.site_name ? ` • ${bulletin.site_name}` : ""}
                       </Typography>
-                    )}
-                  </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Audience: {bulletin.role_target}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
+                        {bulletin.body || "No content"}
+                      </Typography>
+                      {bulletin.attachments.length > 0 && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          Attachments: {bulletin.attachments.length}
+                        </Typography>
+                      )}
+                    </Box>
 
-                  <Stack direction="row" spacing={1} alignItems="flex-start">
-                    <Chip label="Pending" color="warning" size="small" />
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => {
-                        setSelectedBulletin(bulletin);
-                        setAction("approved");
-                      }}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="error"
-                      onClick={() => {
-                        setSelectedBulletin(bulletin);
-                        setAction("rejected");
-                      }}
-                    >
-                      Reject
-                    </Button>
-                  </Stack>
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <Chip label="Pending" color="warning" size="small" />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          setSelectedBulletin(bulletin);
+                          setAction("approved");
+                        }}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        onClick={() => {
+                          setSelectedBulletin(bulletin);
+                          setAction("rejected");
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </Stack>
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+          <TablePagination
+            rowsPerPageOptions={[10, 20, 50]}
+            component="div"
+            count={data?.total ?? 0}
+            rowsPerPage={table.limit}
+            page={Math.max(table.page - 1, 0)}
+            onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+          />
+        </>
       )}
 
         <Dialog

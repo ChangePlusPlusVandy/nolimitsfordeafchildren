@@ -24,6 +24,7 @@ import {
   Slider,
   Collapse,
   Stack,
+  TablePagination,
 } from "@mui/material";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import AddIcon from "@mui/icons-material/Add";
@@ -99,6 +100,8 @@ export default function AssessmentHistory({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Form state
   const [cycleStartDate, setCycleStartDate] = useState("");
@@ -110,10 +113,21 @@ export default function AssessmentHistory({
 
   // Fetch assessments
   const { data, isLoading, error } = useQuery({
-    queryKey: ["assessments", studentId],
+    queryKey: ["assessments", studentId, page, rowsPerPage],
     queryFn: async () => {
-      const response = await httpClient.get(`/v1/students/${studentId}/assessments`);
-      return response.data as { items: AssessmentCycle[] };
+      const response = await httpClient.get(`/v1/students/${studentId}/assessments`, {
+        params: {
+          page,
+          limit: rowsPerPage,
+        },
+      });
+      return response.data as {
+        items: AssessmentCycle[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
   });
 
@@ -345,8 +359,9 @@ export default function AssessmentHistory({
       )}
 
       {cycles.length > 0 && (
-        <TableContainer>
-          <Table size="small">
+        <>
+          <TableContainer>
+            <Table size="small">
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 40 }} />
@@ -356,7 +371,7 @@ export default function AssessmentHistory({
                 <TableCell align="center">Improvement</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
+              <TableBody>
               {cycles.map((cycle) => (
                 <>
                   <TableRow
@@ -595,9 +610,22 @@ export default function AssessmentHistory({
                   </TableRow>
                 </>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 20]}
+            component="div"
+            count={data?.total ?? 0}
+            rowsPerPage={rowsPerPage}
+            page={Math.max(page - 1, 0)}
+            onPageChange={(_event, nextPage) => setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(Number(event.target.value));
+              setPage(1);
+            }}
+          />
+        </>
       )}
 
       {/* Add/Edit Assessment Dialog */}

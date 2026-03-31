@@ -1,6 +1,6 @@
 import { Service } from "typedi";
 import Container from "@/container";
-import { eq, and, sql, desc, isNull, gte, lte } from "drizzle-orm";
+import { eq, and, sql, desc, isNull, gte, lte, asc } from "drizzle-orm";
 import { db } from "@/db";
 import {
   StudentTable,
@@ -19,6 +19,12 @@ import {
   ScheduleChangeRequestTable,
 } from "@/db/schema";
 import { AttendanceService } from "@/domains/attendance/services/AttendanceService";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedQuery,
+  type PaginatedResponse,
+} from "@/utils/pagination";
 
 export interface LinkedChild {
   id: string;
@@ -150,7 +156,12 @@ export class ParentsService {
     this.attendanceService = Container.get(AttendanceService);
   }
 
-  async directory(parentUserId: string): Promise<{ items: DirectoryPerson[] }> {
+  async directory(
+    parentUserId: string,
+    query: PaginatedQuery = {},
+  ): Promise<PaginatedResponse<DirectoryPerson>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
     const parentProfile = await db
       .select({ id: ParentProfileTable.id })
       .from(ParentProfileTable)
@@ -158,7 +169,7 @@ export class ParentsService {
       .limit(1);
 
     if (parentProfile.length === 0) {
-      return { items: [] };
+      return buildPaginatedResponse([], 0, page, limit);
     }
 
     const linkedSiteRows = await db
@@ -178,7 +189,7 @@ export class ParentsService {
     );
 
     if (linkedSiteIds.length === 0) {
-      return { items: [] };
+      return buildPaginatedResponse([], 0, page, limit);
     }
 
     const admins = await db
@@ -231,11 +242,14 @@ export class ParentsService {
     }
 
     const items = Array.from(uniqueById.values()).sort((a, b) => a.name.localeCompare(b.name));
+    const pagedItems = items.slice(offset, offset + limit);
 
-    return { items };
+    return buildPaginatedResponse(pagedItems, items.length, page, limit);
   }
 
-  async zipReport(): Promise<{ items: ParentZipReportGroup[] }> {
+  async zipReport(query: PaginatedQuery = {}): Promise<PaginatedResponse<ParentZipReportGroup>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
     const rows = await db
       .select({
         parent_user_id: UserTable.id,
@@ -330,13 +344,20 @@ export class ParentsService {
       }))
       .sort((a, b) => a.postal_code.localeCompare(b.postal_code));
 
-    return { items };
+    const pagedItems = items.slice(offset, offset + limit);
+
+    return buildPaginatedResponse(pagedItems, items.length, page, limit);
   }
 
   /**
    * Get all children linked to the current parent
    */
-  async myChildren(parentUserId: string): Promise<{ items: LinkedChild[] }> {
+  async myChildren(
+    parentUserId: string,
+    query: PaginatedQuery = {},
+  ): Promise<PaginatedResponse<LinkedChild>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
     // Get parent profile
     const parentProfile = await db
       .select()
@@ -345,8 +366,22 @@ export class ParentsService {
       .limit(1);
 
     if (parentProfile.length === 0) {
-      return { items: [] };
+      return buildPaginatedResponse([], 0, page, limit);
     }
+
+    const countRows = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(ParentStudentLinkTable)
+      .innerJoin(StudentTable, eq(ParentStudentLinkTable.student_id, StudentTable.id))
+      .where(
+        and(
+          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+          isNull(ParentStudentLinkTable.revoked_at),
+          eq(StudentTable.is_active, true),
+        ),
+      );
+
+    const total = countRows[0]?.count ?? 0;
 
     // Get linked students
     const linkedStudents = await db
@@ -369,7 +404,10 @@ export class ParentsService {
           isNull(ParentStudentLinkTable.revoked_at),
           eq(StudentTable.is_active, true),
         ),
-      );
+      )
+      .orderBy(asc(StudentTable.last_name), asc(StudentTable.first_name), asc(StudentTable.id))
+      .limit(limit)
+      .offset(offset);
 
     const items: LinkedChild[] = [];
 
@@ -428,7 +466,7 @@ export class ParentsService {
       });
     }
 
-    return { items };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**

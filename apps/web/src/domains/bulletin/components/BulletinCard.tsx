@@ -15,16 +15,13 @@ interface BulletinCardProps {
 
 function getScopeChip(scope: BulletinScope, siteName?: string) {
   if (scope === "global") {
-    return (
-      <Chip icon={<PublicIcon />} label="Global" size="small" color="primary" variant="outlined" />
-    );
+    return <Chip icon={<PublicIcon />} label="Global" size="small" variant="outlined" />;
   }
   return (
     <Chip
       icon={<LocationOnIcon />}
       label={siteName || "Site-specific"}
       size="small"
-      color="secondary"
       variant="outlined"
     />
   );
@@ -38,16 +35,7 @@ function getRoleTargetChip(roleTarget: BulletinRoleTarget) {
     parent: "Parents",
   };
 
-  const colors: Record<BulletinRoleTarget, "default" | "primary" | "secondary" | "success"> = {
-    all: "default",
-    administrator: "primary",
-    teacher: "secondary",
-    parent: "success",
-  };
-
-  return (
-    <Chip label={labels[roleTarget]} size="small" color={colors[roleTarget]} variant="filled" />
-  );
+  return <Chip label={labels[roleTarget]} size="small" variant="outlined" />;
 }
 
 function formatDate(dateString: string | null): string {

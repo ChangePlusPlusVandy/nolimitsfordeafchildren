@@ -7,6 +7,7 @@ import {
   ListItemText,
   Box,
   Divider,
+  Typography,
 } from "@mui/material";
 import PeopleIcon from "@mui/icons-material/People";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -35,7 +36,8 @@ type NavItem = {
   text: string;
   to: string;
   icon: React.ReactNode;
-  roles?: UserRole[]; // If undefined, shown to all roles
+  roles?: UserRole[];
+  section?: string;
 };
 
 const navItems: NavItem[] = [
@@ -45,6 +47,7 @@ const navItems: NavItem[] = [
     to: "/locations",
     icon: <LocationOnIcon />,
     roles: ["administrator"],
+    section: "Admin",
   },
   {
     text: "Users",
@@ -107,6 +110,7 @@ const navItems: NavItem[] = [
     to: "/my-day",
     icon: <TodayIcon />,
     roles: ["teacher"],
+    section: "Teacher",
   },
   {
     text: "Make-Up Sessions",
@@ -133,6 +137,7 @@ const navItems: NavItem[] = [
     to: "/my-students",
     icon: <ChildCareIcon />,
     roles: ["parent"],
+    section: "Parent",
   },
   {
     text: "Schedule Change",
@@ -158,6 +163,7 @@ const navItems: NavItem[] = [
     text: "Bulletin",
     to: "/bulletin",
     icon: <ArticleIcon />,
+    section: "General",
   },
   {
     text: "Profile",
@@ -181,137 +187,95 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
   };
 
   const handleNavClick = () => {
-    // Close mobile drawer on navigation
     if (isMobile && onMobileClose) {
       onMobileClose();
     }
   };
 
-  // Filter nav items based on user role
   const visibleItems = navItems.filter((item) => {
     if (user?.role === "unassigned") {
       return item.to === "/my-profile";
     }
-
-    if (!item.roles) return true; // Show to all if no roles specified
+    if (!item.roles) return true;
     return hasRole(...item.roles);
   });
 
   const drawerContent = (
-    <Box
-      sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }}
-      role="presentation"
-    >
+    <Box sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }} role="presentation">
       {/* User info */}
       {user && (
-        <Box sx={{ px: 2, py: 2.5 }}>
-          <Box
-            sx={{
-              fontSize: "0.95rem",
-              fontWeight: 700,
-              color: "common.white",
-              textOverflow: "ellipsis",
-              overflow: "hidden",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <Box sx={{ px: 2, py: 2 }}>
+          <Typography variant="subtitle2" noWrap>
             {user.name}
-          </Box>
-          <Box
-            sx={{
-              fontSize: "0.75rem",
-              color: "rgba(255,255,255,0.7)",
-            }}
-          >
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
             {user.role === "unassigned" ? "Pending approval" : user.role}
-          </Box>
+          </Typography>
         </Box>
       )}
 
-      <Divider sx={{ mx: 1, mb: 1 }} />
+      <Divider />
 
       {/* Navigation items */}
-      <List sx={{ padding: "0 8px", flexGrow: 1 }} component="nav" aria-label="Main navigation">
-        {visibleItems.map((item) => {
+      <List sx={{ flexGrow: 1, px: 1 }} component="nav" aria-label="Main navigation">
+        {visibleItems.map((item, index) => {
           const isActive =
             location.pathname === item.to ||
             (item.to !== "/" && location.pathname.startsWith(item.to));
 
+          // Show section header if this item starts a new section
+          const showSection = item.section && (index === 0 || visibleItems[index - 1]?.section !== item.section);
+
           return (
-            <ListItem key={item.text} disablePadding sx={{ margin: "4px 0" }}>
-              <ListItemButton
-                component={Link}
-                to={item.to}
-                onClick={handleNavClick}
-                sx={{
-                  borderRadius: "8px",
-                  color: "rgba(255,255,255,0.92)",
-                  "&:hover": {
-                    backgroundColor: "rgba(255,255,255,0.08)",
-                  },
-                  ...(isActive && {
-                    backgroundColor: "rgba(83, 171, 232, 0.22)",
-                    borderLeft: "3px solid #53abe8",
-                    "&:hover": {
-                      backgroundColor: "rgba(83, 171, 232, 0.3)",
-                    },
-                  }),
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    color: "inherit",
-                    minWidth: 40,
-                    "& svg": { fontSize: "1.5rem" },
-                  }}
+            <Box key={item.text}>
+              {showSection && (
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ px: 2, pt: index === 0 ? 1 : 2, pb: 0.5, display: "block" }}
                 >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.text}
-                  primaryTypographyProps={{
-                    fontSize: "0.95rem",
-                    fontWeight: isActive ? 700 : 500,
-                    sx: { pt: 0.5, pb: 0.5 },
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
+                  {item.section}
+                </Typography>
+              )}
+              <ListItem disablePadding>
+                <ListItemButton
+                  component={Link}
+                  to={item.to}
+                  selected={isActive}
+                  onClick={handleNavClick}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            </Box>
           );
         })}
       </List>
 
       {/* Logout button at bottom */}
-      <Box sx={{ padding: "0 8px", mb: 2 }}>
-        <Divider sx={{ mb: 1 }} />
-        <List disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
-                handleNavClick();
-                handleLogout();
-              }}
-              sx={{
-                borderRadius: "8px",
-                color: "rgba(255,255,255,0.92)",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" },
-              }}
-              aria-label="Logout from application"
-            >
-              <ListItemIcon
-                sx={{ color: "inherit", minWidth: 40, "& svg": { fontSize: "1.5rem" } }}
-              >
-                <LogoutIcon />
-              </ListItemIcon>
-              <ListItemText primary="Logout" primaryTypographyProps={{ fontSize: "0.95rem" }} />
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </Box>
+      <Divider />
+      <List sx={{ px: 1 }} disablePadding>
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => {
+              handleNavClick();
+              handleLogout();
+            }}
+            aria-label="Logout from application"
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItemButton>
+        </ListItem>
+      </List>
     </Box>
   );
 
-  // Mobile: temporary drawer that overlays content
   if (isMobile) {
     return (
       <Drawer
@@ -319,14 +283,11 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
         anchor="left"
         open={mobileOpen}
         onClose={onMobileClose}
-        ModalProps={{
-          keepMounted: true, // Better mobile performance
-        }}
+        ModalProps={{ keepMounted: true }}
         sx={{
           "& .MuiDrawer-paper": {
             width: DRAWER_WIDTH,
             boxSizing: "border-box",
-            backgroundColor: "#0f2b40",
           },
         }}
       >
@@ -335,7 +296,6 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
     );
   }
 
-  // Desktop: permanent drawer
   return (
     <Drawer
       variant="permanent"
@@ -346,8 +306,6 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
         "& .MuiDrawer-paper": {
           width: DRAWER_WIDTH,
           boxSizing: "border-box",
-          backgroundColor: "#0f2b40",
-          overflowX: "hidden",
         },
       }}
     >

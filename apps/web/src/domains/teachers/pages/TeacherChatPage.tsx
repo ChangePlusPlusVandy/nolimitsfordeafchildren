@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Stack,
   Tab,
+  TablePagination,
   Tabs,
   TextField,
   Typography,
@@ -23,6 +24,7 @@ import {
 import { useHttpClient } from "../../../plugins/axios";
 import { useAuth } from "../../../auth";
 import { useToast } from "../../global/components/ToastProvider";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 type ChatChannel = "community" | "teacher";
 
@@ -57,14 +59,21 @@ export default function TeacherChatPage() {
   const [channel, setChannel] = useState<ChatChannel>("community");
   const [message, setMessage] = useState("");
   const [markAsAnnouncement, setMarkAsAnnouncement] = useState(false);
+  const table = useServerTable({ defaultLimit: 50 });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["chat-messages", channel],
+    queryKey: ["chat-messages", channel, table.page, table.limit],
     queryFn: async () => {
       const response = await httpClient.get("/v1/chat/messages", {
-        params: { channel, limit: 100 },
+        params: { channel, page: table.page, limit: table.limit },
       });
-      return response.data as { items: ChatMessage[] };
+      return response.data as {
+        items: ChatMessage[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
     refetchInterval: 15000,
   });
@@ -129,7 +138,14 @@ export default function TeacherChatPage() {
         <Typography variant="h4">Staff Chat</Typography>
       </Stack>
 
-      <Tabs value={channel} onChange={(_, next) => setChannel(next)} sx={{ mb: 2 }}>
+      <Tabs
+        value={channel}
+        onChange={(_, next) => {
+          setChannel(next);
+          table.setPage(1);
+        }}
+        sx={{ mb: 2 }}
+      >
         <Tab value="community" label="Community" />
         <Tab value="teacher" label="Teacher Channel" />
       </Tabs>
@@ -150,7 +166,7 @@ export default function TeacherChatPage() {
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Button
                 variant={markAsAnnouncement ? "contained" : "outlined"}
-                color="warning"
+                color="info"
                 startIcon={<AnnouncementIcon />}
                 onClick={() => setMarkAsAnnouncement((prev) => !prev)}
               >
@@ -190,7 +206,7 @@ export default function TeacherChatPage() {
           const canToggleAnnouncement = isAdmin || item.created_by_user.id === user?.id;
 
           return (
-            <Card key={item.id} variant="outlined" sx={{ borderColor: item.is_announcement ? "warning.main" : undefined }}>
+            <Card key={item.id} variant="outlined" sx={{ borderColor: item.is_announcement ? "info.main" : undefined }}>
               <CardContent>
                 <Stack spacing={1}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -198,7 +214,7 @@ export default function TeacherChatPage() {
                       <Typography variant="subtitle2">{item.created_by_user.name}</Typography>
                       <Chip size="small" label={item.created_by_user.role} variant="outlined" />
                       {item.is_announcement && (
-                        <Chip size="small" color="warning" label="Announcement" icon={<PinIcon />} />
+                        <Chip size="small" color="info" label="Announcement" icon={<PinIcon />} />
                       )}
                     </Stack>
                     <Typography variant="caption" color="text.secondary">
@@ -244,6 +260,16 @@ export default function TeacherChatPage() {
           );
         })}
       </Stack>
+
+      <TablePagination
+        rowsPerPageOptions={[25, 50, 100]}
+        component="div"
+        count={data?.total ?? 0}
+        rowsPerPage={table.limit}
+        page={Math.max(table.page - 1, 0)}
+        onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+        onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+      />
     </Box>
   );
 }

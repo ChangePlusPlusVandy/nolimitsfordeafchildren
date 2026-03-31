@@ -23,6 +23,8 @@ export interface ListSchedulesQuery {
 export interface AvailableSchedulesQuery {
   site_id?: string;
   day_of_week_mask?: number;
+  day_pattern?: "mws" | "tths";
+  exclude_current_schedule_id?: string;
   page?: number;
   limit?: number;
 }
@@ -319,6 +321,16 @@ export class SchedulesService {
     if (query.day_of_week_mask) {
       // Check if any days in the filter overlap with the schedule
       conditions.push(sql`(${ScheduleTable.day_of_week_mask} & ${query.day_of_week_mask}) > 0`);
+    }
+
+    if (query.day_pattern === "mws") {
+      conditions.push(sql`(${ScheduleTable.day_of_week_mask} & 74) > 0`);
+    } else if (query.day_pattern === "tths") {
+      conditions.push(sql`(${ScheduleTable.day_of_week_mask} & 84) > 0`);
+    }
+
+    if (query.exclude_current_schedule_id) {
+      conditions.push(sql`${ScheduleTable.id} != ${query.exclude_current_schedule_id}`);
     }
 
     const whereClause = and(...conditions);

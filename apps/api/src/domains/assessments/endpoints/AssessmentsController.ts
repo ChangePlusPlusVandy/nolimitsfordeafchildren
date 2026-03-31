@@ -6,6 +6,7 @@ import {
   JsonController,
   Param,
   Body,
+  QueryParam,
   CurrentUser,
   Authorized,
   HttpError,
@@ -58,9 +59,12 @@ export class GetStudentAssessmentsController {
 
   @Get("/students/:studentId/assessments")
   @Authorized(["administrator", "teacher", "parent"])
-  async handle(@Param("studentId") studentId: string) {
-    const cycles = await this.assessmentsService.listForStudent(studentId);
-    return { items: cycles };
+  async handle(
+    @Param("studentId") studentId: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.assessmentsService.listForStudent(studentId, { page, limit });
   }
 }
 

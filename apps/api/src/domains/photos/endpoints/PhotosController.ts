@@ -106,6 +106,7 @@ export class GetPhotosController {
     @QueryParam("location_id") locationId?: string,
     @QueryParam("student_id") studentId?: string,
     @QueryParam("session_date") sessionDate?: string,
+    @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
     @CurrentUser({ required: true }) currentUser?: UserEntity,
   ) {
@@ -114,6 +115,7 @@ export class GetPhotosController {
         location_id: locationId,
         student_id: studentId,
         session_date: sessionDate,
+        page,
         limit,
       },
       currentUser!,

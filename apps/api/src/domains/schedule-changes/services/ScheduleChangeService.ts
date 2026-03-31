@@ -1,6 +1,7 @@
 import { Service } from "typedi";
-import { eq, and, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, isNull, inArray, asc } from "drizzle-orm";
 import { db } from "@/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
   ScheduleChangeRequestTable,
   ScheduleChangeRequestEventTable,
@@ -86,6 +87,16 @@ export interface ScheduleChangeRequestWithDetails extends ScheduleChangeRequestE
 export interface TeacherScheduleChangeResponseInput {
   response_status: "available" | "unavailable" | "conditional";
   notes?: string;
+}
+
+interface ListRequestsFilters {
+  status?: RequestStatus;
+  student_id?: string;
+  site_id?: string;
+  page?: number;
+  limit?: number;
+  teacher_profile_id?: string;
+  student_ids?: string[];
 }
 
 @Service()
@@ -253,17 +264,98 @@ export class ScheduleChangeService {
     return result[0]!;
   }
 
+  private async getSchedulesInfoByIds(scheduleIds: string[]): Promise<Map<string, ScheduleInfo>> {
+    const uniqueIds = Array.from(new Set(scheduleIds));
+    const map = new Map<string, ScheduleInfo>();
+
+    if (uniqueIds.length === 0) {
+      return map;
+    }
+
+    const results = await db
+      .select({
+        id: ScheduleTable.id,
+        day_of_week_mask: ScheduleTable.day_of_week_mask,
+        start_time: ScheduleTable.start_time,
+        end_time: ScheduleTable.end_time,
+        cycle_start_date: ScheduleTable.cycle_start_date,
+        cycle_end_date: ScheduleTable.cycle_end_date,
+        site_id: LocationTable.id,
+        site_name: LocationTable.name,
+        teacher_id: TeacherProfileTable.id,
+        teacher_name: UserTable.name,
+      })
+      .from(ScheduleTable)
+      .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(inArray(ScheduleTable.id, uniqueIds));
+
+    for (const row of results) {
+      map.set(row.id, {
+        id: row.id,
+        day_of_week_mask: row.day_of_week_mask,
+        start_time: row.start_time,
+        end_time: row.end_time,
+        cycle_start_date: row.cycle_start_date,
+        cycle_end_date: row.cycle_end_date,
+        site: {
+          id: row.site_id,
+          name: row.site_name,
+        },
+        teacher: {
+          id: row.teacher_id,
+          name: row.teacher_name,
+        },
+      });
+    }
+
+    return map;
+  }
+
   /**
    * List schedule change requests with filtering
    */
-  async listRequests(filters: {
-    status?: RequestStatus;
-    student_id?: string;
-    site_id?: string;
-    limit?: number;
-  }): Promise<{ items: ScheduleChangeRequestWithDetails[] }> {
-    // This is a complex query with multiple joins
-    // We'll need to join the schedule table twice (current and requested)
+  async listRequests(
+    filters: ListRequestsFilters,
+  ): Promise<PaginatedResponse<ScheduleChangeRequestWithDetails>> {
+    const { page, limit, offset } = getPagination(filters, 20, 100);
+    const conditions: any[] = [];
+
+    if (filters.status) {
+      conditions.push(eq(ScheduleChangeRequestTable.status, filters.status));
+    }
+
+    if (filters.student_id) {
+      conditions.push(eq(ScheduleChangeRequestTable.student_id, filters.student_id));
+    }
+
+    if (filters.site_id) {
+      conditions.push(eq(ScheduleTable.site_id, filters.site_id));
+    }
+
+    if (filters.teacher_profile_id) {
+      conditions.push(
+        sql`(${ScheduleTable.teacher_id} = ${filters.teacher_profile_id} OR ${ScheduleChangeRequestTable.requested_schedule_id} IN (
+          select id from schedules where teacher_id = ${filters.teacher_profile_id}
+        ))`,
+      );
+    }
+
+    if (filters.student_ids && filters.student_ids.length > 0) {
+      conditions.push(inArray(ScheduleChangeRequestTable.student_id, filters.student_ids));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(ScheduleChangeRequestTable)
+      .innerJoin(ScheduleTable, eq(ScheduleChangeRequestTable.current_schedule_id, ScheduleTable.id))
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
+
     const results = await db
       .select({
         id: ScheduleChangeRequestTable.id,
@@ -291,26 +383,18 @@ export class ScheduleChangeService {
       })
       .from(ScheduleChangeRequestTable)
       .innerJoin(StudentTable, eq(ScheduleChangeRequestTable.student_id, StudentTable.id))
-      .orderBy(desc(ScheduleChangeRequestTable.requested_at))
-      .limit(filters.limit || 50);
+      .innerJoin(ScheduleTable, eq(ScheduleChangeRequestTable.current_schedule_id, ScheduleTable.id))
+      .where(whereClause)
+      .orderBy(desc(ScheduleChangeRequestTable.requested_at), desc(ScheduleChangeRequestTable.id))
+      .limit(limit)
+      .offset(offset);
 
-    // Fetch schedule details separately for simplicity
-    const items: ScheduleChangeRequestWithDetails[] = [];
+    const scheduleIds = results.flatMap((row) =>
+      row.requested_schedule_id ? [row.current_schedule_id, row.requested_schedule_id] : [row.current_schedule_id],
+    );
+    const scheduleMap = await this.getSchedulesInfoByIds(scheduleIds);
 
-    for (const row of results) {
-      // Skip if status filter doesn't match
-      if (filters.status && row.status !== filters.status) continue;
-      if (filters.student_id && row.student_id !== filters.student_id) continue;
-
-      const currentSchedule = await this.getScheduleInfo(row.current_schedule_id);
-      const requestedSchedule = row.requested_schedule_id
-        ? await this.getScheduleInfo(row.requested_schedule_id)
-        : null;
-
-      // Skip if site filter doesn't match
-      if (filters.site_id && currentSchedule?.site.id !== filters.site_id) continue;
-
-      items.push({
+    const items: ScheduleChangeRequestWithDetails[] = results.map((row) => ({
         id: row.id,
         student_id: row.student_id,
         current_schedule_id: row.current_schedule_id,
@@ -336,12 +420,13 @@ export class ScheduleChangeService {
           first_name: row.student_first_name,
           last_name: row.student_last_name,
         },
-        current_schedule: currentSchedule || undefined,
-        requested_schedule: requestedSchedule || undefined,
-      });
-    }
+        current_schedule: scheduleMap.get(row.current_schedule_id),
+        requested_schedule: row.requested_schedule_id
+          ? scheduleMap.get(row.requested_schedule_id)
+          : undefined,
+      }));
 
-    return { items };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   async listRequestsForTeacher(
@@ -350,27 +435,17 @@ export class ScheduleChangeService {
       status?: RequestStatus;
       student_id?: string;
       site_id?: string;
+      page?: number;
       limit?: number;
     },
-  ): Promise<{ items: ScheduleChangeRequestWithDetails[] }> {
+  ): Promise<PaginatedResponse<ScheduleChangeRequestWithDetails>> {
     const teacherProfileId = await this.getTeacherProfileId(teacherUserId);
     if (!teacherProfileId) {
-      return { items: [] };
+      const { page, limit } = getPagination(filters, 20, 100);
+      return buildPaginatedResponse([], 0, page, limit);
     }
 
-    const allRequests = await this.listRequests(filters);
-    const visibleItems: ScheduleChangeRequestWithDetails[] = [];
-
-    for (const request of allRequests.items) {
-      const currentTeacherId = request.current_schedule?.teacher.id;
-      const requestedTeacherId = request.requested_schedule?.teacher.id;
-
-      if (currentTeacherId === teacherProfileId || requestedTeacherId === teacherProfileId) {
-        visibleItems.push(request);
-      }
-    }
-
-    return { items: visibleItems };
+    return await this.listRequests({ ...filters, teacher_profile_id: teacherProfileId });
   }
 
   /**
@@ -684,156 +759,22 @@ export class ScheduleChangeService {
   }
 
   /**
-   * Get available schedules for a student to browse
-   */
-  async getAvailableSchedules(filters: {
-    site_id?: string;
-    day_pattern?: "mws" | "tths"; // Monday/Wed/Sat or Tue/Thu/Sat
-    exclude_current_schedule_id?: string;
-  }): Promise<{ items: ScheduleInfo[] }> {
-    const today = new Date().toISOString().split("T")[0]!;
-
-    const conditions: any[] = [
-      eq(ScheduleTable.is_active, true),
-      sql`${ScheduleTable.cycle_end_date} >= ${today}`,
-    ];
-
-    if (filters.site_id) {
-      conditions.push(eq(ScheduleTable.site_id, filters.site_id));
-    }
-
-    if (filters.day_pattern === "mws") {
-      // Mon=2, Wed=8, Sat=64 = 74
-      conditions.push(sql`${ScheduleTable.day_of_week_mask} & 74 > 0`);
-    } else if (filters.day_pattern === "tths") {
-      // Tue=4, Thu=16, Sat=64 = 84
-      conditions.push(sql`${ScheduleTable.day_of_week_mask} & 84 > 0`);
-    }
-
-    if (filters.exclude_current_schedule_id) {
-      conditions.push(sql`${ScheduleTable.id} != ${filters.exclude_current_schedule_id}`);
-    }
-
-    const results = await db
-      .select({
-        id: ScheduleTable.id,
-        day_of_week_mask: ScheduleTable.day_of_week_mask,
-        start_time: ScheduleTable.start_time,
-        end_time: ScheduleTable.end_time,
-        cycle_start_date: ScheduleTable.cycle_start_date,
-        cycle_end_date: ScheduleTable.cycle_end_date,
-        site_id: LocationTable.id,
-        site_name: LocationTable.name,
-        teacher_id: TeacherProfileTable.id,
-        teacher_name: UserTable.name,
-      })
-      .from(ScheduleTable)
-      .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
-      .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
-      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
-      .where(and(...conditions))
-      .orderBy(ScheduleTable.start_time);
-
-    const items: ScheduleInfo[] = results.map((row) => ({
-      id: row.id,
-      day_of_week_mask: row.day_of_week_mask,
-      start_time: row.start_time,
-      end_time: row.end_time,
-      cycle_start_date: row.cycle_start_date,
-      cycle_end_date: row.cycle_end_date,
-      site: {
-        id: row.site_id,
-        name: row.site_name,
-      },
-      teacher: {
-        id: row.teacher_id,
-        name: row.teacher_name,
-      },
-    }));
-
-    return { items };
-  }
-
-  /**
    * Get requests for a parent's children
    */
   async listRequestsForParent(
     parentUserId: string,
-  ): Promise<{ items: ScheduleChangeRequestWithDetails[] }> {
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<ScheduleChangeRequestWithDetails>> {
     const studentIds = await this.getParentStudentIds(parentUserId);
     if (studentIds.length === 0) {
-      return { items: [] };
+      const { page, limit } = getPagination(query, 20, 100);
+      return buildPaginatedResponse([], 0, page, limit);
     }
 
-    const results = await db
-      .select({
-        id: ScheduleChangeRequestTable.id,
-        student_id: ScheduleChangeRequestTable.student_id,
-        current_schedule_id: ScheduleChangeRequestTable.current_schedule_id,
-        requested_schedule_id: ScheduleChangeRequestTable.requested_schedule_id,
-        preferred_times: ScheduleChangeRequestTable.preferred_times,
-        flexibility_notes: ScheduleChangeRequestTable.flexibility_notes,
-        teacher_response_status: ScheduleChangeRequestTable.teacher_response_status,
-        teacher_response_notes: ScheduleChangeRequestTable.teacher_response_notes,
-        teacher_responded_by: ScheduleChangeRequestTable.teacher_responded_by,
-        teacher_responded_at: ScheduleChangeRequestTable.teacher_responded_at,
-        reason: ScheduleChangeRequestTable.reason,
-        status: ScheduleChangeRequestTable.status,
-        requested_by: ScheduleChangeRequestTable.requested_by,
-        requested_at: ScheduleChangeRequestTable.requested_at,
-        reviewed_by: ScheduleChangeRequestTable.reviewed_by,
-        reviewed_at: ScheduleChangeRequestTable.reviewed_at,
-        review_notes: ScheduleChangeRequestTable.review_notes,
-        created_at: ScheduleChangeRequestTable.created_at,
-        updated_at: ScheduleChangeRequestTable.updated_at,
-        student_initials: StudentTable.initials,
-        student_first_name: StudentTable.first_name,
-        student_last_name: StudentTable.last_name,
-      })
-      .from(ScheduleChangeRequestTable)
-      .innerJoin(StudentTable, eq(ScheduleChangeRequestTable.student_id, StudentTable.id))
-      .where(sql`${ScheduleChangeRequestTable.student_id} IN ${studentIds}`)
-      .orderBy(desc(ScheduleChangeRequestTable.requested_at));
-
-    const items: ScheduleChangeRequestWithDetails[] = [];
-
-    for (const row of results) {
-      const currentSchedule = await this.getScheduleInfo(row.current_schedule_id);
-      const requestedSchedule = row.requested_schedule_id
-        ? await this.getScheduleInfo(row.requested_schedule_id)
-        : null;
-
-      items.push({
-        id: row.id,
-        student_id: row.student_id,
-        current_schedule_id: row.current_schedule_id,
-        requested_schedule_id: row.requested_schedule_id,
-        preferred_times: row.preferred_times,
-        flexibility_notes: row.flexibility_notes,
-        teacher_response_status: row.teacher_response_status,
-        teacher_response_notes: row.teacher_response_notes,
-        teacher_responded_by: row.teacher_responded_by,
-        teacher_responded_at: row.teacher_responded_at,
-        reason: row.reason,
-        status: row.status,
-        requested_by: row.requested_by,
-        requested_at: row.requested_at,
-        reviewed_by: row.reviewed_by,
-        reviewed_at: row.reviewed_at,
-        review_notes: row.review_notes,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        student: {
-          id: row.student_id,
-          initials: row.student_initials,
-          first_name: row.student_first_name,
-          last_name: row.student_last_name,
-        },
-        current_schedule: currentSchedule || undefined,
-        requested_schedule: requestedSchedule || undefined,
-      });
-    }
-
-    return { items };
+    return await this.listRequests({
+      student_ids: studentIds,
+      page: query.page,
+      limit: query.limit,
+    });
   }
 }

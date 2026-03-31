@@ -39,13 +39,14 @@ export class GetChatMessagesController {
   @Authorized(["administrator", "teacher"])
   async handle(
     @QueryParam("channel") channel: ChatChannel = "community",
+    @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
   ) {
     if (channel !== "community" && channel !== "teacher") {
       throw new HttpError(400, "Invalid channel");
     }
 
-    return await this.chatService.listMessages({ channel, limit });
+    return await this.chatService.listMessages({ channel, page, limit });
   }
 }
 

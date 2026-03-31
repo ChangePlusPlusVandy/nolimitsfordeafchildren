@@ -14,6 +14,7 @@ import {
   FormControl,
   InputLabel,
   OutlinedInput,
+  TablePagination,
 } from "@mui/material";
 import {
   EventRepeat as MakeupIcon,
@@ -26,6 +27,7 @@ import {
 import { useState } from "react";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 interface MakeupSession {
   id: string;
@@ -244,6 +246,7 @@ export default function MakeupSessionsPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]!);
+  const table = useServerTable({ defaultLimit: 20 });
 
   // Get teacher profile ID - in a real app, this would come from user context or a separate query
   // For now, we'll fetch it from /me endpoint
@@ -255,7 +258,7 @@ export default function MakeupSessionsPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["teachers", teacherId, "makeup-sessions", selectedDate],
+    queryKey: ["teachers", teacherId, "makeup-sessions", selectedDate, table.page, table.limit],
     queryFn: async () => {
       if (!teacherId) {
         // If no teacher profile ID, fetch from /me endpoint
@@ -264,13 +267,13 @@ export default function MakeupSessionsPage() {
         if (!profileId) throw new Error("No teacher profile found");
 
         const response = await httpClient.get(`/v1/teachers/${profileId}/makeup-sessions`, {
-          params: { date: selectedDate },
+          params: { date: selectedDate, page: table.page, limit: table.limit },
         });
         return response.data;
       }
 
       const response = await httpClient.get(`/v1/teachers/${teacherId}/makeup-sessions`, {
-        params: { date: selectedDate },
+        params: { date: selectedDate, page: table.page, limit: table.limit },
       });
       return response.data;
     },
@@ -305,11 +308,6 @@ export default function MakeupSessionsPage() {
 
   const sessions: MakeupSession[] = sessionsData?.items ?? [];
 
-  // Filter sessions by date
-  const todaySessions = sessions.filter((s) => s.scheduled_date === selectedDate);
-  const upcomingSessions = sessions.filter((s) => s.scheduled_date > selectedDate);
-  const pastSessions = sessions.filter((s) => s.scheduled_date < selectedDate);
-
   const handleMarkAttendance = (sessionId: string, status: "present" | "late" | "no_show") => {
     markAttendanceMutation.mutate({ sessionId, status });
   };
@@ -329,7 +327,10 @@ export default function MakeupSessionsPage() {
             <OutlinedInput
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                table.setPage(1);
+              }}
               label="Filter by Date"
             />
           </FormControl>
@@ -347,56 +348,29 @@ export default function MakeupSessionsPage() {
         </Alert>
       ) : (
         <Stack spacing={3}>
-          {/* Today's Sessions */}
-          {todaySessions.length > 0 && (
-            <Box>
-              <Typography variant="h6" gutterBottom color="primary">
-                Today ({formatDate(selectedDate)})
-              </Typography>
-              {todaySessions.map((session) => (
-                <MakeupSessionCard
-                  key={session.id}
-                  session={session}
-                  onMarkAttendance={handleMarkAttendance}
-                  isLoading={markAttendanceMutation.isPending}
-                />
-              ))}
-            </Box>
-          )}
+          <Box>
+            <Typography variant="h6" gutterBottom color="primary">
+              Sessions on {formatDate(selectedDate)}
+            </Typography>
+            {sessions.map((session) => (
+              <MakeupSessionCard
+                key={session.id}
+                session={session}
+                onMarkAttendance={handleMarkAttendance}
+                isLoading={markAttendanceMutation.isPending}
+              />
+            ))}
+          </Box>
 
-          {/* Upcoming Sessions */}
-          {upcomingSessions.length > 0 && (
-            <Box>
-              <Typography variant="h6" gutterBottom color="text.secondary">
-                Upcoming
-              </Typography>
-              {upcomingSessions.map((session) => (
-                <MakeupSessionCard
-                  key={session.id}
-                  session={session}
-                  onMarkAttendance={handleMarkAttendance}
-                  isLoading={markAttendanceMutation.isPending}
-                />
-              ))}
-            </Box>
-          )}
-
-          {/* Past Sessions */}
-          {pastSessions.length > 0 && (
-            <Box>
-              <Typography variant="h6" gutterBottom color="text.secondary">
-                Past Sessions
-              </Typography>
-              {pastSessions.map((session) => (
-                <MakeupSessionCard
-                  key={session.id}
-                  session={session}
-                  onMarkAttendance={handleMarkAttendance}
-                  isLoading={markAttendanceMutation.isPending}
-                />
-              ))}
-            </Box>
-          )}
+          <TablePagination
+            rowsPerPageOptions={[10, 20, 50]}
+            component="div"
+            count={sessionsData?.total ?? 0}
+            rowsPerPage={table.limit}
+            page={Math.max(table.page - 1, 0)}
+            onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+          />
 
           {/* Summary */}
           <Card variant="outlined" sx={{ bgcolor: "grey.50" }}>
@@ -404,7 +378,7 @@ export default function MakeupSessionsPage() {
               <Stack direction="row" spacing={3} justifyContent="center">
                 <Box textAlign="center">
                   <Typography variant="h4" color="primary">
-                    {sessions.length}
+                    {sessionsData?.total ?? sessions.length}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Total Sessions

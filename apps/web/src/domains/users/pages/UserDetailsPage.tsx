@@ -220,15 +220,7 @@ export default function UserDetailsPage() {
       <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
         <Chip
           label={roleLabel(user.role)}
-          color={
-            user.role === "administrator"
-              ? "primary"
-              : user.role === "teacher"
-                ? "secondary"
-                : user.role === "parent"
-                  ? "success"
-                  : "warning"
-          }
+          variant="outlined"
           sx={{ textTransform: "capitalize" }}
         />
         <Chip

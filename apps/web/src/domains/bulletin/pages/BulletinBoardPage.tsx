@@ -301,7 +301,6 @@ export default function BulletinBoardPage() {
                       : selectedBulletin.site_name || "Site-specific"
                   }
                   size="small"
-                  color={selectedBulletin.scope === "global" ? "primary" : "secondary"}
                   variant="outlined"
                 />
                 <Chip
@@ -315,6 +314,7 @@ export default function BulletinBoardPage() {
                           : "Parents"
                   }
                   size="small"
+                  variant="outlined"
                 />
               </Stack>
 

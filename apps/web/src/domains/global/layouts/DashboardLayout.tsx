@@ -4,6 +4,7 @@ import {
   AppBar,
   Toolbar,
   IconButton,
+  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -22,16 +23,8 @@ const DashboardLayout = () => {
 
   return (
     <Box sx={{ display: "flex" }}>
-      {/* Mobile App Bar */}
       {isMobile && (
-        <AppBar
-          position="fixed"
-          sx={{
-            bgcolor: "#0f2b40",
-            color: "common.white",
-            boxShadow: 1,
-          }}
-        >
+        <AppBar position="fixed">
           <Toolbar>
             <IconButton
               color="inherit"
@@ -42,7 +35,9 @@ const DashboardLayout = () => {
             >
               <MenuIcon />
             </IconButton>
-            <Box sx={{ flexGrow: 1 }} />
+            <Typography variant="h6" noWrap component="div">
+              No Limits
+            </Typography>
           </Toolbar>
         </AppBar>
       )}
@@ -57,13 +52,12 @@ const DashboardLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          bgcolor: "background.default",
           p: { xs: 2, sm: 3 },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           minHeight: "100vh",
           overflow: "auto",
           ...(isMobile && {
-            mt: "56px", // Account for mobile app bar
+            mt: "56px",
           }),
         }}
       >

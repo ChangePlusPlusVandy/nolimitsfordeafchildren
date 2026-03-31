@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import {
   Alert,
   Box,
@@ -85,33 +85,15 @@ export default function LoginPage() {
 
   if (isAuthenticated && user) {
     return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          bgcolor: "background.default",
-        }}
-      >
+      <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        px: 2,
-        py: 5,
-        bgcolor: "background.default",
-        backgroundImage:
-          "radial-gradient(circle at top left, rgba(14,59,92,0.12), transparent 42%), radial-gradient(circle at bottom right, rgba(28,137,201,0.12), transparent 38%)",
-      }}
-    >
-      <Card sx={{ width: "100%", maxWidth: 460, borderRadius: 4, boxShadow: 8 }}>
+    <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", px: 2, py: 5 }}>
+      <Card sx={{ width: "100%", maxWidth: 460 }}>
         <CardContent sx={{ p: 4 }}>
           <Stack spacing={2.5}>
             <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -119,28 +101,20 @@ export default function LoginPage() {
                 component="img"
                 src={nolimitsLogo}
                 alt="No Limits for Deaf Children"
-                sx={{
-                  height: 88,
-                  width: "auto",
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  p: 1,
-                  bgcolor: "common.white",
-                }}
+                sx={{ height: 88, width: "auto" }}
               />
             </Box>
 
             <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-              {mode === "login" ? "Welcome back" : "Create your account"}
-            </Typography>
-            <Typography color="text.secondary">
-              {mode === "login"
-                ? "Sign in to continue to your dashboard."
-                : "New accounts are created as pending until an administrator approves your role."}
-            </Typography>
-          </Box>
+              <Typography variant="h5" gutterBottom>
+                {mode === "login" ? "Welcome back" : "Create your account"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {mode === "login"
+                  ? "Sign in to continue to your dashboard."
+                  : "New accounts are created as pending until an administrator approves your role."}
+              </Typography>
+            </Box>
 
             {error && <Alert severity="error">{error}</Alert>}
 
@@ -191,17 +165,17 @@ export default function LoginPage() {
 
             <Typography variant="body2" color="text.secondary">
               {mode === "login" ? "Need an account? " : "Already have an account? "}
-              <Link
-                to="#"
-                onClick={(event) => {
-                  event.preventDefault();
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => {
                   setError(null);
                   setMode((prev) => (prev === "login" ? "signup" : "login"));
                 }}
-                style={{ color: "inherit", fontWeight: 700 }}
+                sx={{ p: 0, minWidth: "auto", verticalAlign: "baseline" }}
               >
                 {mode === "login" ? "Sign up" : "Sign in"}
-              </Link>
+              </Button>
             </Typography>
           </Stack>
         </CardContent>

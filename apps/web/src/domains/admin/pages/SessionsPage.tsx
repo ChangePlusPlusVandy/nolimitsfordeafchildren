@@ -14,11 +14,13 @@ import {
   DialogTitle,
   Stack,
   Switch,
+  TablePagination,
   TextField,
   Typography,
 } from "@mui/material";
 import { Add as AddIcon, Archive as ArchiveIcon, Edit as EditIcon } from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 interface SessionItem {
   id: string;
@@ -40,6 +42,7 @@ interface SessionFormState {
 export default function SessionsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const table = useServerTable({ defaultLimit: 20 });
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<SessionFormState>({
@@ -50,12 +53,18 @@ export default function SessionsPage() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["admin-sessions"],
+    queryKey: ["admin-sessions", table.page, table.limit],
     queryFn: async () => {
       const response = await httpClient.get("/v1/sessions", {
-        params: { include_archived: true },
+        params: { include_archived: true, page: table.page, limit: table.limit },
       });
-      return response.data as { items: SessionItem[] };
+      return response.data as {
+        items: SessionItem[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
   });
 
@@ -177,6 +186,16 @@ export default function SessionsPage() {
           </Card>
         ))}
       </Stack>
+
+      <TablePagination
+        rowsPerPageOptions={[10, 20, 50]}
+        component="div"
+        count={data?.total ?? 0}
+        rowsPerPage={table.limit}
+        page={Math.max(table.page - 1, 0)}
+        onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+        onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+      />
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{form.id ? "Edit Session" : "Create Session"}</DialogTitle>

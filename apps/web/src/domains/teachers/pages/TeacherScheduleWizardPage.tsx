@@ -91,7 +91,7 @@ export default function TeacherScheduleWizardPage() {
     queryKey: ["sessions", "list"],
     queryFn: async () => {
       const response = await httpClient.get("/v1/sessions", {
-        params: { include_archived: false },
+        params: { include_archived: false, page: 1, limit: 200 },
       });
       return response.data as {
         items: Array<{
@@ -425,15 +425,15 @@ export default function TeacherScheduleWizardPage() {
 
             {/* Preview */}
             <Box sx={{ mt: 2, p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                Selected Days:
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-                {selectedDays.map((day) => (
-                  <Chip key={day} label={day} size="small" color="primary" />
-                ))}
+                <Typography variant="body2" color="text.secondary">
+                  Selected Days:
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                  {selectedDays.map((day) => (
+                    <Chip key={day} label={day} size="small" variant="outlined" />
+                  ))}
+                </Box>
               </Box>
-            </Box>
           </Box>
         )}
 

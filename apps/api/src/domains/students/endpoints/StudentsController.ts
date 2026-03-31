@@ -46,11 +46,13 @@ export class GetStudentsController {
     @QueryParam("search") search?: string,
     @QueryParam("site_id") site_id?: string,
     @QueryParam("is_active") is_active?: boolean,
+    @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
-    @QueryParam("cursor") cursor?: string,
+    @QueryParam("sort") sort?: "initials" | "created_at" | "dob",
+    @QueryParam("order") order?: "asc" | "desc",
     @CurrentUser() user?: CurrentUserType,
   ) {
-    const query: StudentFilters = { search, site_id, is_active, limit, cursor };
+    const query: StudentFilters = { search, site_id, is_active, page, limit, sort, order };
     const role = user?.role ?? "administrator";
     const userId = user?.id;
     return await this.studentsService.index(query, role, userId);
