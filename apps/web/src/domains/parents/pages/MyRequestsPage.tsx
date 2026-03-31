@@ -54,25 +54,48 @@ interface ScheduleChangeRequest {
     last_name: string;
     initials: string;
   };
-  current_schedule: {
+  current_schedule?: {
     id: string;
-    teacher_name: string;
-    site_name: string;
-    days: string;
-    time: string;
+    day_of_week_mask: number;
+    start_time: string;
+    end_time: string;
+    site: {
+      id: string;
+      name: string;
+    };
+    teacher: {
+      id: string;
+      name: string;
+    };
   };
-  requested_schedule: {
+  requested_schedule?: {
     id: string;
-    teacher_name: string;
-    site_name: string;
-    days: string;
-    time: string;
+    day_of_week_mask: number;
+    start_time: string;
+    end_time: string;
+    site: {
+      id: string;
+      name: string;
+    };
+    teacher: {
+      id: string;
+      name: string;
+    };
   };
+  preferred_times: string | null;
+  flexibility_notes: string | null;
+  teacher_response_status: "available" | "unavailable" | "conditional" | null;
+  teacher_response_notes: string | null;
   reason: string;
-  status: "pending" | "approved" | "denied";
+  status: "pending" | "negotiating" | "approved" | "denied" | "completed";
   review_notes: string | null;
-  created_at: string;
+  requested_at: string;
   reviewed_at: string | null;
+}
+
+function getDaysFromMask(mask: number): string {
+  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return dayLabels.filter((_, index) => (mask & (1 << index)) !== 0).join("/");
 }
 
 function formatDate(dateStr: string): string {
@@ -192,6 +215,8 @@ function MakeupRequestCard({ request }: { request: MakeupRequest }) {
 }
 
 function ScheduleChangeRequestCard({ request }: { request: ScheduleChangeRequest }) {
+  const requestedSchedule = request.requested_schedule;
+
   return (
     <Card variant="outlined" sx={{ mb: 2 }}>
       <CardContent>
@@ -219,12 +244,16 @@ function ScheduleChangeRequestCard({ request }: { request: ScheduleChangeRequest
                 <Stack spacing={0.5}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <PersonIcon fontSize="small" color="action" />
-                    <Typography variant="body2">{request.current_schedule.teacher_name}</Typography>
+                    <Typography variant="body2">
+                      {request.current_schedule?.teacher.name || "Unknown teacher"}
+                    </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <CalendarIcon fontSize="small" color="action" />
                     <Typography variant="body2">
-                      {request.current_schedule.days} at {request.current_schedule.time}
+                      {request.current_schedule
+                        ? `${getDaysFromMask(request.current_schedule.day_of_week_mask)} at ${formatTime(request.current_schedule.start_time)}`
+                        : "Unknown schedule"}
                     </Typography>
                   </Stack>
                 </Stack>
@@ -246,25 +275,40 @@ function ScheduleChangeRequestCard({ request }: { request: ScheduleChangeRequest
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Requested Schedule
               </Typography>
-              <Card
-                variant="outlined"
-                sx={{ p: 1.5, bgcolor: "primary.50", borderColor: "primary.light" }}
-              >
-                <Stack spacing={0.5}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <PersonIcon fontSize="small" color="primary" />
-                    <Typography variant="body2">
-                      {request.requested_schedule.teacher_name}
-                    </Typography>
+              {requestedSchedule ? (
+                <Card
+                  variant="outlined"
+                  sx={{ p: 1.5, bgcolor: "primary.50", borderColor: "primary.light" }}
+                >
+                  <Stack spacing={0.5}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <PersonIcon fontSize="small" color="primary" />
+                      <Typography variant="body2">{requestedSchedule.teacher.name}</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <CalendarIcon fontSize="small" color="primary" />
+                      <Typography variant="body2">
+                        {getDaysFromMask(requestedSchedule.day_of_week_mask)} at{" "}
+                        {formatTime(requestedSchedule.start_time)}
+                      </Typography>
+                    </Stack>
                   </Stack>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <CalendarIcon fontSize="small" color="primary" />
-                    <Typography variant="body2">
-                      {request.requested_schedule.days} at {request.requested_schedule.time}
+                </Card>
+              ) : (
+                <Card variant="outlined" sx={{ p: 1.5, bgcolor: "info.50", borderColor: "info.light" }}>
+                  <Stack spacing={0.5}>
+                    <Typography variant="body2" fontWeight={600}>
+                      Flexible request
                     </Typography>
+                    {request.preferred_times && (
+                      <Typography variant="body2">Preferred times: {request.preferred_times}</Typography>
+                    )}
+                    {request.flexibility_notes && (
+                      <Typography variant="body2">Notes: {request.flexibility_notes}</Typography>
+                    )}
                   </Stack>
-                </Stack>
-              </Card>
+                </Card>
+              )}
             </Box>
           </Stack>
 
@@ -286,8 +330,20 @@ function ScheduleChangeRequestCard({ request }: { request: ScheduleChangeRequest
             </Box>
           )}
 
+          {request.teacher_response_status && (
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                Teacher Response
+              </Typography>
+              <Typography variant="body1">
+                {request.teacher_response_status}
+                {request.teacher_response_notes ? ` - ${request.teacher_response_notes}` : ""}
+              </Typography>
+            </Box>
+          )}
+
           <Typography variant="caption" color="text.secondary">
-            Requested on {formatDate(request.created_at)}
+            Requested on {formatDate(request.requested_at)}
             {request.reviewed_at && ` • Reviewed on ${formatDate(request.reviewed_at)}`}
           </Typography>
         </Stack>
