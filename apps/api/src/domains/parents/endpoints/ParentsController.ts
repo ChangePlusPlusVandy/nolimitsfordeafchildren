@@ -48,3 +48,22 @@ export class GetParentsChildDetailController {
     return result;
   }
 }
+
+@Service()
+@JsonController("/v1")
+export class GetParentsDirectoryController {
+  private parentsService: ParentsService;
+  constructor() {
+    this.parentsService = Container.get(ParentsService);
+  }
+
+  /**
+   * Get admin/teacher directory visible to current parent
+   * GET /v1/parents/directory
+   */
+  @Get("/parents/directory")
+  @Authorized(["parent"])
+  async handle(@CurrentUser({ required: true }) currentUser: UserEntity) {
+    return await this.parentsService.directory(currentUser.id);
+  }
+}

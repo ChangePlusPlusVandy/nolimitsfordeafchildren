@@ -57,6 +57,15 @@ export interface RelevantBulletin {
   publish_at: string | null;
 }
 
+export interface DirectoryPerson {
+  id: string;
+  role: "administrator" | "teacher";
+  name: string;
+  email: string;
+  bio: string | null;
+  photo_url: string | null;
+}
+
 export interface ChildDetails {
   id: string;
   first_name: string;
@@ -92,6 +101,7 @@ export function useParentHttpService(): IHttpService & {
   queries: {
     myChildren: () => Promise<MyChildrenResponse>;
     childDetails: (studentId: string) => Promise<ChildDetails>;
+    directory: () => Promise<{ items: DirectoryPerson[] }>;
   };
 } {
   const httpClient = useHttpClient();
@@ -106,6 +116,10 @@ export function useParentHttpService(): IHttpService & {
       },
       childDetails: async (studentId: string): Promise<ChildDetails> => {
         const response = await httpClient.get(`/v1/parents/children/${studentId}`);
+        return response.data;
+      },
+      directory: async (): Promise<{ items: DirectoryPerson[] }> => {
+        const response = await httpClient.get(`/v1/parents/directory`);
         return response.data;
       },
     },

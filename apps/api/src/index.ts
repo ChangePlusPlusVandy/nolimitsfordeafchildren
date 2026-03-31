@@ -81,6 +81,7 @@ import { StudentParentsAdminController } from "./domains/students/endpoints/Stud
 // Parent Controllers
 import {
   GetParentsChildDetailController,
+  GetParentsDirectoryController,
   GetParentsMeChildrenController,
 } from "./domains/parents/endpoints/ParentsController";
 
@@ -247,6 +248,7 @@ export function buildApplication() {
       // Parents
       GetParentsMeChildrenController,
       GetParentsChildDetailController,
+      GetParentsDirectoryController,
 
       // Enrollments & Attendance
       GetEnrollmentsController,
