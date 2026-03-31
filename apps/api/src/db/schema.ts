@@ -377,6 +377,19 @@ export const AssessmentTable = pgTable("assessments", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const AssessmentFocusTable = pgTable("assessment_focuses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  assessment_id: uuid("assessment_id")
+    .notNull()
+    .references(() => AssessmentTable.id),
+  goal: text("goal").notNull(),
+  score: integer("score").notNull(),
+  max_score: integer("max_score").notNull(),
+  sort_order: integer("sort_order").notNull().default(0),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ==================== DOCUMENTS ====================
 
 /* ---------------- DOCUMENT ---------------- */
@@ -799,7 +812,7 @@ export const sessionNoteRelations = relations(SessionNoteTable, ({ one }) => ({
   }),
 }));
 
-export const assessmentRelations = relations(AssessmentTable, ({ one }) => ({
+export const assessmentRelations = relations(AssessmentTable, ({ one, many }) => ({
   student: one(StudentTable, {
     fields: [AssessmentTable.student_id],
     references: [StudentTable.id],
@@ -807,6 +820,14 @@ export const assessmentRelations = relations(AssessmentTable, ({ one }) => ({
   teacher: one(TeacherProfileTable, {
     fields: [AssessmentTable.teacher_id],
     references: [TeacherProfileTable.id],
+  }),
+  focuses: many(AssessmentFocusTable),
+}));
+
+export const assessmentFocusRelations = relations(AssessmentFocusTable, ({ one }) => ({
+  assessment: one(AssessmentTable, {
+    fields: [AssessmentFocusTable.assessment_id],
+    references: [AssessmentTable.id],
   }),
 }));
 
@@ -1016,6 +1037,9 @@ export type SessionNoteInsert = typeof SessionNoteTable.$inferInsert;
 
 export type AssessmentEntity = typeof AssessmentTable.$inferSelect;
 export type AssessmentInsert = typeof AssessmentTable.$inferInsert;
+
+export type AssessmentFocusEntity = typeof AssessmentFocusTable.$inferSelect;
+export type AssessmentFocusInsert = typeof AssessmentFocusTable.$inferInsert;
 
 export type DocumentEntity = typeof DocumentTable.$inferSelect;
 export type DocumentInsert = typeof DocumentTable.$inferInsert;

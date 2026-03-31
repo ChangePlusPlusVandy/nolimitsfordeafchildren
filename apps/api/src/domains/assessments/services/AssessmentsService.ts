@@ -1,14 +1,25 @@
 import { Service } from "typedi";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   AssessmentTable,
+  AssessmentFocusTable,
   StudentTable,
   TeacherProfileTable,
   UserTable,
   type AssessmentEntity,
   type AssessmentInsert,
+  type AssessmentFocusEntity,
+  type AssessmentFocusInsert,
 } from "@/db/schema";
+
+export interface AssessmentFocusInput {
+  goal: string;
+  score: number;
+  max_score: number;
+}
+
+export interface AssessmentFocusWithDetails extends AssessmentFocusEntity {}
 
 export interface CreateAssessmentInput {
   student_id: string;
@@ -17,11 +28,13 @@ export interface CreateAssessmentInput {
   assessment_type: "pre" | "post";
   teaching_focus: string;
   summary?: string;
+  focuses?: AssessmentFocusInput[];
   score: number;
   notes?: string;
 }
 
 export interface AssessmentWithDetails extends AssessmentEntity {
+  focuses?: AssessmentFocusWithDetails[];
   teacher?: {
     id: string;
     name: string;
@@ -41,14 +54,92 @@ export interface AssessmentCycle {
   improvement?: number;
 }
 
+function validateAssessmentFocuses(focuses?: AssessmentFocusInput[]): AssessmentFocusInput[] {
+  if (!focuses || focuses.length === 0) {
+    return [];
+  }
+
+  if (focuses.length > 4) {
+    throw new Error("Assessment can include up to 4 teaching focuses");
+  }
+
+  for (const focus of focuses) {
+    if (!focus.goal?.trim()) {
+      throw new Error("Each teaching focus must include a goal");
+    }
+    if (focus.max_score <= 0) {
+      throw new Error("Each teaching focus max score must be greater than 0");
+    }
+    if (focus.score < 0 || focus.score > focus.max_score) {
+      throw new Error("Each teaching focus score must be between 0 and max score");
+    }
+  }
+
+  return focuses;
+}
+
+function summarizeFocusesForLegacyFields(focuses: AssessmentFocusInput[]): {
+  teaching_focus: string;
+  score: number;
+} {
+  if (focuses.length === 0) {
+    return {
+      teaching_focus: "General",
+      score: 0,
+    };
+  }
+
+  const totalScore = focuses.reduce((sum, focus) => sum + focus.score, 0);
+  const totalMax = focuses.reduce((sum, focus) => sum + focus.max_score, 0);
+  const scaledScore = totalMax > 0 ? Math.round((totalScore / totalMax) * 20) : 0;
+
+  return {
+    teaching_focus: focuses.map((focus) => focus.goal.trim()).join(" | "),
+    score: Math.min(20, Math.max(0, scaledScore)),
+  };
+}
+
 @Service()
 export class AssessmentsService {
+  private async getFocusesByAssessmentIds(
+    assessmentIds: string[],
+  ): Promise<Map<string, AssessmentFocusWithDetails[]>> {
+    const focusMap = new Map<string, AssessmentFocusWithDetails[]>();
+
+    if (assessmentIds.length === 0) {
+      return focusMap;
+    }
+
+    const focusRows = await db
+      .select()
+      .from(AssessmentFocusTable)
+      .where(inArray(AssessmentFocusTable.assessment_id, assessmentIds));
+
+    for (const focus of focusRows) {
+      const list = focusMap.get(focus.assessment_id) ?? [];
+      list.push(focus);
+      focusMap.set(focus.assessment_id, list);
+    }
+
+    return focusMap;
+  }
+
   /**
    * Create a new assessment
    */
   async create(input: CreateAssessmentInput): Promise<AssessmentEntity> {
+    const normalizedFocuses = validateAssessmentFocuses(input.focuses);
+    const hasFocuses = normalizedFocuses.length > 0;
+
+    const normalizedTeachingFocus = hasFocuses
+      ? summarizeFocusesForLegacyFields(normalizedFocuses).teaching_focus
+      : input.teaching_focus;
+    const normalizedScore = hasFocuses
+      ? summarizeFocusesForLegacyFields(normalizedFocuses).score
+      : input.score;
+
     // Validate score is 0-20
-    if (input.score < 0 || input.score > 20) {
+    if (normalizedScore < 0 || normalizedScore > 20) {
       throw new Error("Score must be between 0 and 20");
     }
 
@@ -96,14 +187,26 @@ export class AssessmentsService {
       teacher_id: input.teacher_id,
       cycle_start_date: input.cycle_start_date,
       assessment_type: input.assessment_type,
-      teaching_focus: input.teaching_focus,
+      teaching_focus: normalizedTeachingFocus,
       summary: input.summary || null,
-      score: input.score,
+      score: normalizedScore,
       notes: input.notes || null,
       assessed_at: new Date(),
     };
 
     const result = await db.insert(AssessmentTable).values(newAssessment).returning();
+
+    if (hasFocuses && result[0]) {
+      const focusRows: AssessmentFocusInsert[] = normalizedFocuses.map((focus, index) => ({
+        assessment_id: result[0]!.id,
+        goal: focus.goal.trim(),
+        score: focus.score,
+        max_score: focus.max_score,
+        sort_order: index,
+      }));
+
+      await db.insert(AssessmentFocusTable).values(focusRows);
+    }
 
     return result[0]!;
   }
@@ -134,6 +237,9 @@ export class AssessmentsService {
       .where(eq(AssessmentTable.student_id, studentId))
       .orderBy(desc(AssessmentTable.cycle_start_date), AssessmentTable.assessment_type);
 
+    const assessmentIds = results.map((row) => row.id);
+    const focusMap = await this.getFocusesByAssessmentIds(assessmentIds);
+
     // Group by cycle
     const cycleMap = new Map<string, AssessmentCycle>();
 
@@ -160,6 +266,7 @@ export class AssessmentsService {
         assessed_at: row.assessed_at,
         created_at: row.created_at,
         updated_at: row.updated_at,
+        focuses: (focusMap.get(row.id) ?? []).sort((a, b) => a.sort_order - b.sort_order),
         teacher: {
           id: row.teacher_id,
           name: row.teacher_name,
@@ -211,6 +318,9 @@ export class AssessmentsService {
         ),
       );
 
+    const assessmentIds = results.map((row) => row.id);
+    const focusMap = await this.getFocusesByAssessmentIds(assessmentIds);
+
     if (results.length === 0) {
       return null;
     }
@@ -233,6 +343,7 @@ export class AssessmentsService {
         assessed_at: row.assessed_at,
         created_at: row.created_at,
         updated_at: row.updated_at,
+        focuses: (focusMap.get(row.id) ?? []).sort((a, b) => a.sort_order - b.sort_order),
         teacher: {
           id: row.teacher_id,
           name: row.teacher_name,
@@ -288,6 +399,11 @@ export class AssessmentsService {
     }
 
     const row = results[0]!;
+    const focusRows = await db
+      .select()
+      .from(AssessmentFocusTable)
+      .where(eq(AssessmentFocusTable.assessment_id, row.id));
+
     return {
       id: row.id,
       student_id: row.student_id,
@@ -301,6 +417,7 @@ export class AssessmentsService {
       assessed_at: row.assessed_at,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      focuses: focusRows.sort((a, b) => a.sort_order - b.sort_order),
       teacher: {
         id: row.teacher_id,
         name: row.teacher_name,
@@ -320,7 +437,9 @@ export class AssessmentsService {
   async update(
     id: string,
     teacherId: string,
-    data: Partial<Pick<CreateAssessmentInput, "teaching_focus" | "summary" | "score" | "notes">>,
+    data: Partial<
+      Pick<CreateAssessmentInput, "teaching_focus" | "summary" | "focuses" | "score" | "notes">
+    >,
   ): Promise<AssessmentEntity | null> {
     // Verify the assessment exists and belongs to this teacher
     const existing = await db
@@ -333,19 +452,50 @@ export class AssessmentsService {
       return null;
     }
 
+    const normalizedFocuses = data.focuses === undefined ? undefined : validateAssessmentFocuses(data.focuses);
+
+    let normalizedTeachingFocus = data.teaching_focus;
+    let normalizedScore = data.score;
+
+    if (normalizedFocuses && normalizedFocuses.length > 0) {
+      const legacySummary = summarizeFocusesForLegacyFields(normalizedFocuses);
+      normalizedTeachingFocus = legacySummary.teaching_focus;
+      normalizedScore = legacySummary.score;
+    }
+
     // Validate score if provided
-    if (data.score !== undefined && (data.score < 0 || data.score > 20)) {
+    if (normalizedScore !== undefined && (normalizedScore < 0 || normalizedScore > 20)) {
       throw new Error("Score must be between 0 and 20");
     }
+
+    const { focuses: _focuses, ...assessmentUpdateData } = data;
 
     const result = await db
       .update(AssessmentTable)
       .set({
-        ...data,
+        ...assessmentUpdateData,
+        ...(normalizedTeachingFocus !== undefined ? { teaching_focus: normalizedTeachingFocus } : {}),
+        ...(normalizedScore !== undefined ? { score: normalizedScore } : {}),
         updated_at: new Date(),
       })
       .where(eq(AssessmentTable.id, id))
       .returning();
+
+    if (normalizedFocuses !== undefined) {
+      await db.delete(AssessmentFocusTable).where(eq(AssessmentFocusTable.assessment_id, id));
+
+      if (normalizedFocuses.length > 0) {
+        const focusRows: AssessmentFocusInsert[] = normalizedFocuses.map((focus, index) => ({
+          assessment_id: id,
+          goal: focus.goal.trim(),
+          score: focus.score,
+          max_score: focus.max_score,
+          sort_order: index,
+        }));
+
+        await db.insert(AssessmentFocusTable).values(focusRows);
+      }
+    }
 
     return result[0] ?? null;
   }
@@ -359,6 +509,18 @@ export class AssessmentsService {
     if (teacherId) {
       conditions.push(eq(AssessmentTable.teacher_id, teacherId));
     }
+
+    const existing = await db
+      .select({ id: AssessmentTable.id })
+      .from(AssessmentTable)
+      .where(and(...conditions));
+
+    if (existing.length === 0) {
+      return false;
+    }
+
+    const assessmentIds = existing.map((row) => row.id);
+    await db.delete(AssessmentFocusTable).where(inArray(AssessmentFocusTable.assessment_id, assessmentIds));
 
     const result = await db
       .delete(AssessmentTable)
