@@ -127,6 +127,14 @@ export interface ChildDetails {
   missed_sessions: MissedSession[];
   relevant_bulletins: RelevantBulletin[];
   approved_documents: ChildDocument[];
+  siblings: Array<{
+    id: string;
+    name: string;
+    age: number | null;
+    relationship: string;
+    is_participant: boolean;
+    has_hearing_loss: boolean;
+  }>;
 }
 
 export interface MyChildrenResponse {

@@ -4,6 +4,7 @@ import { eq, and, sql, desc, isNull, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
   StudentTable,
+  SiblingTable,
   ParentProfileTable,
   ParentStudentLinkTable,
   ScheduleTable,
@@ -103,6 +104,14 @@ export interface ChildDetails {
     created_at: Date;
     review_status: "approved" | "pending" | "rejected";
     session_date: string | null;
+  }>;
+  siblings: Array<{
+    id: string;
+    name: string;
+    age: number | null;
+    relationship: string;
+    is_participant: boolean;
+    has_hearing_loss: boolean;
   }>;
 }
 
@@ -544,6 +553,19 @@ export class ParentsService {
       .orderBy(desc(DocumentTable.created_at))
       .limit(25);
 
+    const siblings = await db
+      .select({
+        id: SiblingTable.id,
+        name: SiblingTable.name,
+        age: SiblingTable.age,
+        relationship: SiblingTable.relationship,
+        is_participant: SiblingTable.is_participant,
+        has_hearing_loss: SiblingTable.has_hearing_loss,
+      })
+      .from(SiblingTable)
+      .where(eq(SiblingTable.student_id, studentId))
+      .orderBy(SiblingTable.name);
+
     return {
       id: s.id,
       first_name: s.first_name,
@@ -564,6 +586,7 @@ export class ParentsService {
       missed_sessions: missedSessions,
       relevant_bulletins: bulletins,
       approved_documents: approvedDocuments,
+      siblings,
     };
   }
 

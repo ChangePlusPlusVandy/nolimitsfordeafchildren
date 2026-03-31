@@ -35,6 +35,8 @@ export default function AddSiblingModal({
   const [name, setName] = useState("");
   const [age, setAge] = useState<string>("");
   const [relationship, setRelationship] = useState<string>("brother");
+  const [isParticipant, setIsParticipant] = useState(true);
+  const [hasHearingLoss, setHasHearingLoss] = useState(false);
   const [notes, setNotes] = useState("");
 
   // Reset form when modal opens/closes or initialData changes
@@ -44,11 +46,15 @@ export default function AddSiblingModal({
         setName(initialData.name);
         setAge(initialData.age?.toString() || "");
         setRelationship(initialData.relationship);
+        setIsParticipant(initialData.is_participant ?? true);
+        setHasHearingLoss(initialData.has_hearing_loss ?? false);
         setNotes(initialData.notes || "");
       } else {
         setName("");
         setAge("");
         setRelationship("brother");
+        setIsParticipant(true);
+        setHasHearingLoss(false);
         setNotes("");
       }
     }
@@ -62,6 +68,8 @@ export default function AddSiblingModal({
       name: name.trim(),
       age: age ? parseInt(age, 10) : undefined,
       relationship,
+      is_participant: isParticipant,
+      has_hearing_loss: hasHearingLoss,
       notes: notes.trim() || undefined,
     });
   };
@@ -74,22 +82,22 @@ export default function AddSiblingModal({
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-            <TextField
-              label="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              fullWidth
-              autoFocus
-              placeholder="Sibling's name"
-            />
+              <TextField
+                label="Name"
+                value={name}
+                onChange={(e) => setName((e.target as unknown as { value: string }).value)}
+                required
+                fullWidth
+                autoFocus
+                placeholder="Sibling's name"
+              />
 
             <Box sx={{ display: "flex", gap: 2 }}>
               <TextField
                 label="Age"
                 type="number"
                 value={age}
-                onChange={(e) => setAge(e.target.value)}
+                onChange={(e) => setAge((e.target as unknown as { value: string }).value)}
                 fullWidth
                 inputProps={{ min: 0, max: 99 }}
                 placeholder="Age in years"
@@ -100,7 +108,9 @@ export default function AddSiblingModal({
                 <Select
                   value={relationship}
                   label="Relationship"
-                  onChange={(e) => setRelationship(e.target.value)}
+                  onChange={(e) =>
+                    setRelationship((e.target as unknown as { value: string }).value)
+                  }
                 >
                   <MenuItem value="brother">Brother</MenuItem>
                   <MenuItem value="sister">Sister</MenuItem>
@@ -113,10 +123,40 @@ export default function AddSiblingModal({
               </FormControl>
             </Box>
 
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel>Participant</InputLabel>
+                <Select
+                  value={isParticipant ? "yes" : "no"}
+                  label="Participant"
+                  onChange={(e) =>
+                    setIsParticipant((e.target as unknown as { value: string }).value === "yes")
+                  }
+                >
+                  <MenuItem value="yes">Yes</MenuItem>
+                  <MenuItem value="no">No</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Has Hearing Loss</InputLabel>
+                <Select
+                  value={hasHearingLoss ? "yes" : "no"}
+                  label="Has Hearing Loss"
+                  onChange={(e) =>
+                    setHasHearingLoss((e.target as unknown as { value: string }).value === "yes")
+                  }
+                >
+                  <MenuItem value="no">No</MenuItem>
+                  <MenuItem value="yes">Yes</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
             <TextField
               label="Notes"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => setNotes((e.target as unknown as { value: string }).value)}
               fullWidth
               multiline
               rows={2}

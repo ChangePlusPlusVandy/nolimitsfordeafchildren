@@ -56,6 +56,8 @@ export interface AddSiblingInput {
   name: string;
   age?: number;
   relationship: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }
@@ -64,6 +66,8 @@ export interface UpdateSiblingInput {
   name?: string;
   age?: number;
   relationship?: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }
@@ -375,6 +379,8 @@ export class StudentsService {
         name: s.name,
         age: s.age,
         relationship: s.relationship,
+        is_participant: s.is_participant,
+        has_hearing_loss: s.has_hearing_loss,
         photo_url: s.photo_url,
         notes: s.notes,
       })),
@@ -527,6 +533,8 @@ export class StudentsService {
         name: data.name,
         age: data.age,
         relationship: data.relationship,
+        is_participant: data.is_participant ?? true,
+        has_hearing_loss: data.has_hearing_loss ?? false,
         photo_url: data.photo_url,
         notes: data.notes,
       })

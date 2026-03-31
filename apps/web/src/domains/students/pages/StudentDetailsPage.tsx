@@ -463,7 +463,7 @@ export default function StudentDetailsPage() {
                       </ListItemAvatar>
                       <ListItemText
                         primary={sibling.name}
-                        secondary={`${sibling.relationship}${sibling.age ? `, Age ${sibling.age}` : ""}`}
+                        secondary={`${sibling.relationship}${sibling.age ? `, Age ${sibling.age}` : ""} • ${sibling.is_participant ? "Participant" : "Not participant"} • ${sibling.has_hearing_loss ? "Has hearing loss" : "No hearing loss"}`}
                       />
                     </ListItem>
                   ))}
