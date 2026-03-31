@@ -45,7 +45,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             alignItems: "center",
             justifyContent: "center",
             minHeight: "100vh",
-            bgcolor: "#f5f5f5",
+            bgcolor: "background.default",
             p: 3,
           }}
         >

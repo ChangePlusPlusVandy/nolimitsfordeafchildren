@@ -309,9 +309,10 @@ export default function StudentDetailsPage() {
     }
   };
 
-  const formatRoleLabel = (role: "administrator" | "teacher" | "parent") => {
+  const formatRoleLabel = (role: "administrator" | "teacher" | "parent" | "unassigned") => {
     if (role === "administrator") return "Admin";
     if (role === "teacher") return "Teacher";
+    if (role === "unassigned") return "Pending";
     return "Parent";
   };
 

@@ -28,7 +28,6 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
-import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
 export const DRAWER_WIDTH = 240;
 
@@ -174,15 +173,11 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }: SidebarProps) => {
-  const { authEnabled, user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const location = useLocation();
 
   const handleLogout = () => {
-    if (!authEnabled) {
-      window.location.reload();
-      return;
-    }
-    logout();
+    void logout();
   };
 
   const handleNavClick = () => {
@@ -194,6 +189,10 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
 
   // Filter nav items based on user role
   const visibleItems = navItems.filter((item) => {
+    if (user?.role === "unassigned") {
+      return item.to === "/my-profile";
+    }
+
     if (!item.roles) return true; // Show to all if no roles specified
     return hasRole(...item.roles);
   });
@@ -203,23 +202,14 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
       sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }}
       role="presentation"
     >
-      {/* Logo */}
-      <Box sx={{ padding: 2, textAlign: "center", height: 190 }}>
-        <img
-          src={nolimitsLogo}
-          alt="No Limits for Deaf Children Logo"
-          style={{ maxWidth: "100%", maxHeight: "100%" }}
-        />
-      </Box>
-
       {/* User info */}
       {user && (
-        <Box sx={{ px: 2, pb: 1 }}>
+        <Box sx={{ px: 2, py: 2.5 }}>
           <Box
             sx={{
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              color: "text.primary",
+              fontSize: "0.95rem",
+              fontWeight: 700,
+              color: "common.white",
               textOverflow: "ellipsis",
               overflow: "hidden",
               whiteSpace: "nowrap",
@@ -230,11 +220,10 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
           <Box
             sx={{
               fontSize: "0.75rem",
-              color: "text.secondary",
-              textTransform: "capitalize",
+              color: "rgba(255,255,255,0.7)",
             }}
           >
-            {user.role}
+            {user.role === "unassigned" ? "Pending approval" : user.role}
           </Box>
         </Box>
       )}
@@ -256,19 +245,33 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
                 onClick={handleNavClick}
                 sx={{
                   borderRadius: "8px",
+                  color: "rgba(255,255,255,0.92)",
+                  "&:hover": {
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                  },
                   ...(isActive && {
-                    backgroundColor: "white",
+                    backgroundColor: "rgba(83, 171, 232, 0.22)",
+                    borderLeft: "3px solid #53abe8",
                     "&:hover": {
-                      backgroundColor: "white",
+                      backgroundColor: "rgba(83, 171, 232, 0.3)",
                     },
                   }),
                 }}
               >
-                <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>{item.icon}</ListItemIcon>
+                <ListItemIcon
+                  sx={{
+                    color: "inherit",
+                    minWidth: 40,
+                    "& svg": { fontSize: "1.5rem" },
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontSize: "1.1rem",
+                    fontSize: "0.95rem",
+                    fontWeight: isActive ? 700 : 500,
                     sx: { pt: 0.5, pb: 0.5 },
                   }}
                 />
@@ -288,13 +291,19 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
                 handleNavClick();
                 handleLogout();
               }}
-              sx={{ borderRadius: "8px" }}
+              sx={{
+                borderRadius: "8px",
+                color: "rgba(255,255,255,0.92)",
+                "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" },
+              }}
               aria-label="Logout from application"
             >
-              <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>
+              <ListItemIcon
+                sx={{ color: "inherit", minWidth: 40, "& svg": { fontSize: "1.5rem" } }}
+              >
                 <LogoutIcon />
               </ListItemIcon>
-              <ListItemText primary="Logout" primaryTypographyProps={{ fontSize: "1.1rem" }} />
+              <ListItemText primary="Logout" primaryTypographyProps={{ fontSize: "0.95rem" }} />
             </ListItemButton>
           </ListItem>
         </List>
@@ -317,7 +326,7 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
           "& .MuiDrawer-paper": {
             width: DRAWER_WIDTH,
             boxSizing: "border-box",
-            backgroundColor: "#D9D9D9",
+            backgroundColor: "#0f2b40",
           },
         }}
       >
@@ -337,7 +346,7 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
         "& .MuiDrawer-paper": {
           width: DRAWER_WIDTH,
           boxSizing: "border-box",
-          backgroundColor: "#D9D9D9",
+          backgroundColor: "#0f2b40",
           overflowX: "hidden",
         },
       }}

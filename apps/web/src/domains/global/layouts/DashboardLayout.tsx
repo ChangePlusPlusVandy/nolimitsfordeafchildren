@@ -4,7 +4,6 @@ import {
   AppBar,
   Toolbar,
   IconButton,
-  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -28,8 +27,8 @@ const DashboardLayout = () => {
         <AppBar
           position="fixed"
           sx={{
-            bgcolor: "#D9D9D9",
-            color: "text.primary",
+            bgcolor: "#0f2b40",
+            color: "common.white",
             boxShadow: 1,
           }}
         >
@@ -43,9 +42,7 @@ const DashboardLayout = () => {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              No Limits
-            </Typography>
+            <Box sx={{ flexGrow: 1 }} />
           </Toolbar>
         </AppBar>
       )}

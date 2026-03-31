@@ -1,11 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "./styles/index.css";
 
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { AuthProvider } from "./auth";
+import LoginPage from "./domains/auth/pages/LoginPage.tsx";
+import PendingApprovalPage from "./domains/auth/pages/PendingApprovalPage.tsx";
 import MakeupRequestsPage from "./domains/admin/pages/MakeupRequestsPage.tsx";
 import PhotoGalleryPage from "./domains/admin/pages/PhotoGalleryPage.tsx";
 import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequestsPage.tsx";
@@ -50,6 +51,101 @@ import { theme } from "./theme";
 
 const queryClient = new QueryClient();
 
+const publicPaths = new Set(["/login", "/pending-approval"]);
+
+function AppRoutes() {
+  const location = useLocation();
+  const path = location.pathname;
+
+  const PublicLayout = () => (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Outlet />
+    </ThemeProvider>
+  );
+
+  if (publicPaths.has(path)) {
+    return (
+      <Routes>
+        <Route element={<PublicLayout />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/pending-approval" element={<PendingApprovalPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  return (
+    <AuthGuard>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/pending-approval" element={<PendingApprovalPage />} />
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<RoleBasedRedirect />} />
+            <Route path="/users" element={<ManageUsersPage />} />
+            <Route path="/users/:id" element={<UserDetailsPage />} />
+            <Route path="/my-profile" element={<MyProfilePage />} />
+            <Route path="/locations" element={<LocationsIndexPage />} />
+            <Route path="/locations/new" element={<NewLocationPage />} />
+            <Route path="/locations/:siteId" element={<LocationDetailsPage />} />
+            <Route path="/locations/:siteId/edit" element={<EditLocationPage />} />
+            <Route path="/teachers" element={<Navigate to="/my-day" replace />} />
+            <Route path="/teachers/new" element={<NewTeacherPage />} />
+            <Route
+              path="/my-day"
+              element={
+                <RoleGuard allowedRoles={["teacher"]}>
+                  <MyDayPage />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <RoleGuard allowedRoles={["administrator", "teacher"]}>
+                  <TeacherChatPage />
+                </RoleGuard>
+              }
+            />
+            <Route path="/teachers/:id" element={<TeacherDetailsPage />} />
+            <Route path="/teachers/:id/edit" element={<EditTeacherPage />} />
+            <Route path="/teachers/:id/schedules/new" element={<TeacherScheduleWizardPage />} />
+            <Route path="/teachers/students/:id" element={<TeacherStudentDetailsPage />} />
+            <Route path="/students" element={<StudentsIndexPage />} />
+            <Route path="/students/:id" element={<StudentDetailsPage />} />
+            <Route path="/students/:id/edit" element={<EditStudentPage />} />
+            <Route path="/parents" element={<Navigate to="/my-students" replace />} />
+            <Route path="/my-students" element={<MyStudentsPage />} />
+            <Route path="/parents/children/:studentId" element={<ChildDetailsPage />} />
+            <Route path="/parents/directory" element={<ParentDirectoryPage />} />
+            <Route path="/parents/schedule-change" element={<BrowseSchedulesPage />} />
+            <Route path="/parents/my-requests" element={<MyRequestsPage />} />
+            <Route path="/bulletin" element={<BulletinBoardPage />} />
+            <Route path="/teachers/makeup-sessions" element={<MakeupSessionsPage />} />
+            <Route
+              path="/teachers/schedule-change-requests"
+              element={<TeacherScheduleChangeRequestsPage />}
+            />
+            <Route path="/admin/makeup-requests" element={<MakeupRequestsPage />} />
+            <Route path="/admin/sessions" element={<SessionsPage />} />
+            <Route
+              path="/admin/schedule-change-requests"
+              element={<ScheduleChangeRequestsPage />}
+            />
+            <Route path="/admin/document-reviews" element={<DocumentReviewPage />} />
+            <Route path="/admin/parent-zip-report" element={<ParentZipReportPage />} />
+            <Route path="/admin/photo-gallery" element={<PhotoGalleryPage />} />
+            <Route path="/admin/bulletin-moderation" element={<BulletinModerationPage />} />
+          </Route>
+        </Routes>
+      </ThemeProvider>
+    </AuthGuard>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
@@ -57,83 +153,7 @@ createRoot(document.getElementById("root")!).render(
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
             <BrowserRouter>
-              <AuthGuard>
-                <ThemeProvider theme={theme}>
-                  <CssBaseline />
-                  <Routes>
-                    <Route element={<DashboardLayout />}>
-                      <Route path="/" element={<RoleBasedRedirect />} />
-                      <Route path="/users" element={<ManageUsersPage />} />
-                      <Route path="/users/:id" element={<UserDetailsPage />} />
-                      <Route path="/my-profile" element={<MyProfilePage />} />
-                      <Route path="/locations" element={<LocationsIndexPage />} />
-                      <Route path="/locations/new" element={<NewLocationPage />} />
-                      <Route path="/locations/:siteId" element={<LocationDetailsPage />} />
-                      <Route path="/locations/:siteId/edit" element={<EditLocationPage />} />
-                      <Route path="/teachers" element={<Navigate to="/my-day" replace />} />
-                      <Route path="/teachers/new" element={<NewTeacherPage />} />
-                      <Route
-                        path="/my-day"
-                        element={
-                          <RoleGuard allowedRoles={["teacher"]}>
-                            <MyDayPage />
-                          </RoleGuard>
-                        }
-                      />
-                      <Route
-                        path="/chat"
-                        element={
-                          <RoleGuard allowedRoles={["administrator", "teacher"]}>
-                            <TeacherChatPage />
-                          </RoleGuard>
-                        }
-                      />
-                      <Route path="/teachers/:id" element={<TeacherDetailsPage />} />
-                      <Route path="/teachers/:id/edit" element={<EditTeacherPage />} />
-                      <Route
-                        path="/teachers/:id/schedules/new"
-                        element={<TeacherScheduleWizardPage />}
-                      />
-                      <Route
-                        path="/teachers/students/:id"
-                        element={<TeacherStudentDetailsPage />}
-                      />
-                      <Route path="/students" element={<StudentsIndexPage />} />
-                      <Route path="/students/:id" element={<StudentDetailsPage />} />
-                      <Route path="/students/:id/edit" element={<EditStudentPage />} />
-                      <Route path="/parents" element={<Navigate to="/my-students" replace />} />
-                      <Route path="/my-students" element={<MyStudentsPage />} />
-                      <Route path="/parents/children/:studentId" element={<ChildDetailsPage />} />
-                      <Route path="/parents/directory" element={<ParentDirectoryPage />} />
-                      <Route path="/parents/schedule-change" element={<BrowseSchedulesPage />} />
-                      <Route path="/parents/my-requests" element={<MyRequestsPage />} />
-                      <Route path="/bulletin" element={<BulletinBoardPage />} />
-
-                      {/* Teacher Pages */}
-                      <Route path="/teachers/makeup-sessions" element={<MakeupSessionsPage />} />
-                      <Route
-                        path="/teachers/schedule-change-requests"
-                        element={<TeacherScheduleChangeRequestsPage />}
-                      />
-
-                      {/* Admin Request Pages */}
-                      <Route path="/admin/makeup-requests" element={<MakeupRequestsPage />} />
-                      <Route path="/admin/sessions" element={<SessionsPage />} />
-                      <Route
-                        path="/admin/schedule-change-requests"
-                        element={<ScheduleChangeRequestsPage />}
-                      />
-                      <Route path="/admin/document-reviews" element={<DocumentReviewPage />} />
-                      <Route path="/admin/parent-zip-report" element={<ParentZipReportPage />} />
-                      <Route path="/admin/photo-gallery" element={<PhotoGalleryPage />} />
-                      <Route
-                        path="/admin/bulletin-moderation"
-                        element={<BulletinModerationPage />}
-                      />
-                    </Route>
-                  </Routes>
-                </ThemeProvider>
-              </AuthGuard>
+              <AppRoutes />
             </BrowserRouter>
           </ToastProvider>
         </QueryClientProvider>

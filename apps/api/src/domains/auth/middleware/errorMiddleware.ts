@@ -86,6 +86,7 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
           errorType = "Unauthorized";
           break;
         case "USER_DISABLED":
+        case "USER_UNASSIGNED":
         case "INSUFFICIENT_ROLE":
           statusCode = 403;
           errorType = "Forbidden";

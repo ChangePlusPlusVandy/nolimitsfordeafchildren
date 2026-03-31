@@ -5,17 +5,13 @@ export function useHttpClient() {
   const auth = useAuth();
   const instance = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
+    withCredentials: true,
   });
 
   instance.interceptors.request.use(async (requestConfig) => {
-    const token = await auth.getAccessToken();
+    const devModeEnabled = import.meta.env.VITE_AUTH_DISABLED === "true";
 
-    if (token) {
-      requestConfig.headers.Authorization = `Bearer ${token}`;
-    }
-
-    // In dev mode, send the current role to the API
-    if (!auth.authEnabled && auth.user?.role) {
+    if (devModeEnabled && auth.user?.role) {
       requestConfig.headers["X-Dev-Role"] = auth.user.role;
     }
 

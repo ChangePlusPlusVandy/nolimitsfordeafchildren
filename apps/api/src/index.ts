@@ -2,7 +2,9 @@ import "reflect-metadata";
 import { useExpressServer, useContainer, type Action } from "routing-controllers";
 import express, { type Request, type Response } from "express";
 import cors from "cors";
+import { toNodeHandler } from "better-auth/node";
 import Container from "@/container";
+import { auth } from "@/auth";
 import {
   hasRole,
   createAuthMiddleware,
@@ -11,13 +13,7 @@ import {
 } from "./domains/auth/middleware";
 
 // Auth Controllers
-import {
-  PostAuthLoginController,
-  PostAuthLogoutController,
-  PostAuthRefreshController,
-  AuthCallbackController,
-  GetAuthMeController,
-} from "./domains/auth/endpoints/AuthController";
+import { GetAuthMeController } from "./domains/auth/endpoints/AuthController";
 
 // User Controllers
 import {
@@ -214,9 +210,10 @@ export function buildApplication() {
     res.json({ status: "ok" });
   });
 
-  // Apply global auth middleware
-  // This validates JWT tokens (if present) and loads the user from the database.
-  // It does NOT reject unauthenticated requests - that's handled by @Authorized() decorator.
+  app.all("/api/auth/*splat", toNodeHandler(auth));
+
+  app.use(express.json());
+
   const authMiddleware = createAuthMiddleware();
   app.use(authMiddleware);
 
@@ -228,10 +225,6 @@ export function buildApplication() {
     validation: false,
     controllers: [
       // Auth
-      PostAuthLoginController,
-      PostAuthRefreshController,
-      PostAuthLogoutController,
-      AuthCallbackController,
       GetAuthMeController,
 
       // Me
@@ -396,7 +389,7 @@ export function buildApplication() {
       if (authDisabled) {
         return {
           id: "00000000-0000-0000-0000-000000000000",
-          auth0Id: "dev|00000000000000000000000000000000",
+          authUserId: "dev-admin",
           email: "dev@example.com",
           name: "Dev User",
           phone: null,
@@ -440,6 +433,7 @@ export function buildApplication() {
             statusCode = 401;
             break;
           case "USER_DISABLED":
+          case "USER_UNASSIGNED":
             statusCode = 403;
             break;
           default:
@@ -461,6 +455,22 @@ export function buildApplication() {
         res.statusCode = 401;
         res.setHeader("X-Auth-Error-Code", "NO_TOKEN");
         res.setHeader("X-Auth-Error-Message", "Authentication required");
+        return false;
+      }
+
+      const isUnassigned = user.role === "unassigned";
+      const requestPath = req.path || "";
+      const requestMethod = req.method;
+      const isAuthEndpoint = requestPath.startsWith("/api/auth");
+      const isMeRead = requestMethod === "GET" && (requestPath === "/v1/auth/me" || requestPath === "/v1/me");
+
+      if (isUnassigned && !isAuthEndpoint && !isMeRead) {
+        res.statusCode = 403;
+        res.setHeader("X-Auth-Error-Code", "USER_UNASSIGNED");
+        res.setHeader(
+          "X-Auth-Error-Message",
+          "Account pending administrator approval before accessing the application",
+        );
         return false;
       }
 

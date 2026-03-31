@@ -69,7 +69,8 @@ export default function ManageUsersPage() {
     setPage(0);
   };
 
-  const getRoleColor = (role: UserRole): "primary" | "secondary" | "success" => {
+  const getRoleColor =
+    (role: UserRole): "primary" | "secondary" | "success" | "warning" => {
     switch (role) {
       case "administrator":
         return "primary";
@@ -77,6 +78,8 @@ export default function ManageUsersPage() {
         return "secondary";
       case "parent":
         return "success";
+      case "unassigned":
+        return "warning";
       default:
         return "primary";
     }
@@ -85,6 +88,10 @@ export default function ManageUsersPage() {
   const getRoleLabel = (role: UserRole): string => {
     if (role === "parent") {
       return "Parent/Guardian";
+    }
+
+    if (role === "unassigned") {
+      return "Pending Approval";
     }
 
     return role;
@@ -140,6 +147,7 @@ export default function ManageUsersPage() {
               <MenuItem value="administrator">Administrator</MenuItem>
               <MenuItem value="teacher">Teacher</MenuItem>
               <MenuItem value="parent">Parent/Guardian</MenuItem>
+              <MenuItem value="unassigned">Pending Approval</MenuItem>
             </Select>
           </FormControl>
         </Box>

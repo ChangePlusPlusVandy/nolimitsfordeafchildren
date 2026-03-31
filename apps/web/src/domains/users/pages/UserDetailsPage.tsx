@@ -134,6 +134,10 @@ export default function UserDetailsPage() {
       return "Parent/Guardian";
     }
 
+    if (value === "unassigned") {
+      return "Pending Approval";
+    }
+
     return value;
   };
 
@@ -221,7 +225,9 @@ export default function UserDetailsPage() {
               ? "primary"
               : user.role === "teacher"
                 ? "secondary"
-                : "success"
+                : user.role === "parent"
+                  ? "success"
+                  : "warning"
           }
           sx={{ textTransform: "capitalize" }}
         />
@@ -279,6 +285,7 @@ export default function UserDetailsPage() {
               <MenuItem value="administrator">Administrator</MenuItem>
               <MenuItem value="teacher">Teacher</MenuItem>
               <MenuItem value="parent">Parent/Guardian</MenuItem>
+              <MenuItem value="unassigned">Pending Approval</MenuItem>
             </Select>
           </FormControl>
 

@@ -25,7 +25,7 @@ import { getPresignedUploadUrl, getPublicUrl } from "@/s3";
 
 export type BulletinScope = "global" | "site";
 export type BulletinRoleTarget = "all" | "administrator" | "teacher" | "parent";
-export type UserRole = "administrator" | "teacher" | "parent";
+export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
 
 export interface ListBulletinsQuery {
   siteId?: string;
@@ -86,7 +86,7 @@ export interface BulletinViewWithUser extends BulletinViewEntity {
     id: string;
     name: string;
     email: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   };
 }
 
@@ -95,7 +95,7 @@ export interface BulletinAcknowledgementWithUser extends BulletinAcknowledgement
     id: string;
     name: string;
     email: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   };
 }
 
@@ -341,7 +341,9 @@ export class BulletinsService {
 
       // Role target filter: 'all' OR matches user's role
       conditions.push(
-        or(eq(BulletinTable.role_target, "all"), eq(BulletinTable.role_target, userRole)),
+        userRole === "unassigned"
+          ? eq(BulletinTable.role_target, "all")
+          : or(eq(BulletinTable.role_target, "all"), eq(BulletinTable.role_target, userRole)),
       );
 
       conditions.push(eq(BulletinTable.approval_status, "approved"));

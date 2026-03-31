@@ -53,7 +53,7 @@ export interface BulletinView {
     id: string;
     name: string;
     email: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   };
 }
 
@@ -74,7 +74,7 @@ export interface BulletinAcknowledgement {
     id: string;
     name: string;
     email: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   };
 }
 

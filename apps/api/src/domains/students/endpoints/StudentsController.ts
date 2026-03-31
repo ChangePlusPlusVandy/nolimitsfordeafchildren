@@ -27,7 +27,7 @@ import {
 // Type for current user from auth
 interface CurrentUserType {
   id: string;
-  role: "administrator" | "teacher" | "parent";
+  role: "administrator" | "teacher" | "parent" | "unassigned";
 }
 
 // ==================== LIST STUDENTS ====================

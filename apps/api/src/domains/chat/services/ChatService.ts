@@ -23,7 +23,7 @@ export class ChatService {
         created_by_user: {
           id: string;
           name: string;
-          role: "administrator" | "teacher" | "parent";
+          role: "administrator" | "teacher" | "parent" | "unassigned";
         };
       }
     >;

@@ -69,11 +69,11 @@ export interface ScheduleChangeRequestWithDetails extends ScheduleChangeRequestE
     to_status: string | null;
     notes: string | null;
     created_at: Date;
-    actor_user: {
-      id: string;
-      name: string;
-      role: "administrator" | "teacher" | "parent";
-    };
+      actor_user: {
+        id: string;
+        name: string;
+        role: "administrator" | "teacher" | "parent" | "unassigned";
+      };
   }>;
   preferred_times: string | null;
   flexibility_notes: string | null;

@@ -85,7 +85,7 @@ The base user account for all roles.
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | uuid | PK, default random | Unique identifier |
-| `auth0_id` | text | NOT NULL, UNIQUE | Auth0 subject ID |
+| `auth_user_id` | text | UNIQUE | Better Auth user ID |
 | `email` | citext | NOT NULL, UNIQUE | Email address (case-insensitive) |
 | `name` | text | NOT NULL | Full name |
 | `phone` | text | | Phone number |
@@ -96,7 +96,7 @@ The base user account for all roles.
 | `updated_at` | timestamptz | NOT NULL, default now() | |
 
 **Indexes:**
-- `users_auth0_id_idx` on `auth0_id`
+- `users_auth_user_id_idx` on `auth_user_id`
 - `users_email_idx` on `email`
 - `users_role_idx` on `role`
 

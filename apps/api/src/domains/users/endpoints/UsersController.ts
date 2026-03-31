@@ -38,7 +38,7 @@ export class GetUsersController {
   @Authorized(["administrator"])
   async handle(
     @QueryParam("search") search?: string,
-    @QueryParam("role") role?: "administrator" | "teacher" | "parent",
+    @QueryParam("role") role?: "administrator" | "teacher" | "parent" | "unassigned",
     @QueryParam("is_active") is_active?: boolean,
     @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
@@ -95,8 +95,8 @@ export class PostUsersInviteController {
       throw new BadRequestError("email, name, and role are required");
     }
 
-    if (!["administrator", "teacher", "parent"].includes(body.role)) {
-      throw new BadRequestError("role must be administrator, teacher, or parent");
+    if (!["administrator", "teacher", "parent", "unassigned"].includes(body.role)) {
+      throw new BadRequestError("role must be administrator, teacher, parent, or unassigned");
     }
 
     try {

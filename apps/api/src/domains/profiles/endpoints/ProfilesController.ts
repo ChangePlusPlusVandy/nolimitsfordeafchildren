@@ -14,7 +14,7 @@ import { ForbiddenError } from "routing-controllers";
 
 interface CurrentUserType {
   id: string;
-  role: "administrator" | "teacher" | "parent";
+  role: "administrator" | "teacher" | "parent" | "unassigned";
 }
 
 @Service()

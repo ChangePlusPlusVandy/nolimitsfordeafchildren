@@ -100,7 +100,7 @@ export interface AttendanceRecentEntry {
   marked_by: {
     id: string;
     name: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   } | null;
 }
 

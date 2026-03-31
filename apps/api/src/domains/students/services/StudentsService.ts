@@ -20,7 +20,7 @@ import {
 import { eq, and, isNull, ilike, or, sql, desc } from "drizzle-orm";
 
 // Types
-export type UserRole = "administrator" | "teacher" | "parent";
+export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
 
 export interface StudentFilters {
   search?: string;
@@ -262,7 +262,7 @@ export class StudentsService {
    */
   async show(
     id: string,
-    user?: { id: string; role: "administrator" | "teacher" | "parent" },
+    user?: { id: string; role: "administrator" | "teacher" | "parent" | "unassigned" },
   ): Promise<any> {
     // Get student
     const [student] = await db.select().from(StudentTable).where(eq(StudentTable.id, id)).limit(1);

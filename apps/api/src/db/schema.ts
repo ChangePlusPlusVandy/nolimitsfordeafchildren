@@ -26,7 +26,12 @@ export const citext = customType<{ data: string }>({
 
 // ==================== ENUMS ====================
 
-export const userRoleEnum = pgEnum("user_role", ["administrator", "teacher", "parent"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "administrator",
+  "teacher",
+  "parent",
+  "unassigned",
+]);
 
 export const locationTypeEnum = pgEnum("location_type", ["education_center", "pop_up", "remote"]);
 
@@ -100,7 +105,7 @@ export const chatChannelEnum = pgEnum("chat_channel", ["community", "teacher"]);
 
 export const UserTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  auth0Id: text("auth0_id").notNull().unique(),
+  authUserId: text("auth_user_id").unique(),
   email: citext("email").notNull().unique(),
   name: text("name").notNull(),
   phone: text("phone"),
@@ -110,6 +115,67 @@ export const UserTable = pgTable("users", {
   is_active: boolean("is_active").notNull().default(true),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ---------------- BETTER AUTH TABLES ---------------- */
+
+export const AuthUserTable = pgTable("auth_users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: citext("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const AuthSessionTable = pgTable("auth_sessions", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => AuthUserTable.id, { onDelete: "cascade" }),
+});
+
+export const AuthAccountTable = pgTable(
+  "auth_accounts",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => AuthUserTable.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    providerAccountUnique: uniqueIndex("auth_accounts_provider_account_unique").on(
+      table.providerId,
+      table.accountId,
+    ),
+  }),
+);
+
+export const AuthVerificationTable = pgTable("auth_verifications", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /* ---------------- LOCATION ---------------- */
@@ -647,6 +713,10 @@ export const ScheduleChangeRequestEventTable = pgTable("schedule_change_request_
 // ==================== RELATIONS ====================
 
 export const userRelations = relations(UserTable, ({ one }) => ({
+  authUser: one(AuthUserTable, {
+    fields: [UserTable.authUserId],
+    references: [AuthUserTable.id],
+  }),
   teacherProfile: one(TeacherProfileTable, {
     fields: [UserTable.id],
     references: [TeacherProfileTable.user_id],
@@ -654,6 +724,25 @@ export const userRelations = relations(UserTable, ({ one }) => ({
   parentProfile: one(ParentProfileTable, {
     fields: [UserTable.id],
     references: [ParentProfileTable.user_id],
+  }),
+}));
+
+export const authUserRelations = relations(AuthUserTable, ({ many }) => ({
+  sessions: many(AuthSessionTable),
+  accounts: many(AuthAccountTable),
+}));
+
+export const authSessionRelations = relations(AuthSessionTable, ({ one }) => ({
+  user: one(AuthUserTable, {
+    fields: [AuthSessionTable.userId],
+    references: [AuthUserTable.id],
+  }),
+}));
+
+export const authAccountRelations = relations(AuthAccountTable, ({ one }) => ({
+  user: one(AuthUserTable, {
+    fields: [AuthAccountTable.userId],
+    references: [AuthUserTable.id],
   }),
 }));
 
@@ -995,6 +1084,18 @@ export const scheduleChangeRequestEventRelations = relations(
 
 export type UserEntity = typeof UserTable.$inferSelect;
 export type UserInsert = typeof UserTable.$inferInsert;
+
+export type AuthUserEntity = typeof AuthUserTable.$inferSelect;
+export type AuthUserInsert = typeof AuthUserTable.$inferInsert;
+
+export type AuthSessionEntity = typeof AuthSessionTable.$inferSelect;
+export type AuthSessionInsert = typeof AuthSessionTable.$inferInsert;
+
+export type AuthAccountEntity = typeof AuthAccountTable.$inferSelect;
+export type AuthAccountInsert = typeof AuthAccountTable.$inferInsert;
+
+export type AuthVerificationEntity = typeof AuthVerificationTable.$inferSelect;
+export type AuthVerificationInsert = typeof AuthVerificationTable.$inferInsert;
 
 export type LocationEntity = typeof LocationTable.$inferSelect;
 export type LocationInsert = typeof LocationTable.$inferInsert;
