@@ -1,9 +1,11 @@
+import { randomUUID } from "crypto";
 import { Service } from "typedi";
 import { eq, and, or, lte, gte, desc, isNull, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   BulletinTable,
   BulletinAttachmentTable,
+  BulletinAcknowledgementTable,
   BulletinViewTable,
   UserTable,
   LocationTable,
@@ -15,8 +17,11 @@ import {
   type BulletinInsert,
   type BulletinAttachmentEntity,
   type BulletinAttachmentInsert,
+  type BulletinAcknowledgementEntity,
+  type BulletinAcknowledgementInsert,
   type BulletinViewEntity,
 } from "@/db/schema";
+import { getPresignedUploadUrl, getPublicUrl } from "@/s3";
 
 export type BulletinScope = "global" | "site";
 export type BulletinRoleTarget = "all" | "administrator" | "teacher" | "parent";
@@ -64,6 +69,10 @@ export interface BulletinWithDetails extends BulletinEntity {
   created_by_name?: string;
   site_name?: string;
   view_count?: number;
+  acknowledgement_count?: number;
+  acknowledged?: boolean;
+  acknowledged_at?: Date | null;
+  acknowledged_initials?: string | null;
 }
 
 export interface BulletinViewWithUser extends BulletinViewEntity {
@@ -73,6 +82,24 @@ export interface BulletinViewWithUser extends BulletinViewEntity {
     email: string;
     role: "administrator" | "teacher" | "parent";
   };
+}
+
+export interface BulletinAcknowledgementWithUser extends BulletinAcknowledgementEntity {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "administrator" | "teacher" | "parent";
+  };
+}
+
+export interface GetBulletinAttachmentUploadUrlInput {
+  file_name: string;
+  content_type: string;
+}
+
+export interface AcknowledgeBulletinInput {
+  initials: string;
 }
 
 @Service()
@@ -196,6 +223,48 @@ export class BulletinsService {
     };
   }
 
+  async getAcknowledgementStats(bulletinId: string): Promise<{
+    count: number;
+    acknowledgements: BulletinAcknowledgementWithUser[];
+  }> {
+    const rows = await db
+      .select({
+        id: BulletinAcknowledgementTable.id,
+        bulletin_id: BulletinAcknowledgementTable.bulletin_id,
+        user_id: BulletinAcknowledgementTable.user_id,
+        initials: BulletinAcknowledgementTable.initials,
+        acknowledged_at: BulletinAcknowledgementTable.acknowledged_at,
+        created_at: BulletinAcknowledgementTable.created_at,
+        updated_at: BulletinAcknowledgementTable.updated_at,
+        user_name: UserTable.name,
+        user_email: UserTable.email,
+        user_role: UserTable.role,
+      })
+      .from(BulletinAcknowledgementTable)
+      .innerJoin(UserTable, eq(BulletinAcknowledgementTable.user_id, UserTable.id))
+      .where(eq(BulletinAcknowledgementTable.bulletin_id, bulletinId))
+      .orderBy(desc(BulletinAcknowledgementTable.acknowledged_at));
+
+    return {
+      count: rows.length,
+      acknowledgements: rows.map((row) => ({
+        id: row.id,
+        bulletin_id: row.bulletin_id,
+        user_id: row.user_id,
+        initials: row.initials,
+        acknowledged_at: row.acknowledged_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        user: {
+          id: row.user_id,
+          name: row.user_name,
+          email: row.user_email,
+          role: row.user_role,
+        },
+      })),
+    };
+  }
+
   /**
    * List bulletins filtered by user role and site
    *
@@ -306,6 +375,8 @@ export class BulletinsService {
 
     let attachmentsMap: Map<string, BulletinAttachmentEntity[]> = new Map();
     let viewCountMap: Map<string, number> = new Map();
+    let acknowledgementCountMap: Map<string, number> = new Map();
+    let acknowledgedMap: Map<string, { acknowledged_at: Date; initials: string }> = new Map();
 
     if (bulletinIds.length > 0) {
       const attachments = await db
@@ -332,16 +403,60 @@ export class BulletinsService {
       for (const row of viewCounts) {
         viewCountMap.set(row.bulletin_id, row.count);
       }
+
+      const acknowledgementCounts = await db
+        .select({
+          bulletin_id: BulletinAcknowledgementTable.bulletin_id,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(BulletinAcknowledgementTable)
+        .where(inArray(BulletinAcknowledgementTable.bulletin_id, bulletinIds))
+        .groupBy(BulletinAcknowledgementTable.bulletin_id);
+
+      for (const row of acknowledgementCounts) {
+        acknowledgementCountMap.set(row.bulletin_id, row.count);
+      }
+
+      if (userRole === "parent") {
+        const acknowledgements = await db
+          .select({
+            bulletin_id: BulletinAcknowledgementTable.bulletin_id,
+            acknowledged_at: BulletinAcknowledgementTable.acknowledged_at,
+            initials: BulletinAcknowledgementTable.initials,
+          })
+          .from(BulletinAcknowledgementTable)
+          .where(
+            and(
+              inArray(BulletinAcknowledgementTable.bulletin_id, bulletinIds),
+              eq(BulletinAcknowledgementTable.user_id, userId),
+            ),
+          );
+
+        for (const row of acknowledgements) {
+          acknowledgedMap.set(row.bulletin_id, {
+            acknowledged_at: row.acknowledged_at,
+            initials: row.initials,
+          });
+        }
+      }
     }
 
     // Combine bulletins with their attachments
-    const items: BulletinWithDetails[] = bulletins.map((b) => ({
-      ...b.bulletin,
-      attachments: attachmentsMap.get(b.bulletin.id) || [],
-      created_by_name: b.created_by_name ?? undefined,
-      site_name: b.site_name ?? undefined,
-      view_count: viewCountMap.get(b.bulletin.id) ?? 0,
-    }));
+    const items: BulletinWithDetails[] = bulletins.map((b) => {
+      const parentAcknowledgement = acknowledgedMap.get(b.bulletin.id);
+
+      return {
+        ...b.bulletin,
+        attachments: attachmentsMap.get(b.bulletin.id) || [],
+        created_by_name: b.created_by_name ?? undefined,
+        site_name: b.site_name ?? undefined,
+        view_count: viewCountMap.get(b.bulletin.id) ?? 0,
+        acknowledgement_count: acknowledgementCountMap.get(b.bulletin.id) ?? 0,
+        acknowledged: Boolean(parentAcknowledgement),
+        acknowledged_at: parentAcknowledgement?.acknowledged_at ?? null,
+        acknowledged_initials: parentAcknowledgement?.initials ?? null,
+      };
+    });
 
     return {
       items,
@@ -355,7 +470,7 @@ export class BulletinsService {
   /**
    * Get a single bulletin by ID with attachments
    */
-  async show(id: string): Promise<BulletinWithDetails | null> {
+  async show(id: string, userId?: string): Promise<BulletinWithDetails | null> {
     const result = await db
       .select({
         bulletin: BulletinTable,
@@ -380,12 +495,42 @@ export class BulletinsService {
       .from(BulletinAttachmentTable)
       .where(eq(BulletinAttachmentTable.bulletin_id, id));
 
+    const acknowledgementCountResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(BulletinAcknowledgementTable)
+      .where(eq(BulletinAcknowledgementTable.bulletin_id, id));
+
+    let acknowledgedAt: Date | null = null;
+    let acknowledgedInitials: string | null = null;
+    if (userId) {
+      const ack = await db
+        .select({
+          acknowledged_at: BulletinAcknowledgementTable.acknowledged_at,
+          initials: BulletinAcknowledgementTable.initials,
+        })
+        .from(BulletinAcknowledgementTable)
+        .where(
+          and(
+            eq(BulletinAcknowledgementTable.bulletin_id, id),
+            eq(BulletinAcknowledgementTable.user_id, userId),
+          ),
+        )
+        .limit(1);
+
+      acknowledgedAt = ack[0]?.acknowledged_at ?? null;
+      acknowledgedInitials = ack[0]?.initials ?? null;
+    }
+
     return {
       ...bulletin.bulletin,
       attachments,
       created_by_name: bulletin.created_by_name ?? undefined,
       site_name: bulletin.site_name ?? undefined,
       view_count: 0,
+      acknowledgement_count: acknowledgementCountResult[0]?.count ?? 0,
+      acknowledged: Boolean(acknowledgedAt),
+      acknowledged_at: acknowledgedAt,
+      acknowledged_initials: acknowledgedInitials,
     };
   }
 
@@ -490,6 +635,70 @@ export class BulletinsService {
     };
 
     const result = await db.insert(BulletinAttachmentTable).values(attachment).returning();
+
+    return result[0]!;
+  }
+
+  async getAttachmentUploadUrl(
+    input: GetBulletinAttachmentUploadUrlInput,
+  ): Promise<{ upload_url: string; file_key: string; file_url: string }> {
+    const extension = input.file_name.split(".").pop() || "bin";
+    const fileKey = `bulletins/attachments/${randomUUID()}.${extension}`;
+    const uploadUrl = await getPresignedUploadUrl(fileKey, input.content_type);
+    const fileUrl = getPublicUrl(fileKey);
+
+    return {
+      upload_url: uploadUrl,
+      file_key: fileKey,
+      file_url: fileUrl,
+    };
+  }
+
+  async acknowledgeBulletin(
+    bulletinId: string,
+    userId: string,
+    input: AcknowledgeBulletinInput,
+  ): Promise<BulletinAcknowledgementEntity> {
+    const initials = input.initials.trim().toUpperCase();
+    if (!initials) {
+      throw new Error("Initials are required");
+    }
+    if (initials.length > 8) {
+      throw new Error("Initials must be 8 characters or fewer");
+    }
+
+    const bulletin = await db
+      .select({ id: BulletinTable.id })
+      .from(BulletinTable)
+      .where(eq(BulletinTable.id, bulletinId))
+      .limit(1);
+
+    if (bulletin.length === 0) {
+      throw new Error("Bulletin not found");
+    }
+
+    const now = new Date();
+    const payload: BulletinAcknowledgementInsert = {
+      bulletin_id: bulletinId,
+      user_id: userId,
+      initials,
+      acknowledged_at: now,
+      created_at: now,
+      updated_at: now,
+    };
+
+    const result = await db
+      .insert(BulletinAcknowledgementTable)
+      .values(payload)
+      .onConflictDoUpdate({
+        target: [BulletinAcknowledgementTable.bulletin_id, BulletinAcknowledgementTable.user_id],
+        set: {
+          initials,
+          acknowledged_at: now,
+          updated_at: now,
+        },
+      })
+      .returning();
 
     return result[0]!;
   }

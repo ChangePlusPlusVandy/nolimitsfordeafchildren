@@ -435,6 +435,31 @@ export const BulletinViewTable = pgTable(
   }),
 );
 
+/* ---------------- BULLETIN ACKNOWLEDGEMENT ---------------- */
+
+export const BulletinAcknowledgementTable = pgTable(
+  "bulletin_acknowledgements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bulletin_id: uuid("bulletin_id")
+      .notNull()
+      .references(() => BulletinTable.id),
+    user_id: uuid("user_id")
+      .notNull()
+      .references(() => UserTable.id),
+    initials: varchar("initials", { length: 8 }).notNull(),
+    acknowledged_at: timestamp("acknowledged_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    bulletinAcknowledgementUnique: uniqueIndex("bulletin_acknowledgements_bulletin_id_user_id_idx").on(
+      table.bulletin_id,
+      table.user_id,
+    ),
+  }),
+);
+
 // ==================== MAKE-UP SYSTEM ====================
 
 /* ---------------- MAKEUP REQUEST ---------------- */
@@ -709,6 +734,7 @@ export const bulletinRelations = relations(BulletinTable, ({ one, many }) => ({
   }),
   attachments: many(BulletinAttachmentTable),
   views: many(BulletinViewTable),
+  acknowledgements: many(BulletinAcknowledgementTable),
 }));
 
 export const bulletinAttachmentRelations = relations(BulletinAttachmentTable, ({ one }) => ({
@@ -725,6 +751,17 @@ export const bulletinViewRelations = relations(BulletinViewTable, ({ one }) => (
   }),
   user: one(UserTable, {
     fields: [BulletinViewTable.user_id],
+    references: [UserTable.id],
+  }),
+}));
+
+export const bulletinAcknowledgementRelations = relations(BulletinAcknowledgementTable, ({ one }) => ({
+  bulletin: one(BulletinTable, {
+    fields: [BulletinAcknowledgementTable.bulletin_id],
+    references: [BulletinTable.id],
+  }),
+  user: one(UserTable, {
+    fields: [BulletinAcknowledgementTable.user_id],
     references: [UserTable.id],
   }),
 }));
@@ -850,6 +887,9 @@ export type BulletinAttachmentInsert = typeof BulletinAttachmentTable.$inferInse
 
 export type BulletinViewEntity = typeof BulletinViewTable.$inferSelect;
 export type BulletinViewInsert = typeof BulletinViewTable.$inferInsert;
+
+export type BulletinAcknowledgementEntity = typeof BulletinAcknowledgementTable.$inferSelect;
+export type BulletinAcknowledgementInsert = typeof BulletinAcknowledgementTable.$inferInsert;
 
 export type MakeupRequestEntity = typeof MakeupRequestTable.$inferSelect;
 export type MakeupRequestInsert = typeof MakeupRequestTable.$inferInsert;

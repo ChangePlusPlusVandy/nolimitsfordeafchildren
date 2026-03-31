@@ -23,6 +23,8 @@ import {
   type CreateBulletinInput,
   type UpdateBulletinInput,
   type AddAttachmentInput,
+  type AcknowledgeBulletinInput,
+  type GetBulletinAttachmentUploadUrlInput,
   type BulletinScope,
   type BulletinRoleTarget,
 } from "../services/BulletinsService";
@@ -90,7 +92,7 @@ export class GetBulletinController {
     @Param("id") id: string,
     @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
-    const bulletin = await this.bulletinsService.show(id);
+    const bulletin = await this.bulletinsService.show(id, currentUser.id);
     if (!bulletin) {
       throw new NotFoundError("Bulletin not found");
     }
@@ -264,6 +266,31 @@ export class PostBulletinAttachmentController {
   }
 }
 
+@Service()
+@JsonController("/v1")
+export class PostBulletinAttachmentUploadUrlController {
+  private bulletinsService: BulletinsService;
+  constructor() {
+    this.bulletinsService = Container.get(BulletinsService);
+  }
+
+  @Post("/bulletins/attachments/upload-url")
+  @Authorized(["administrator"])
+  async handle(
+    @Body() body: GetBulletinAttachmentUploadUrlInput,
+  ) {
+    if (!body.file_name || !body.content_type) {
+      throw new BadRequestError("file_name and content_type are required");
+    }
+
+    try {
+      return await this.bulletinsService.getAttachmentUploadUrl(body);
+    } catch (error) {
+      throw error;
+    }
+  }
+}
+
 /**
  * DELETE /v1/bulletins/:id/attachments/:attachmentId
  * Delete an attachment from a bulletin
@@ -285,5 +312,58 @@ export class DeleteBulletinAttachmentController {
       throw new NotFoundError("Attachment not found");
     }
     return { success: true, message: "Attachment deleted" };
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class PostBulletinAcknowledgeController {
+  private bulletinsService: BulletinsService;
+  constructor() {
+    this.bulletinsService = Container.get(BulletinsService);
+  }
+
+  @Post("/bulletins/:id/acknowledge")
+  @Authorized(["parent"])
+  async handle(
+    @Param("id") id: string,
+    @Body() body: AcknowledgeBulletinInput,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+  ) {
+    if (!body.initials || !body.initials.trim()) {
+      throw new BadRequestError("initials are required");
+    }
+
+    try {
+      return await this.bulletinsService.acknowledgeBulletin(id, currentUser.id, body);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Bulletin not found") {
+        throw new NotFoundError("Bulletin not found");
+      }
+      if (error instanceof Error && error.message.includes("Initials")) {
+        throw new BadRequestError(error.message);
+      }
+      throw error;
+    }
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class GetBulletinAcknowledgementsController {
+  private bulletinsService: BulletinsService;
+  constructor() {
+    this.bulletinsService = Container.get(BulletinsService);
+  }
+
+  @Get("/bulletins/:id/acknowledgements")
+  @Authorized(["administrator"])
+  async handle(@Param("id") id: string) {
+    const bulletin = await this.bulletinsService.show(id);
+    if (!bulletin) {
+      throw new NotFoundError("Bulletin not found");
+    }
+
+    return await this.bulletinsService.getAcknowledgementStats(id);
   }
 }
