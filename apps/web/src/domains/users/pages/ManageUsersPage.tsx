@@ -82,6 +82,14 @@ export default function ManageUsersPage() {
     }
   };
 
+  const getRoleLabel = (role: UserRole): string => {
+    if (role === "parent") {
+      return "Parent/Guardian";
+    }
+
+    return role;
+  };
+
   return (
     <Box>
       {/* Header */}
@@ -131,7 +139,7 @@ export default function ManageUsersPage() {
               <MenuItem value="">All Roles</MenuItem>
               <MenuItem value="administrator">Administrator</MenuItem>
               <MenuItem value="teacher">Teacher</MenuItem>
-              <MenuItem value="parent">Parent</MenuItem>
+              <MenuItem value="parent">Parent/Guardian</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -175,7 +183,7 @@ export default function ManageUsersPage() {
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <Chip
-                          label={user.role}
+                          label={getRoleLabel(user.role)}
                           color={getRoleColor(user.role)}
                           size="small"
                           sx={{ textTransform: "capitalize" }}
