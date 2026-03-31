@@ -58,6 +58,8 @@ export interface AddSiblingInput {
   name: string;
   age?: number;
   relationship: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }
@@ -66,6 +68,8 @@ export interface UpdateSiblingInput {
   name?: string;
   age?: number;
   relationship?: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }
@@ -379,6 +383,8 @@ export class StudentsService {
         name: s.name,
         age: s.age,
         relationship: s.relationship,
+        is_participant: s.is_participant,
+        has_hearing_loss: s.has_hearing_loss,
         photo_url: s.photo_url,
         notes: s.notes,
       })),
@@ -466,6 +472,61 @@ export class StudentsService {
     return student || null;
   }
 
+  async updateGuardianSummary(
+    id: string,
+    guardianSummary: string | null,
+    user: { id: string; role: UserRole },
+  ): Promise<StudentEntity | null> {
+    const existingStudent = await db
+      .select({ id: StudentTable.id })
+      .from(StudentTable)
+      .where(eq(StudentTable.id, id))
+      .limit(1);
+
+    if (existingStudent.length === 0) {
+      return null;
+    }
+
+    if (user.role === "teacher") {
+      const teacherProfile = await db
+        .select({ id: TeacherProfileTable.id })
+        .from(TeacherProfileTable)
+        .where(eq(TeacherProfileTable.user_id, user.id))
+        .limit(1);
+
+      if (teacherProfile.length === 0) {
+        throw new Error("Teacher profile not found");
+      }
+
+      const teacherLink = await db
+        .select({ id: TeacherStudentTable.id })
+        .from(TeacherStudentTable)
+        .where(
+          and(
+            eq(TeacherStudentTable.student_id, id),
+            eq(TeacherStudentTable.teacher_id, teacherProfile[0]!.id),
+            isNull(TeacherStudentTable.unassigned_at),
+          ),
+        )
+        .limit(1);
+
+      if (teacherLink.length === 0) {
+        throw new Error("You do not have permission to update this student's guardian summary");
+      }
+    }
+
+    const [student] = await db
+      .update(StudentTable)
+      .set({
+        guardian_summary: guardianSummary,
+        updated_at: new Date(),
+      })
+      .where(eq(StudentTable.id, id))
+      .returning();
+
+    return student || null;
+  }
+
   /**
    * Add a sibling to a student
    */
@@ -477,6 +538,8 @@ export class StudentsService {
         name: data.name,
         age: data.age,
         relationship: data.relationship,
+        is_participant: data.is_participant ?? true,
+        has_hearing_loss: data.has_hearing_loss ?? false,
         photo_url: data.photo_url,
         notes: data.notes,
       })

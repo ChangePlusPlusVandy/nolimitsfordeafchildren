@@ -10,6 +10,8 @@ import {
   CurrentUser,
   NotFoundError,
   Authorized,
+  ForbiddenError,
+  HttpError,
 } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
@@ -111,6 +113,51 @@ export class PatchStudentController {
       throw new NotFoundError("Student not found");
     }
     return student;
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class PatchStudentGuardianSummaryController {
+  private studentsService: StudentsService;
+  constructor() {
+    this.studentsService = Container.get(StudentsService);
+  }
+
+  @Patch("/students/:id/guardian-summary")
+  @Authorized(["administrator", "teacher"])
+  async handle(
+    @Param("id") id: string,
+    @Body() body: { guardian_summary?: string | null },
+    @CurrentUser({ required: true }) user: CurrentUserType,
+  ) {
+    try {
+      const normalizedSummary =
+        body.guardian_summary === undefined
+          ? null
+          : body.guardian_summary?.trim()
+            ? body.guardian_summary.trim()
+            : null;
+
+      const student = await this.studentsService.updateGuardianSummary(id, normalizedSummary, {
+        id: user.id,
+        role: user.role,
+      });
+
+      if (!student) {
+        throw new NotFoundError("Student not found");
+      }
+
+      return student;
+    } catch (error: any) {
+      if (error?.message?.includes("permission")) {
+        throw new ForbiddenError(error.message);
+      }
+      if (error?.message?.includes("Teacher profile not found")) {
+        throw new HttpError(403, error.message);
+      }
+      throw error;
+    }
   }
 }
 

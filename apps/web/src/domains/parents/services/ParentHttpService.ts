@@ -41,7 +41,7 @@ export interface ChildScheduleSession {
     id: string;
     name: string;
   };
-  attendance_status?: "present" | "no_show" | "cancelled" | null;
+  attendance_status?: "present" | "late" | "no_show" | "cancelled" | null;
 }
 
 export interface MissedSession {
@@ -85,6 +85,23 @@ export interface DirectoryPerson {
   photo_url: string | null;
 }
 
+export interface ParentZipReportItem {
+  parent_user_id: string;
+  parent_name: string;
+  parent_email: string;
+  postal_code: string;
+  city: string | null;
+  state: string | null;
+  linked_students: number;
+}
+
+export interface ParentZipReportGroup {
+  postal_code: string;
+  parent_count: number;
+  student_count: number;
+  parents: ParentZipReportItem[];
+}
+
 export interface ChildDetails {
   id: string;
   first_name: string;
@@ -112,6 +129,14 @@ export interface ChildDetails {
   missed_sessions: MissedSession[];
   relevant_bulletins: RelevantBulletin[];
   approved_documents: ChildDocument[];
+  siblings: Array<{
+    id: string;
+    name: string;
+    age: number | null;
+    relationship: string;
+    is_participant: boolean;
+    has_hearing_loss: boolean;
+  }>;
 }
 
 export interface MyChildrenResponse {
@@ -123,6 +148,7 @@ export function useParentHttpService(): IHttpService & {
     myChildren: () => Promise<MyChildrenResponse>;
     childDetails: (studentId: string) => Promise<ChildDetails>;
     directory: () => Promise<{ items: DirectoryPerson[] }>;
+    zipReport: () => Promise<{ items: ParentZipReportGroup[] }>;
   };
 } {
   const httpClient = useHttpClient();
@@ -141,6 +167,10 @@ export function useParentHttpService(): IHttpService & {
       },
       directory: async (): Promise<{ items: DirectoryPerson[] }> => {
         const response = await httpClient.get(`/v1/parents/directory`);
+        return response.data;
+      },
+      zipReport: async (): Promise<{ items: ParentZipReportGroup[] }> => {
+        const response = await httpClient.get(`/v1/parents/zip-report`);
         return response.data;
       },
     },

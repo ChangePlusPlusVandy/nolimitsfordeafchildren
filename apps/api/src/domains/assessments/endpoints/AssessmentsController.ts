@@ -22,12 +22,14 @@ interface CreateAssessmentBody {
   cycle_start_date: string;
   assessment_type: "pre" | "post";
   teaching_focus: string;
+  summary?: string;
   score: number;
   notes?: string;
 }
 
 interface UpdateAssessmentBody {
   teaching_focus?: string;
+  summary?: string;
   score?: number;
   notes?: string;
 }
@@ -88,6 +90,7 @@ export class PostStudentAssessmentsController {
       cycle_start_date: body.cycle_start_date,
       assessment_type: body.assessment_type,
       teaching_focus: body.teaching_focus,
+      summary: body.summary,
       score: body.score,
       notes: body.notes,
     };

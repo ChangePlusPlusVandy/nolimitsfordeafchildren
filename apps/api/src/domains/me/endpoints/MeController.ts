@@ -51,6 +51,7 @@ export class GetMeController {
       created_at: profile.created_at,
       teacherProfileId: profile.teacherProfileId,
       parentProfileId: profile.parentProfileId,
+      parentAddress: profile.parentAddress,
     };
   }
 }

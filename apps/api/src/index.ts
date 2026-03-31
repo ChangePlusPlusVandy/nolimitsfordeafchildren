@@ -37,10 +37,13 @@ import {
   GetBulletinsController,
   GetBulletinController,
   GetBulletinViewsController,
+  GetBulletinAcknowledgementsController,
   PostBulletinsController,
   PatchBulletinController,
   DeleteBulletinController,
   PostBulletinAttachmentController,
+  PostBulletinAttachmentUploadUrlController,
+  PostBulletinAcknowledgeController,
   DeleteBulletinAttachmentController,
 } from "./domains/bulletins/endpoints/BulletinsController";
 
@@ -70,6 +73,7 @@ import {
   GetStudentController,
   GetStudentTeachersController,
   GetStudentsController,
+  PatchStudentGuardianSummaryController,
   PatchStudentController,
   PostStudentTeachersController,
   PostStudentsController,
@@ -84,6 +88,7 @@ import {
   GetParentsChildDetailController,
   GetParentsDirectoryController,
   GetParentsMeChildrenController,
+  GetParentsZipReportController,
 } from "./domains/parents/endpoints/ParentsController";
 
 // Other Controllers
@@ -152,6 +157,7 @@ import {
   GetScheduleChangeRequestsController,
   GetScheduleChangeRequestController,
   PatchScheduleChangeRequestController,
+  PatchScheduleChangeTeacherResponseController,
   GetAvailableSchedulesController,
   GetParentScheduleChangeRequestsController,
 } from "./domains/schedule-changes/endpoints/ScheduleChangeController";
@@ -213,10 +219,13 @@ export function buildApplication() {
       GetBulletinsController,
       GetBulletinController,
       GetBulletinViewsController,
+      GetBulletinAcknowledgementsController,
       PostBulletinsController,
       PatchBulletinController,
       DeleteBulletinController,
       PostBulletinAttachmentController,
+      PostBulletinAttachmentUploadUrlController,
+      PostBulletinAcknowledgeController,
       DeleteBulletinAttachmentController,
 
       // Locations (consolidated controller handles all routes with proper ordering)
@@ -240,6 +249,7 @@ export function buildApplication() {
       PostStudentsController,
       GetStudentController,
       PatchStudentController,
+      PatchStudentGuardianSummaryController,
       GetStudentTeachersController,
       PostStudentTeachersController,
       DeleteStudentTeacherController,
@@ -252,6 +262,7 @@ export function buildApplication() {
       GetParentsMeChildrenController,
       GetParentsChildDetailController,
       GetParentsDirectoryController,
+      GetParentsZipReportController,
 
       // Enrollments & Attendance
       GetEnrollmentsController,
@@ -306,6 +317,7 @@ export function buildApplication() {
       GetScheduleChangeRequestsController,
       GetScheduleChangeRequestController,
       PatchScheduleChangeRequestController,
+      PatchScheduleChangeTeacherResponseController,
       GetAvailableSchedulesController,
       GetParentScheduleChangeRequestsController,
 

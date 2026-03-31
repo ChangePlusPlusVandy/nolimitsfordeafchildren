@@ -60,7 +60,8 @@ export interface StudentDetails extends Student {
 export interface AttendanceRecentEntry {
   id: string;
   session_date: string;
-  status: "present" | "no_show" | "cancelled";
+  status: "present" | "late" | "no_show" | "cancelled";
+  late_minutes: number | null;
   reason: "sick" | "family_emergency" | "transportation" | "schedule_conflict" | "no_show_unknown" | "other" | null;
   reason_text: string | null;
   marked_at: string;
@@ -75,6 +76,7 @@ export interface AttendanceRecentEntry {
 export interface AttendanceOverview {
   total: number;
   present: number;
+  late: number;
   no_show: number;
   cancelled: number;
   attendance_rate: number;
@@ -86,6 +88,8 @@ export interface Sibling {
   name: string;
   age: number | null;
   relationship: string;
+  is_participant: boolean;
+  has_hearing_loss: boolean;
   photo_url: string | null;
   notes: string | null;
 }
@@ -152,6 +156,8 @@ export interface AddSiblingInput {
   name: string;
   age?: number;
   relationship: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }
@@ -160,6 +166,8 @@ export interface UpdateSiblingInput {
   name?: string;
   age?: number;
   relationship?: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }

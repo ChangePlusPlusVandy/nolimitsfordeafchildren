@@ -23,6 +23,7 @@ import {
   Stack,
   TextField,
   Typography,
+  Snackbar,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import NotesIcon from "@mui/icons-material/Notes";
@@ -54,6 +55,7 @@ interface Assessment {
   id: string;
   assessment_type: "pre" | "post";
   teaching_focus: string;
+  summary: string | null;
   score: number;
   notes: string | null;
   assessed_at: string;
@@ -107,10 +109,14 @@ export default function TeacherStudentDetailsPage() {
   const [assessmentType, setAssessmentType] = useState<"pre" | "post">("pre");
   const [assessmentCycleStartDate, setAssessmentCycleStartDate] = useState("");
   const [assessmentFocus, setAssessmentFocus] = useState("");
+  const [assessmentSummary, setAssessmentSummary] = useState("");
   const [assessmentScore, setAssessmentScore] = useState("10");
   const [assessmentNotes, setAssessmentNotes] = useState("");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadType, setUploadType] = useState<"pre_report" | "graduation_speech" | null>(null);
+  const [guardianSummaryEditOpen, setGuardianSummaryEditOpen] = useState(false);
+  const [guardianSummaryDraft, setGuardianSummaryDraft] = useState("");
+  const [saveMessageOpen, setSaveMessageOpen] = useState(false);
 
   const {
     data: student,
@@ -183,12 +189,27 @@ export default function TeacherStudentDetailsPage() {
     },
   });
 
+  const updateGuardianSummaryMutation = useMutation({
+    mutationFn: async (guardianSummary: string) => {
+      const response = await httpClient.patch(`/v1/students/${id}/guardian-summary`, {
+        guardian_summary: guardianSummary.trim() || null,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
+      setGuardianSummaryEditOpen(false);
+      setSaveMessageOpen(true);
+    },
+  });
+
   const createAssessmentMutation = useMutation({
     mutationFn: async () => {
       const response = await httpClient.post(`/v1/students/${id}/assessments`, {
         cycle_start_date: assessmentCycleStartDate,
         assessment_type: assessmentType,
         teaching_focus: assessmentFocus,
+        summary: assessmentSummary || undefined,
         score: Number.parseInt(assessmentScore, 10),
         notes: assessmentNotes || undefined,
       });
@@ -200,6 +221,7 @@ export default function TeacherStudentDetailsPage() {
       setAssessmentType("pre");
       setAssessmentCycleStartDate("");
       setAssessmentFocus("");
+      setAssessmentSummary("");
       setAssessmentScore("10");
       setAssessmentNotes("");
     },
@@ -265,6 +287,15 @@ export default function TeacherStudentDetailsPage() {
     createNoteMutation.mutate(noteText);
   };
 
+  const openGuardianSummaryDialog = () => {
+    setGuardianSummaryDraft(student.guardian_summary || "");
+    setGuardianSummaryEditOpen(true);
+  };
+
+  const handleGuardianSummarySave = () => {
+    updateGuardianSummaryMutation.mutate(guardianSummaryDraft);
+  };
+
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
@@ -325,6 +356,20 @@ export default function TeacherStudentDetailsPage() {
             ) : (
               <Typography color="text.secondary">No siblings recorded.</Typography>
             )}
+
+            <Divider sx={{ my: 2 }} />
+
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Guardian Summary
+              </Typography>
+              <Button size="small" startIcon={<EditIcon />} onClick={openGuardianSummaryDialog}>
+                Edit
+              </Button>
+            </Box>
+            <Typography>
+              {student.guardian_summary?.trim() ? student.guardian_summary : "No guardian summary recorded."}
+            </Typography>
           </Paper>
 
           <Paper sx={{ p: 3, mb: 3 }}>
@@ -469,6 +514,11 @@ export default function TeacherStudentDetailsPage() {
                                 Improvement: {cycle.improvement > 0 ? `+${cycle.improvement}` : cycle.improvement}
                               </Typography>
                             )}
+                            {(cycle.pre_assessment?.summary || cycle.post_assessment?.summary) && (
+                              <Typography component="div" variant="body2" sx={{ mt: 0.5 }}>
+                                Summary: {cycle.post_assessment?.summary || cycle.pre_assessment?.summary}
+                              </Typography>
+                            )}
                           </>
                         }
                       />
@@ -610,6 +660,16 @@ export default function TeacherStudentDetailsPage() {
             />
 
             <TextField
+              label="Summary (optional)"
+              value={assessmentSummary}
+              onChange={(event) =>
+                setAssessmentSummary((event.target as unknown as { value: string }).value)
+              }
+              multiline
+              rows={2}
+            />
+
+            <TextField
               type="number"
               label="Score (0-20)"
               value={assessmentScore}
@@ -657,6 +717,45 @@ export default function TeacherStudentDetailsPage() {
         studentId={id!}
         studentName={`${student.first_name} ${student.last_name}`}
         defaultDocumentType={uploadType ?? undefined}
+      />
+
+      <Dialog
+        open={guardianSummaryEditOpen}
+        onClose={() => setGuardianSummaryEditOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Guardian Summary</DialogTitle>
+        <DialogContent>
+          <TextField
+            multiline
+            rows={5}
+            fullWidth
+            value={guardianSummaryDraft}
+            onChange={(event) =>
+              setGuardianSummaryDraft((event.target as unknown as { value: string }).value)
+            }
+            placeholder="Add relevant guardian/family context for staff"
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGuardianSummaryEditOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleGuardianSummarySave}
+            disabled={updateGuardianSummaryMutation.isPending}
+          >
+            {updateGuardianSummaryMutation.isPending ? <CircularProgress size={20} /> : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={saveMessageOpen}
+        autoHideDuration={3000}
+        onClose={() => setSaveMessageOpen(false)}
+        message="Guardian summary updated"
       />
     </Box>
   );

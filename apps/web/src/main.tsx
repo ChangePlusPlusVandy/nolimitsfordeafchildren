@@ -9,6 +9,7 @@ import { AuthProvider } from "./auth";
 import MakeupRequestsPage from "./domains/admin/pages/MakeupRequestsPage.tsx";
 import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequestsPage.tsx";
 import DocumentReviewPage from "./domains/admin/pages/DocumentReviewPage.tsx";
+import ParentZipReportPage from "./domains/admin/pages/ParentZipReportPage.tsx";
 import BulletinBoardPage from "./domains/bulletin/pages/BulletinBoardPage.tsx";
 import AuthGuard from "./domains/global/components/AuthGuard.tsx";
 import ErrorBoundary from "./domains/global/components/ErrorBoundary.tsx";
@@ -33,6 +34,7 @@ import EditTeacherPage from "./domains/teachers/pages/EditTeacherPage.tsx";
 import MakeupSessionsPage from "./domains/teachers/pages/MakeupSessionsPage.tsx";
 import MyDayPage from "./domains/teachers/pages/MyDayPage.tsx";
 import NewTeacherPage from "./domains/teachers/pages/NewTeacherPage.tsx";
+import TeacherScheduleChangeRequestsPage from "./domains/teachers/pages/TeacherScheduleChangeRequestsPage.tsx";
 import TeacherDetailsPage from "./domains/teachers/pages/TeacherDetailsPage.tsx";
 import TeacherScheduleWizardPage from "./domains/teachers/pages/TeacherScheduleWizardPage.tsx";
 import TeacherStudentDetailsPage from "./domains/teachers/pages/TeacherStudentDetailsPage.tsx";
@@ -97,6 +99,10 @@ createRoot(document.getElementById("root")!).render(
 
                       {/* Teacher Pages */}
                       <Route path="/teachers/makeup-sessions" element={<MakeupSessionsPage />} />
+                      <Route
+                        path="/teachers/schedule-change-requests"
+                        element={<TeacherScheduleChangeRequestsPage />}
+                      />
 
                       {/* Admin Request Pages */}
                       <Route path="/admin/makeup-requests" element={<MakeupRequestsPage />} />
@@ -105,6 +111,7 @@ createRoot(document.getElementById("root")!).render(
                         element={<ScheduleChangeRequestsPage />}
                       />
                       <Route path="/admin/document-reviews" element={<DocumentReviewPage />} />
+                      <Route path="/admin/parent-zip-report" element={<ParentZipReportPage />} />
                     </Route>
                   </Routes>
                 </ThemeProvider>

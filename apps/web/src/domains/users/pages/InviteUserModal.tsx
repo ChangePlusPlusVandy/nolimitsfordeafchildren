@@ -114,7 +114,7 @@ export default function InviteUserModal({ open, onClose }: InviteUserModalProps)
                 label="Role"
                 onChange={(e) => setRole(e.target.value as UserRole)}
               >
-                <MenuItem value="parent">Parent</MenuItem>
+                <MenuItem value="parent">Parent/Guardian</MenuItem>
                 <MenuItem value="teacher">Teacher</MenuItem>
                 <MenuItem value="administrator">Administrator</MenuItem>
               </Select>

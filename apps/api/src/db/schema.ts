@@ -32,6 +32,7 @@ export const locationTypeEnum = pgEnum("location_type", ["education_center", "po
 
 export const attendanceStatusEnum = pgEnum("attendance_status", [
   "present",
+  "late",
   "no_show",
   "cancelled",
 ]);
@@ -76,6 +77,7 @@ export const ageGroupSpecialtyEnum = pgEnum("age_group_specialty", [
 
 export const requestStatusEnum = pgEnum("request_status", [
   "pending",
+  "negotiating",
   "approved",
   "denied",
   "completed",
@@ -155,6 +157,11 @@ export const ParentProfileTable = pgTable("parent_profiles", {
     .notNull()
     .references(() => UserTable.id)
     .unique(),
+  address_line1: text("address_line1"),
+  address_line2: text("address_line2"),
+  city: text("city"),
+  state: text("state"),
+  postal_code: text("postal_code"),
   household_notes: text("household_notes"),
   preferred_contact_method: text("preferred_contact_method").notNull().default("email"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -191,6 +198,8 @@ export const SiblingTable = pgTable("siblings", {
   name: text("name").notNull(),
   age: integer("age"),
   relationship: text("relationship").notNull(),
+  is_participant: boolean("is_participant").notNull().default(true),
+  has_hearing_loss: boolean("has_hearing_loss").notNull().default(false),
   photo_url: text("photo_url"),
   notes: text("notes"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -303,6 +312,7 @@ export const AttendanceTable = pgTable("attendance", {
     .references(() => ScheduleTable.id),
   session_date: date("session_date").notNull(),
   status: attendanceStatusEnum("status").notNull(),
+  late_minutes: integer("late_minutes"),
   reason: absenceReasonEnum("reason"),
   reason_text: text("reason_text"),
   marked_by: uuid("marked_by")
@@ -343,6 +353,7 @@ export const AssessmentTable = pgTable("assessments", {
   cycle_start_date: date("cycle_start_date").notNull(),
   assessment_type: assessmentTypeEnum("assessment_type").notNull(),
   teaching_focus: text("teaching_focus").notNull(),
+  summary: text("summary"),
   score: integer("score").notNull(),
   notes: text("notes"),
   assessed_at: timestamp("assessed_at", { withTimezone: true }).notNull().defaultNow(),
@@ -437,6 +448,31 @@ export const BulletinViewTable = pgTable(
   }),
 );
 
+/* ---------------- BULLETIN ACKNOWLEDGEMENT ---------------- */
+
+export const BulletinAcknowledgementTable = pgTable(
+  "bulletin_acknowledgements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bulletin_id: uuid("bulletin_id")
+      .notNull()
+      .references(() => BulletinTable.id),
+    user_id: uuid("user_id")
+      .notNull()
+      .references(() => UserTable.id),
+    initials: varchar("initials", { length: 8 }).notNull(),
+    acknowledged_at: timestamp("acknowledged_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    bulletinAcknowledgementUnique: uniqueIndex("bulletin_acknowledgements_bulletin_id_user_id_idx").on(
+      table.bulletin_id,
+      table.user_id,
+    ),
+  }),
+);
+
 // ==================== MAKE-UP SYSTEM ====================
 
 /* ---------------- MAKEUP REQUEST ---------------- */
@@ -502,20 +538,39 @@ export const ScheduleChangeRequestTable = pgTable("schedule_change_requests", {
   current_schedule_id: uuid("current_schedule_id")
     .notNull()
     .references(() => ScheduleTable.id),
-  requested_schedule_id: uuid("requested_schedule_id")
-    .notNull()
-    .references(() => ScheduleTable.id),
+  requested_schedule_id: uuid("requested_schedule_id").references(() => ScheduleTable.id),
+  preferred_times: text("preferred_times"),
+  flexibility_notes: text("flexibility_notes"),
   reason: text("reason").notNull(),
   status: requestStatusEnum("status").notNull().default("pending"),
   requested_by: uuid("requested_by")
     .notNull()
     .references(() => UserTable.id),
+  teacher_response_status: text("teacher_response_status"),
+  teacher_response_notes: text("teacher_response_notes"),
+  teacher_responded_by: uuid("teacher_responded_by").references(() => UserTable.id),
+  teacher_responded_at: timestamp("teacher_responded_at", { withTimezone: true }),
   requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
   reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
   reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
   review_notes: text("review_notes"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const ScheduleChangeRequestEventTable = pgTable("schedule_change_request_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schedule_change_request_id: uuid("schedule_change_request_id")
+    .notNull()
+    .references(() => ScheduleChangeRequestTable.id),
+  event_type: text("event_type").notNull(),
+  from_status: text("from_status"),
+  to_status: text("to_status"),
+  actor_user_id: uuid("actor_user_id")
+    .notNull()
+    .references(() => UserTable.id),
+  notes: text("notes"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ==================== RELATIONS ====================
@@ -711,6 +766,7 @@ export const bulletinRelations = relations(BulletinTable, ({ one, many }) => ({
   }),
   attachments: many(BulletinAttachmentTable),
   views: many(BulletinViewTable),
+  acknowledgements: many(BulletinAcknowledgementTable),
 }));
 
 export const bulletinAttachmentRelations = relations(BulletinAttachmentTable, ({ one }) => ({
@@ -727,6 +783,17 @@ export const bulletinViewRelations = relations(BulletinViewTable, ({ one }) => (
   }),
   user: one(UserTable, {
     fields: [BulletinViewTable.user_id],
+    references: [UserTable.id],
+  }),
+}));
+
+export const bulletinAcknowledgementRelations = relations(BulletinAcknowledgementTable, ({ one }) => ({
+  bulletin: one(BulletinTable, {
+    fields: [BulletinAcknowledgementTable.bulletin_id],
+    references: [BulletinTable.id],
+  }),
+  user: one(UserTable, {
+    fields: [BulletinAcknowledgementTable.user_id],
     references: [UserTable.id],
   }),
 }));
@@ -797,6 +864,20 @@ export const scheduleChangeRequestRelations = relations(ScheduleChangeRequestTab
   }),
 }));
 
+export const scheduleChangeRequestEventRelations = relations(
+  ScheduleChangeRequestEventTable,
+  ({ one }) => ({
+    scheduleChangeRequest: one(ScheduleChangeRequestTable, {
+      fields: [ScheduleChangeRequestEventTable.schedule_change_request_id],
+      references: [ScheduleChangeRequestTable.id],
+    }),
+    actorUser: one(UserTable, {
+      fields: [ScheduleChangeRequestEventTable.actor_user_id],
+      references: [UserTable.id],
+    }),
+  }),
+);
+
 // ==================== TYPE EXPORTS ====================
 
 export type UserEntity = typeof UserTable.$inferSelect;
@@ -853,6 +934,9 @@ export type BulletinAttachmentInsert = typeof BulletinAttachmentTable.$inferInse
 export type BulletinViewEntity = typeof BulletinViewTable.$inferSelect;
 export type BulletinViewInsert = typeof BulletinViewTable.$inferInsert;
 
+export type BulletinAcknowledgementEntity = typeof BulletinAcknowledgementTable.$inferSelect;
+export type BulletinAcknowledgementInsert = typeof BulletinAcknowledgementTable.$inferInsert;
+
 export type MakeupRequestEntity = typeof MakeupRequestTable.$inferSelect;
 export type MakeupRequestInsert = typeof MakeupRequestTable.$inferInsert;
 
@@ -861,3 +945,6 @@ export type MakeupSessionInsert = typeof MakeupSessionTable.$inferInsert;
 
 export type ScheduleChangeRequestEntity = typeof ScheduleChangeRequestTable.$inferSelect;
 export type ScheduleChangeRequestInsert = typeof ScheduleChangeRequestTable.$inferInsert;
+
+export type ScheduleChangeRequestEventEntity = typeof ScheduleChangeRequestEventTable.$inferSelect;
+export type ScheduleChangeRequestEventInsert = typeof ScheduleChangeRequestEventTable.$inferInsert;

@@ -62,10 +62,14 @@ function formatTime(time: string): string {
   return `${displayHour}:${minutes} ${ampm}`;
 }
 
-function getStatusColor(status: AttendanceStatus | undefined): "success" | "error" | "default" {
+function getStatusColor(
+  status: AttendanceStatus | undefined,
+): "success" | "warning" | "error" | "default" {
   switch (status) {
     case "present":
       return "success";
+    case "late":
+      return "warning";
     case "no_show":
       return "error";
     case "cancelled":
@@ -75,10 +79,28 @@ function getStatusColor(status: AttendanceStatus | undefined): "success" | "erro
   }
 }
 
+function getStatusBorderColor(
+  status: AttendanceStatus | undefined,
+): "success.main" | "warning.main" | "error.main" | "grey.400" {
+  switch (status) {
+    case "present":
+      return "success.main";
+    case "late":
+      return "warning.main";
+    case "no_show":
+      return "error.main";
+    case "cancelled":
+    default:
+      return "grey.400";
+  }
+}
+
 function getStatusLabel(status: AttendanceStatus | undefined): string {
   switch (status) {
     case "present":
       return "Present";
+    case "late":
+      return "Late";
     case "no_show":
       return "No Show";
     case "cancelled":
@@ -96,8 +118,10 @@ export default function MyDayPage() {
 
   const [selectedDate] = useState(() => new Date().toISOString().split("T")[0]!);
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [lateDialogOpen, setLateDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SessionForDay | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<AttendanceStatus | null>(null);
+  const [selectedLateMinutes, setSelectedLateMinutes] = useState<number>(10);
   const [selectedReason, setSelectedReason] = useState<AbsenceReason | "">("");
   const [reasonText, setReasonText] = useState("");
   const [view, setView] = useState<"day" | "week">("day");
@@ -105,7 +129,8 @@ export default function MyDayPage() {
     open: boolean;
     session: SessionForDay | null;
     previousStatus: AttendanceStatus | null;
-  }>({ open: false, session: null, previousStatus: null });
+    previousLateMinutes: number | null;
+  }>({ open: false, session: null, previousStatus: null, previousLateMinutes: null });
 
   function getWeekDates(date: Date): string[] {
     const start = new Date(date);
@@ -167,6 +192,7 @@ export default function MyDayPage() {
       schedule_id,
       session_date,
       status,
+      late_minutes,
       reason,
       reason_text,
     }: {
@@ -174,6 +200,7 @@ export default function MyDayPage() {
       schedule_id: string;
       session_date: string;
       status: AttendanceStatus;
+      late_minutes?: number;
       reason?: AbsenceReason;
       reason_text?: string;
     }) => {
@@ -182,6 +209,7 @@ export default function MyDayPage() {
         schedule_id,
         session_date,
         status,
+        late_minutes,
         reason,
         reason_text,
       });
@@ -195,6 +223,7 @@ export default function MyDayPage() {
   const handleMarkAttendance = (session: SessionForDay, status: AttendanceStatus) => {
     // Store previous state for undo
     const previousStatus = session.attendance?.status || null;
+    const previousLateMinutes = session.attendance?.late_minutes || null;
 
     if (status === "present") {
       // Mark as present directly
@@ -210,7 +239,13 @@ export default function MyDayPage() {
         open: true,
         session,
         previousStatus,
+        previousLateMinutes,
       });
+    } else if (status === "late") {
+      setSelectedSession(session);
+      setSelectedStatus(status);
+      setSelectedLateMinutes(10);
+      setLateDialogOpen(true);
     } else {
       // Open dialog to select reason
       setSelectedSession(session);
@@ -225,6 +260,7 @@ export default function MyDayPage() {
     if (!selectedSession || !selectedStatus || !selectedReason) return;
 
     const previousStatus = selectedSession.attendance?.status || null;
+    const previousLateMinutes = selectedSession.attendance?.late_minutes || null;
 
     markAttendanceMutation.mutate({
       student_id: selectedSession.student_id,
@@ -240,13 +276,37 @@ export default function MyDayPage() {
       open: true,
       session: selectedSession,
       previousStatus,
+      previousLateMinutes,
+    });
+  };
+
+  const handleConfirmLate = () => {
+    if (!selectedSession || selectedStatus !== "late") return;
+
+    const previousStatus = selectedSession.attendance?.status || null;
+    const previousLateMinutes = selectedSession.attendance?.late_minutes || null;
+
+    markAttendanceMutation.mutate({
+      student_id: selectedSession.student_id,
+      schedule_id: selectedSession.schedule_id,
+      session_date: selectedDate,
+      status: "late",
+      late_minutes: selectedLateMinutes,
+    });
+
+    setLateDialogOpen(false);
+    setUndoSnackbar({
+      open: true,
+      session: selectedSession,
+      previousStatus,
+      previousLateMinutes,
     });
   };
 
   const handleUndo = () => {
     if (!undoSnackbar.session) return;
 
-    const { session, previousStatus } = undoSnackbar;
+    const { session, previousStatus, previousLateMinutes } = undoSnackbar;
 
     if (previousStatus) {
       // Restore previous status
@@ -255,12 +315,13 @@ export default function MyDayPage() {
         schedule_id: session.schedule_id,
         session_date: selectedDate,
         status: previousStatus,
+        late_minutes: previousStatus === "late" ? previousLateMinutes || 10 : undefined,
       });
     }
     // Note: If there was no previous attendance, we can't truly "undo" - just close the snackbar
     // In a production app, you might want a DELETE endpoint for this case
 
-    setUndoSnackbar({ open: false, session: null, previousStatus: null });
+    setUndoSnackbar({ open: false, session: null, previousStatus: null, previousLateMinutes: null });
   };
 
   const handleReasonChange = (event: SelectChangeEvent<string>) => {
@@ -418,11 +479,7 @@ export default function MyDayPage() {
                       variant="outlined"
                       sx={{
                         borderColor: session.attendance
-                          ? getStatusColor(session.attendance.status) === "success"
-                            ? "success.main"
-                            : getStatusColor(session.attendance.status) === "error"
-                              ? "error.main"
-                              : "grey.400"
+                          ? getStatusBorderColor(session.attendance.status)
                           : "grey.300",
                         borderWidth: session.attendance ? 2 : 1,
                       }}
@@ -478,6 +535,11 @@ export default function MyDayPage() {
                                   )
                                 </Typography>
                               )}
+                              {session.attendance.late_minutes && (
+                                <Typography variant="caption" color="text.secondary">
+                                  ({session.attendance.late_minutes} min late)
+                                </Typography>
+                              )}
                             </Box>
                           ) : (
                             <ButtonGroup variant="outlined" size="small">
@@ -488,6 +550,13 @@ export default function MyDayPage() {
                                 disabled={markAttendanceMutation.isPending}
                               >
                                 Present
+                              </Button>
+                              <Button
+                                color="warning"
+                                onClick={() => handleMarkAttendance(session, "late")}
+                                disabled={markAttendanceMutation.isPending}
+                              >
+                                Late
                               </Button>
                               <Button
                                 color="error"
@@ -605,11 +674,49 @@ export default function MyDayPage() {
         </DialogActions>
       </Dialog>
 
+      <Dialog open={lateDialogOpen} onClose={() => setLateDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Mark as Late</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Student: {selectedSession?.student_first_name} {selectedSession?.student_last_name}
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Late By</InputLabel>
+              <Select
+                value={String(selectedLateMinutes)}
+                label="Late By"
+                onChange={(event) =>
+                  setSelectedLateMinutes(Number((event.target as unknown as { value: string }).value))
+                }
+              >
+                <MenuItem value="10">10 minutes</MenuItem>
+                <MenuItem value="15">15 minutes</MenuItem>
+                <MenuItem value="30">30 minutes</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLateDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="warning" onClick={handleConfirmLate}>
+            Confirm Late
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Undo Snackbar */}
       <Snackbar
         open={undoSnackbar.open}
         autoHideDuration={5000}
-        onClose={() => setUndoSnackbar({ open: false, session: null, previousStatus: null })}
+        onClose={() =>
+          setUndoSnackbar({
+            open: false,
+            session: null,
+            previousStatus: null,
+            previousLateMinutes: null,
+          })
+        }
         message={`Marked ${undoSnackbar.session?.student_first_name} ${undoSnackbar.session?.student_last_name}`}
         action={
           <IconButton

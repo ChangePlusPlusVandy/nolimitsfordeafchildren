@@ -21,6 +21,7 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import BadgeIcon from "@mui/icons-material/Badge";
+import PinDropIcon from "@mui/icons-material/PinDrop";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
@@ -72,6 +73,12 @@ const navItems: NavItem[] = [
     icon: <FactCheckIcon />,
     roles: ["administrator"],
   },
+  {
+    text: "Parent ZIP Report",
+    to: "/admin/parent-zip-report",
+    icon: <PinDropIcon />,
+    roles: ["administrator"],
+  },
 
   // Teacher items
   {
@@ -86,10 +93,16 @@ const navItems: NavItem[] = [
     icon: <EventRepeatIcon />,
     roles: ["teacher"],
   },
+  {
+    text: "Schedule Requests",
+    to: "/teachers/schedule-change-requests",
+    icon: <SwapHorizIcon />,
+    roles: ["teacher"],
+  },
 
   // Parent items
   {
-    text: "My Students",
+    text: "My Children",
     to: "/my-students",
     icon: <ChildCareIcon />,
     roles: ["parent"],

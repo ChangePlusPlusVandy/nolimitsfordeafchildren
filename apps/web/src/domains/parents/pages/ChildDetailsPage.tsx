@@ -31,6 +31,7 @@ import {
   EventBusy as MissedIcon,
   Replay as ReplayIcon,
   Description as DescriptionIcon,
+  FamilyRestroom as FamilyRestroomIcon,
 } from "@mui/icons-material";
 import { useParentHttpService, type ChildScheduleSession } from "../services/ParentHttpService";
 import RequestMakeupModal from "../components/RequestMakeupModal";
@@ -191,10 +192,10 @@ export default function ChildDetailsPage() {
       <Box sx={{ p: 3 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/parent/children")}
+          onClick={() => navigate("/my-students")}
           sx={{ mb: 2 }}
         >
-          Back to My Children
+          Back to My Students
         </Button>
         <Alert severity="error">Failed to load child details. Please try again later.</Alert>
       </Box>
@@ -208,10 +209,10 @@ export default function ChildDetailsPage() {
       {/* Back Button */}
       <Button
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate("/parent/children")}
+        onClick={() => navigate("/my-students")}
         sx={{ mb: 3 }}
       >
-        Back to My Children
+        Back to My Students
       </Button>
 
       {/* Header with Avatar and Basic Info */}
@@ -441,6 +442,31 @@ export default function ChildDetailsPage() {
                     {new Date(bulletin.publish_at).toLocaleDateString()}
                   </Typography>
                 )}
+              </Box>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Siblings */}
+      {child.siblings.length > 0 && (
+        <Paper sx={{ p: 3, mt: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            <FamilyRestroomIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            Siblings
+          </Typography>
+          <Stack spacing={1.5} divider={<Divider />}>
+            {child.siblings.map((sibling) => (
+              <Box key={sibling.id}>
+                <Typography variant="subtitle1" fontWeight={500}>
+                  {sibling.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {sibling.relationship}
+                  {sibling.age !== null ? ` • Age ${sibling.age}` : ""}
+                  {` • ${sibling.is_participant ? "Participant" : "Not participant"}`}
+                  {` • ${sibling.has_hearing_loss ? "Has hearing loss" : "No hearing loss"}`}
+                </Typography>
               </Box>
             ))}
           </Stack>

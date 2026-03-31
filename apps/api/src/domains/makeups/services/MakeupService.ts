@@ -25,7 +25,7 @@ export type AbsenceReason =
   | "no_show_unknown"
   | "other";
 export type RequestStatus = "pending" | "approved" | "denied" | "completed";
-export type AttendanceStatus = "present" | "no_show" | "cancelled";
+export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
 
 export interface CreateMakeupRequestInput {
   student_id: string;

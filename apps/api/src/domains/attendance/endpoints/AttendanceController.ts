@@ -9,6 +9,7 @@ import {
   CurrentUser,
   Authorized,
   HttpCode,
+  BadRequestError,
 } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
@@ -40,10 +41,17 @@ export class PostAttendanceController {
     @Body() body: Omit<MarkAttendanceInput, "marked_by">,
     @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
-    return await this.attendanceService.mark({
-      ...body,
-      marked_by: currentUser.id,
-    });
+    try {
+      return await this.attendanceService.mark({
+        ...body,
+        marked_by: currentUser.id,
+      });
+    } catch (error: any) {
+      if (error?.message?.includes("Late minutes must be")) {
+        throw new BadRequestError("Late minutes must be one of: 10, 15, or 30");
+      }
+      throw error;
+    }
   }
 }
 
@@ -66,11 +74,18 @@ export class PatchAttendanceController {
     @Body() body: UpdateAttendanceInput,
     @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
-    const result = await this.attendanceService.update(id, body, currentUser.id);
-    if (!result) {
-      throw new Error("Attendance record not found");
+    try {
+      const result = await this.attendanceService.update(id, body, currentUser.id);
+      if (!result) {
+        throw new Error("Attendance record not found");
+      }
+      return result;
+    } catch (error: any) {
+      if (error?.message?.includes("Late minutes must be")) {
+        throw new BadRequestError("Late minutes must be one of: 10, 15, or 30");
+      }
+      throw error;
     }
-    return result;
   }
 }
 

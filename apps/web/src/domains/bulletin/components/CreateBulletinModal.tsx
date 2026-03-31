@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -19,9 +19,10 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   IconButton,
+  LinearProgress,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import {
   useBulletinHttpService,
   type CreateBulletinInput,
@@ -38,6 +39,7 @@ interface CreateBulletinModalProps {
 }
 
 interface PendingAttachment {
+  localId: string;
   file_url: string;
   file_name: string;
   file_size?: number;
@@ -53,6 +55,7 @@ export default function CreateBulletinModal({
   const bulletinHttpService = useBulletinHttpService();
   const locationHttpService = useLocationHttpService();
   const toast = useToast();
+  const fileInputId = useId();
 
   // Form state
   const [title, setTitle] = useState("");
@@ -63,8 +66,8 @@ export default function CreateBulletinModal({
   const [publishAt, setPublishAt] = useState<string>("");
   const [expireAt, setExpireAt] = useState<string>("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
-  const [attachmentUrl, setAttachmentUrl] = useState("");
-  const [attachmentName, setAttachmentName] = useState("");
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+  const [attachmentUploadProgress, setAttachmentUploadProgress] = useState(0);
 
   // Fetch locations for site dropdown
   const { data: locations } = useQuery({
@@ -78,8 +81,18 @@ export default function CreateBulletinModal({
       const bulletin = await bulletinHttpService.mutations.create(data);
 
       // Add attachments if any
+      let completed = 0;
+      setUploadingAttachments(true);
+      setAttachmentUploadProgress(0);
       for (const attachment of pendingAttachments) {
-        await bulletinHttpService.mutations.addAttachment(bulletin.id, attachment);
+        await bulletinHttpService.mutations.addAttachment(bulletin.id, {
+          file_url: attachment.file_url,
+          file_name: attachment.file_name,
+          file_size: attachment.file_size,
+          mime_type: attachment.mime_type,
+        });
+        completed += 1;
+        setAttachmentUploadProgress(Math.floor((completed / pendingAttachments.length) * 100));
       }
 
       return bulletin;
@@ -93,6 +106,12 @@ export default function CreateBulletinModal({
     },
     onError: (err: Error) => {
       toast.error(err.message || "Failed to create bulletin");
+      setUploadingAttachments(false);
+      setAttachmentUploadProgress(0);
+    },
+    onSettled: () => {
+      setUploadingAttachments(false);
+      setAttachmentUploadProgress(0);
     },
   });
 
@@ -105,8 +124,8 @@ export default function CreateBulletinModal({
     setPublishAt("");
     setExpireAt("");
     setPendingAttachments([]);
-    setAttachmentUrl("");
-    setAttachmentName("");
+    setUploadingAttachments(false);
+    setAttachmentUploadProgress(0);
   };
 
   const handleClose = () => {
@@ -116,17 +135,58 @@ export default function CreateBulletinModal({
     }
   };
 
-  const handleAddAttachment = () => {
-    if (attachmentUrl.trim() && attachmentName.trim()) {
-      setPendingAttachments([
-        ...pendingAttachments,
-        {
-          file_url: attachmentUrl.trim(),
-          file_name: attachmentName.trim(),
-        },
-      ]);
-      setAttachmentUrl("");
-      setAttachmentName("");
+  const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const target = event.target as unknown as { files?: ArrayLike<File> | null; value: string };
+    const files: File[] = Array.from(target.files ?? []);
+    if (files.length === 0) {
+      return;
+    }
+
+    setUploadingAttachments(true);
+    setAttachmentUploadProgress(0);
+
+    try {
+      const uploaded: PendingAttachment[] = [];
+
+      for (const [index, file] of files.entries()) {
+        const uploadUrlResult = await bulletinHttpService.mutations.getAttachmentUploadUrl({
+          file_name: file.name,
+          content_type: file.type || "application/octet-stream",
+        });
+
+        const uploadResponse = await fetch(uploadUrlResult.upload_url, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        uploaded.push({
+          localId: `${Date.now()}-${index}-${file.name}`,
+          file_url: uploadUrlResult.file_url,
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: file.type || "application/octet-stream",
+        });
+
+        setAttachmentUploadProgress(Math.floor(((index + 1) / files.length) * 100));
+      }
+
+      setPendingAttachments((prev) => [...prev, ...uploaded]);
+      toast.success(
+        `${uploaded.length} attachment${uploaded.length === 1 ? "" : "s"} uploaded`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to upload attachments");
+    } finally {
+      setUploadingAttachments(false);
+      setAttachmentUploadProgress(0);
+      target.value = "";
     }
   };
 
@@ -161,7 +221,7 @@ export default function CreateBulletinModal({
             <TextField
               label="Title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => setTitle((e.target as unknown as { value: string }).value)}
               required
               fullWidth
               autoFocus
@@ -171,7 +231,7 @@ export default function CreateBulletinModal({
             <TextField
               label="Body"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+                onChange={(e) => setBody((e.target as unknown as { value: string }).value)}
               multiline
               rows={4}
               fullWidth
@@ -185,8 +245,8 @@ export default function CreateBulletinModal({
                   value={scope}
                   label="Scope"
                   onChange={(e) => {
-                    setScope(e.target.value as BulletinScope);
-                    if (e.target.value === "global") {
+                    setScope((e.target as { value: BulletinScope }).value);
+                    if ((e.target as { value: BulletinScope }).value === "global") {
                       setSiteId("");
                     }
                   }}
@@ -202,7 +262,7 @@ export default function CreateBulletinModal({
                   <Select
                     value={siteId}
                     label="Site"
-                    onChange={(e) => setSiteId(e.target.value)}
+                    onChange={(e) => setSiteId((e.target as { value: string }).value)}
                     required
                   >
                     {(locations ?? []).map((location: any) => (
@@ -220,7 +280,9 @@ export default function CreateBulletinModal({
               <Select
                 value={roleTarget}
                 label="Target Audience"
-                onChange={(e) => setRoleTarget(e.target.value as BulletinRoleTarget)}
+                onChange={(e) =>
+                  setRoleTarget((e.target as { value: BulletinRoleTarget }).value)
+                }
               >
                 <MenuItem value="all">All Users</MenuItem>
                 <MenuItem value="administrator">Administrators Only</MenuItem>
@@ -234,7 +296,7 @@ export default function CreateBulletinModal({
                 label="Publish Date (optional)"
                 type="datetime-local"
                 value={publishAt}
-                onChange={(e) => setPublishAt(e.target.value)}
+                onChange={(e) => setPublishAt((e.target as unknown as { value: string }).value)}
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 220 }}
                 helperText="Leave empty to publish immediately"
@@ -244,7 +306,7 @@ export default function CreateBulletinModal({
                 label="Expire Date (optional)"
                 type="datetime-local"
                 value={expireAt}
-                onChange={(e) => setExpireAt(e.target.value)}
+                onChange={(e) => setExpireAt((e.target as unknown as { value: string }).value)}
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 220 }}
                 helperText="Leave empty for no expiration"
@@ -257,14 +319,14 @@ export default function CreateBulletinModal({
                 Attachments
               </Typography>
 
-              {pendingAttachments.length > 0 && (
-                <List dense sx={{ mb: 2 }}>
-                  {pendingAttachments.map((attachment, index) => (
-                    <ListItem key={index}>
-                      <ListItemText
-                        primary={attachment.file_name}
-                        secondary={attachment.file_url}
-                      />
+               {pendingAttachments.length > 0 && (
+                 <List dense sx={{ mb: 2 }}>
+                   {pendingAttachments.map((attachment, index) => (
+                     <ListItem key={attachment.localId}>
+                       <ListItemText
+                         primary={attachment.file_name}
+                         secondary={attachment.mime_type || attachment.file_url}
+                       />
                       <ListItemSecondaryAction>
                         <IconButton
                           edge="end"
@@ -277,40 +339,31 @@ export default function CreateBulletinModal({
                     </ListItem>
                   ))}
                 </List>
-              )}
+               )}
 
-              <Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
-                <TextField
-                  label="File URL"
-                  value={attachmentUrl}
-                  onChange={(e) => setAttachmentUrl(e.target.value)}
-                  size="small"
-                  sx={{ flex: 2 }}
-                  placeholder="https://..."
-                />
-                <TextField
-                  label="File Name"
-                  value={attachmentName}
-                  onChange={(e) => setAttachmentName(e.target.value)}
-                  size="small"
-                  sx={{ flex: 1 }}
-                  placeholder="document.pdf"
-                />
-                <Button
-                  variant="outlined"
-                  onClick={handleAddAttachment}
-                  disabled={!attachmentUrl.trim() || !attachmentName.trim()}
-                  startIcon={<AddIcon />}
-                >
-                  Add
+              <input
+                id={fileInputId}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={handleFilesSelected}
+              />
+              <label htmlFor={fileInputId}>
+                <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />}>
+                  Upload Attachment Files
                 </Button>
-              </Box>
+              </label>
+              {uploadingAttachments && (
+                <Box sx={{ mt: 1 }}>
+                  <LinearProgress variant="determinate" value={attachmentUploadProgress} />
+                </Box>
+              )}
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ mt: 0.5, display: "block" }}
               >
-                Enter the URL and display name for each attachment
+                Upload one or more files. They will be attached when bulletin is created.
               </Typography>
             </Box>
           </Box>
