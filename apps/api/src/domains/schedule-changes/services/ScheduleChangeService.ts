@@ -540,8 +540,11 @@ export class ScheduleChangeService {
       return null;
     }
 
-    if (existing[0]!.status !== "pending") {
-      throw new Error("Request has already been reviewed");
+    const currentStatus = existing[0]!.status;
+    const reviewableStatuses: RequestStatus[] = ["pending", "negotiating"];
+
+    if (!reviewableStatuses.includes(currentStatus as RequestStatus)) {
+      throw new Error("Request has already been finalized");
     }
 
     // If approved, update the enrollment when a concrete requested schedule is present
@@ -591,7 +594,7 @@ export class ScheduleChangeService {
       await db.insert(ScheduleChangeRequestEventTable).values({
         schedule_change_request_id: requestId,
         event_type: "status_change",
-        from_status: existing[0]!.status,
+        from_status: currentStatus,
         to_status: status,
         actor_user_id: adminId,
         notes: reviewNotes || null,

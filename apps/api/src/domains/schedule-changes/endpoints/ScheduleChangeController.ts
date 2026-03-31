@@ -191,7 +191,7 @@ export class PatchScheduleChangeRequestController {
       }
       return request;
     } catch (error: any) {
-      if (error.message.includes("already been reviewed")) {
+      if (error.message.includes("already been finalized")) {
         throw new HttpError(409, error.message);
       }
       if (error.message.includes("Cannot approve without a requested schedule")) {
