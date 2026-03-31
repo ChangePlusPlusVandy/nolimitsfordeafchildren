@@ -30,6 +30,7 @@ import {
   Announcement as AnnouncementIcon,
   EventBusy as MissedIcon,
   Replay as ReplayIcon,
+  Description as DescriptionIcon,
 } from "@mui/icons-material";
 import { useParentHttpService, type ChildScheduleSession } from "../services/ParentHttpService";
 import RequestMakeupModal from "../components/RequestMakeupModal";
@@ -439,6 +440,43 @@ export default function ChildDetailsPage() {
                     {new Date(bulletin.publish_at).toLocaleDateString()}
                   </Typography>
                 )}
+              </Box>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Approved Documents */}
+      {child.approved_documents.length > 0 && (
+        <Paper sx={{ p: 3, mt: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            <DescriptionIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            Approved Documents
+          </Typography>
+          <Stack spacing={1.5} divider={<Divider />}>
+            {child.approved_documents.map((doc) => (
+              <Box key={doc.id}>
+                <Typography variant="subtitle1" fontWeight={500}>
+                  {doc.file_name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Type: {doc.document_type.replace(/_/g, " ")}
+                  {doc.session_date ? ` • Session: ${new Date(doc.session_date).toLocaleDateString()}` : ""}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                  {new Date(doc.created_at).toLocaleDateString()}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => {
+                    (globalThis as unknown as {
+                      open?: (url?: string, target?: string, features?: string) => void;
+                    }).open?.(doc.file_url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  View
+                </Button>
               </Box>
             ))}
           </Stack>

@@ -13,6 +13,7 @@ import {
   TeacherProfileTable,
   UserTable,
   BulletinTable,
+  DocumentTable,
   MakeupRequestTable,
   ScheduleChangeRequestTable,
 } from "@/db/schema";
@@ -93,6 +94,15 @@ export interface ChildDetails {
     title: string;
     body: string | null;
     publish_at: Date | null;
+  }>;
+  approved_documents: Array<{
+    id: string;
+    document_type: string;
+    file_name: string;
+    file_url: string;
+    created_at: Date;
+    review_status: "approved" | "pending" | "rejected";
+    session_date: string | null;
   }>;
 }
 
@@ -398,6 +408,27 @@ export class ParentsService {
       .orderBy(desc(BulletinTable.publish_at))
       .limit(5);
 
+    const approvedDocuments = await db
+      .select({
+        id: DocumentTable.id,
+        document_type: DocumentTable.document_type,
+        file_name: DocumentTable.file_name,
+        file_url: DocumentTable.file_url,
+        created_at: DocumentTable.created_at,
+        review_status: DocumentTable.review_status,
+        session_date: DocumentTable.session_date,
+      })
+      .from(DocumentTable)
+      .where(
+        and(
+          eq(DocumentTable.entity_type, "student"),
+          eq(DocumentTable.entity_id, studentId),
+          eq(DocumentTable.review_status, "approved"),
+        ),
+      )
+      .orderBy(desc(DocumentTable.created_at))
+      .limit(25);
+
     return {
       id: s.id,
       first_name: s.first_name,
@@ -417,6 +448,7 @@ export class ParentsService {
       pending_schedule_change_requests: pendingScheduleChanges[0]?.count || 0,
       missed_sessions: missedSessions,
       relevant_bulletins: bulletins,
+      approved_documents: approvedDocuments,
     };
   }
 

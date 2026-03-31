@@ -8,6 +8,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { AuthProvider } from "./auth";
 import MakeupRequestsPage from "./domains/admin/pages/MakeupRequestsPage.tsx";
 import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequestsPage.tsx";
+import DocumentReviewPage from "./domains/admin/pages/DocumentReviewPage.tsx";
 import BulletinBoardPage from "./domains/bulletin/pages/BulletinBoardPage.tsx";
 import AuthGuard from "./domains/global/components/AuthGuard.tsx";
 import ErrorBoundary from "./domains/global/components/ErrorBoundary.tsx";
@@ -103,6 +104,7 @@ createRoot(document.getElementById("root")!).render(
                         path="/admin/schedule-change-requests"
                         element={<ScheduleChangeRequestsPage />}
                       />
+                      <Route path="/admin/document-reviews" element={<DocumentReviewPage />} />
                     </Route>
                   </Routes>
                 </ThemeProvider>

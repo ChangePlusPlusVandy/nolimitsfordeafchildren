@@ -19,6 +19,7 @@ import SchoolIcon from "@mui/icons-material/School";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import FactCheckIcon from "@mui/icons-material/FactCheck";
 import BadgeIcon from "@mui/icons-material/Badge";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
@@ -63,6 +64,12 @@ const navItems: NavItem[] = [
     text: "Schedule Changes",
     to: "/admin/schedule-change-requests",
     icon: <SwapHorizIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Document Reviews",
+    to: "/admin/document-reviews",
+    icon: <FactCheckIcon />,
     roles: ["administrator"],
   },
 

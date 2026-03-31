@@ -4,6 +4,7 @@ import {
   JsonController,
   Param,
   Post,
+  Patch,
   Delete,
   QueryParam,
   CurrentUser,
@@ -19,6 +20,8 @@ import {
   type ListDocumentsQuery,
   type EntityType,
   type DocumentType,
+  type DocumentReviewStatus,
+  type ReviewDocumentInput,
 } from "../services/DocumentsService";
 import type { UserEntity } from "@/db/schema";
 
@@ -85,10 +88,18 @@ export class GetDocumentsController {
     @QueryParam("entity_type") entity_type?: EntityType,
     @QueryParam("entity_id") entity_id?: string,
     @QueryParam("document_type") document_type?: DocumentType,
+    @QueryParam("review_status") review_status?: DocumentReviewStatus,
     @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
   ) {
-    const query: ListDocumentsQuery = { entity_type, entity_id, document_type, page, limit };
+    const query: ListDocumentsQuery = {
+      entity_type,
+      entity_id,
+      document_type,
+      review_status,
+      page,
+      limit,
+    };
     return await this.documentsService.index(query);
   }
 }
@@ -164,6 +175,38 @@ export class DeleteDocumentController {
 
 @Service()
 @JsonController("/v1")
+export class PatchDocumentReviewController {
+  private documentsService: DocumentsService;
+  constructor() {
+    this.documentsService = Container.get(DocumentsService);
+  }
+
+  /**
+   * Review a document (approve/reject)
+   * PATCH /v1/documents/:id/review
+   */
+  @Patch("/documents/:id/review")
+  @Authorized(["administrator"])
+  async handle(
+    @Param("id") id: string,
+    @Body() body: Omit<ReviewDocumentInput, "reviewed_by">,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+  ) {
+    const result = await this.documentsService.reviewDocument(id, {
+      ...body,
+      reviewed_by: currentUser.id,
+    });
+
+    if (!result) {
+      throw new Error("Document not found");
+    }
+
+    return result;
+  }
+}
+
+@Service()
+@JsonController("/v1")
 export class GetStudentDocumentsController {
   private documentsService: DocumentsService;
   constructor() {
@@ -180,10 +223,17 @@ export class GetStudentDocumentsController {
     @Param("id") studentId: string,
     @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
+    @QueryParam("review_status") reviewStatus?: DocumentReviewStatus,
+    @CurrentUser({ required: true }) currentUser?: UserEntity,
   ) {
-    return await this.documentsService.listForEntityPaginated("student", studentId, {
+    const effectiveReviewStatus = currentUser?.role === "parent" ? "approved" : reviewStatus;
+
+    return await this.documentsService.index({
+      entity_type: "student",
+      entity_id: studentId,
       page,
       limit,
+      review_status: effectiveReviewStatus,
     });
   }
 }

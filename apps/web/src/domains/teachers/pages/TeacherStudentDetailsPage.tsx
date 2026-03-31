@@ -33,9 +33,12 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SchoolIcon from "@mui/icons-material/School";
+import DescriptionIcon from "@mui/icons-material/Description";
 import { useHttpClient } from "../../../plugins/axios";
 import { useStudentHttpService } from "../../students/services/StudentHttpService";
 import { DetailPageSkeleton } from "../../global/components/skeletons";
+import DocumentList from "../../students/components/DocumentList";
+import UploadDocumentModal from "../../students/pages/UploadDocumentModal";
 
 interface SessionNote {
   id: string;
@@ -106,6 +109,8 @@ export default function TeacherStudentDetailsPage() {
   const [assessmentFocus, setAssessmentFocus] = useState("");
   const [assessmentScore, setAssessmentScore] = useState("10");
   const [assessmentNotes, setAssessmentNotes] = useState("");
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadType, setUploadType] = useState<"pre_report" | "graduation_speech" | null>(null);
 
   const {
     data: student,
@@ -320,6 +325,43 @@ export default function TeacherStudentDetailsPage() {
             ) : (
               <Typography color="text.secondary">No siblings recorded.</Typography>
             )}
+          </Paper>
+
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
+            >
+              <Typography variant="h6">
+                <DescriptionIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+                Documents
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setUploadType("pre_report");
+                    setUploadModalOpen(true);
+                  }}
+                >
+                  Pre-Report
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setUploadType("graduation_speech");
+                    setUploadModalOpen(true);
+                  }}
+                >
+                  Speech
+                </Button>
+              </Stack>
+            </Box>
+            <DocumentList studentId={id!} reviewStatusFilter="approved" />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+              Pre-reports and graduation speeches appear here after admin approval.
+            </Typography>
           </Paper>
 
           <Paper sx={{ p: 3, mb: 3 }}>
@@ -605,6 +647,17 @@ export default function TeacherStudentDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <UploadDocumentModal
+        open={uploadModalOpen}
+        onClose={() => {
+          setUploadModalOpen(false);
+          setUploadType(null);
+        }}
+        studentId={id!}
+        studentName={`${student.first_name} ${student.last_name}`}
+        defaultDocumentType={uploadType ?? undefined}
+      />
     </Box>
   );
 }
