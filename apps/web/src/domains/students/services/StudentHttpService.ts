@@ -85,6 +85,8 @@ export interface Sibling {
   name: string;
   age: number | null;
   relationship: string;
+  is_participant: boolean;
+  has_hearing_loss: boolean;
   photo_url: string | null;
   notes: string | null;
 }
@@ -149,6 +151,8 @@ export interface AddSiblingInput {
   name: string;
   age?: number;
   relationship: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }
@@ -157,6 +161,8 @@ export interface UpdateSiblingInput {
   name?: string;
   age?: number;
   relationship?: string;
+  is_participant?: boolean;
+  has_hearing_loss?: boolean;
   photo_url?: string;
   notes?: string;
 }

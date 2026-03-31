@@ -189,6 +189,8 @@ export const SiblingTable = pgTable("siblings", {
   name: text("name").notNull(),
   age: integer("age"),
   relationship: text("relationship").notNull(),
+  is_participant: boolean("is_participant").notNull().default(true),
+  has_hearing_loss: boolean("has_hearing_loss").notNull().default(false),
   photo_url: text("photo_url"),
   notes: text("notes"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
