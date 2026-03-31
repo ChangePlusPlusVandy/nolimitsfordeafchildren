@@ -32,9 +32,27 @@ import {
   Replay as ReplayIcon,
   Description as DescriptionIcon,
   FamilyRestroom as FamilyRestroomIcon,
+  PhotoLibrary as PhotoLibraryIcon,
 } from "@mui/icons-material";
 import { useParentHttpService, type ChildScheduleSession } from "../services/ParentHttpService";
 import RequestMakeupModal from "../components/RequestMakeupModal";
+import { useHttpClient } from "../../../plugins/axios";
+
+interface ChildPhoto {
+  id: string;
+  session_date: string;
+  caption: string | null;
+  file_url: string;
+  file_name: string;
+  location: {
+    id: string;
+    name: string;
+  };
+  student: {
+    id: string;
+    initials: string;
+  } | null;
+}
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -164,6 +182,7 @@ export default function ChildDetailsPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
   const parentHttpService = useParentHttpService();
+  const httpClient = useHttpClient();
 
   // Modal state
   const [makeupModalOpen, setMakeupModalOpen] = useState(false);
@@ -180,6 +199,20 @@ export default function ChildDetailsPage() {
   } = useQuery({
     queryKey: [parentHttpService.key, "childDetails", studentId],
     queryFn: () => parentHttpService.queries.childDetails(studentId!),
+    enabled: !!studentId,
+  });
+
+  const { data: photosData } = useQuery<{ items: ChildPhoto[] }>({
+    queryKey: ["parent-child-photos", studentId],
+    queryFn: async () => {
+      const response = await httpClient.get("/v1/photos", {
+        params: {
+          student_id: studentId,
+          limit: 30,
+        },
+      });
+      return response.data;
+    },
     enabled: !!studentId,
   });
 
@@ -472,6 +505,46 @@ export default function ChildDetailsPage() {
           </Stack>
         </Paper>
       )}
+
+      {/* Photo Gallery */}
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          <PhotoLibraryIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+          Photo Gallery
+        </Typography>
+        {(photosData?.items.length || 0) === 0 ? (
+          <Typography color="text.secondary">No photos have been shared yet.</Typography>
+        ) : (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" },
+              gap: 2,
+            }}
+          >
+            {(photosData?.items || []).map((photo) => (
+              <Paper key={photo.id} variant="outlined" sx={{ overflow: "hidden" }}>
+                <Box
+                  component="img"
+                  src={photo.file_url}
+                  alt={photo.caption || photo.file_name}
+                  sx={{ width: "100%", height: 180, objectFit: "cover" }}
+                />
+                <Box sx={{ p: 1.5 }}>
+                  <Typography variant="body2" fontWeight={500}>
+                    {new Date(photo.session_date).toLocaleDateString()} - {photo.location.name}
+                  </Typography>
+                  {photo.caption && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {photo.caption}
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
+            ))}
+          </Box>
+        )}
+      </Paper>
 
       {/* Approved Documents */}
       {child.approved_documents.length > 0 && (

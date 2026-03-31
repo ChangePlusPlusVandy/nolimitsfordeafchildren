@@ -24,6 +24,7 @@ import BadgeIcon from "@mui/icons-material/Badge";
 import PinDropIcon from "@mui/icons-material/PinDrop";
 import ForumIcon from "@mui/icons-material/Forum";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
@@ -85,6 +86,12 @@ const navItems: NavItem[] = [
     text: "Parent ZIP Report",
     to: "/admin/parent-zip-report",
     icon: <PinDropIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Photo Gallery",
+    to: "/admin/photo-gallery",
+    icon: <PhotoLibraryIcon />,
     roles: ["administrator"],
   },
 

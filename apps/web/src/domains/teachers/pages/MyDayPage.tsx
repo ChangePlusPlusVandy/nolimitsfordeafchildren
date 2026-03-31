@@ -35,6 +35,7 @@ import {
   Close as CloseIcon,
   Block as BlockIcon,
   Undo as UndoIcon,
+  PhotoCamera as PhotoCameraIcon,
 } from "@mui/icons-material";
 import {
   useTeacherHttpService,
@@ -44,6 +45,7 @@ import {
   type AbsenceReason,
 } from "../services/TeacherHttpService";
 import { useHttpClient } from "../../../plugins/axios";
+import { useToast } from "../../global/components/ToastProvider";
 
 const ABSENCE_REASONS: { value: AbsenceReason; label: string }[] = [
   { value: "sick", label: "Sick" },
@@ -110,11 +112,32 @@ function getStatusLabel(status: AttendanceStatus | undefined): string {
   }
 }
 
+interface SessionPhoto {
+  id: string;
+  session_date: string;
+  caption: string | null;
+  file_url: string;
+  file_name: string;
+  location: {
+    id: string;
+    name: string;
+  };
+  student: {
+    id: string;
+    initials: string;
+  } | null;
+  uploaded_by_user: {
+    id: string;
+    name: string;
+  };
+}
+
 export default function MyDayPage() {
   const navigate = useNavigate();
   const teacherHttpService = useTeacherHttpService();
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const [selectedDate] = useState(() => new Date().toISOString().split("T")[0]!);
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
@@ -131,6 +154,10 @@ export default function MyDayPage() {
     previousStatus: AttendanceStatus | null;
     previousLateMinutes: number | null;
   }>({ open: false, session: null, previousStatus: null, previousLateMinutes: null });
+  const [photoLocationId, setPhotoLocationId] = useState("");
+  const [photoStudentId, setPhotoStudentId] = useState("");
+  const [photoCaption, setPhotoCaption] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   function getWeekDates(date: Date): string[] {
     const start = new Date(date);
@@ -186,6 +213,16 @@ export default function MyDayPage() {
     },
   });
 
+  const { data: photosData } = useQuery<{ items: SessionPhoto[] }>({
+    queryKey: ["teacher-session-photos", selectedDate],
+    queryFn: async () => {
+      const response = await httpClient.get("/v1/photos", {
+        params: { session_date: selectedDate, limit: 20 },
+      });
+      return response.data;
+    },
+  });
+
   const markAttendanceMutation = useMutation({
     mutationFn: async ({
       student_id,
@@ -217,6 +254,58 @@ export default function MyDayPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "myDay"] });
+    },
+  });
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async () => {
+      if (!photoFile || !photoLocationId) {
+        throw new Error("Please select a location and image file");
+      }
+
+      const uploadResponse = await httpClient.post("/v1/photos/upload-url", {
+        location_id: photoLocationId,
+        student_id: photoStudentId || undefined,
+        session_date: selectedDate,
+        file_name: photoFile.name,
+        content_type: photoFile.type || "image/jpeg",
+      });
+
+      const uploadResult = await fetch(uploadResponse.data.upload_url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": photoFile.type || "image/jpeg",
+        },
+        body: photoFile,
+      });
+
+      if (!uploadResult.ok) {
+        throw new Error("Failed to upload photo file");
+      }
+
+      await httpClient.post("/v1/photos", {
+        location_id: photoLocationId,
+        student_id: photoStudentId || undefined,
+        session_date: selectedDate,
+        caption: photoCaption || undefined,
+        file_url: uploadResponse.data.file_url,
+        file_name: photoFile.name,
+        file_size: photoFile.size,
+        mime_type: photoFile.type || "image/jpeg",
+      });
+    },
+    onSuccess: () => {
+      setPhotoStudentId("");
+      setPhotoCaption("");
+      setPhotoFile(null);
+      queryClient.invalidateQueries({ queryKey: ["teacher-session-photos"] });
+      showToast({ message: "Photo uploaded", severity: "success" });
+    },
+    onError: (error: any) => {
+      showToast({
+        message: error.message || "Failed to upload photo",
+        severity: "error",
+      });
     },
   });
 
@@ -401,6 +490,18 @@ export default function MyDayPage() {
     },
     {} as Record<string, { site_name: string; sessions: SessionForDay[] }>,
   );
+  const photoItems = photosData?.items || [];
+  const siteOptions = Object.entries(sessionsBySite).map(([siteId, value]) => ({
+    id: siteId,
+    name: value.site_name,
+  }));
+  const studentOptions = sessions
+    .filter((session) => !photoLocationId || session.site_id === photoLocationId)
+    .map((session) => ({
+      id: session.student_id,
+      label: `${session.student_first_name} ${session.student_last_name} (${session.student_initials})`,
+    }))
+    .filter((student, index, arr) => arr.findIndex((item) => item.id === student.id) === index);
 
   return (
     <Box>
@@ -456,6 +557,116 @@ export default function MyDayPage() {
           </ToggleButtonGroup>
         </Box>
       </Box>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          <PhotoCameraIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+          Session Photos
+        </Typography>
+
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2, mb: 2 }}>
+          <FormControl fullWidth>
+            <InputLabel>Location</InputLabel>
+            <Select
+              value={photoLocationId}
+              label="Location"
+              onChange={(event) => {
+                setPhotoLocationId((event.target as unknown as { value: string }).value);
+                setPhotoStudentId("");
+              }}
+            >
+              {siteOptions.map((site) => (
+                <MenuItem key={site.id} value={site.id}>
+                  {site.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth>
+            <InputLabel>Student (optional)</InputLabel>
+            <Select
+              value={photoStudentId}
+              label="Student (optional)"
+              onChange={(event) =>
+                setPhotoStudentId((event.target as unknown as { value: string }).value)
+              }
+            >
+              <MenuItem value="">All students at location</MenuItem>
+              {studentOptions.map((student) => (
+                <MenuItem key={student.id} value={student.id}>
+                  {student.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            fullWidth
+            label="Caption (optional)"
+            value={photoCaption}
+            onChange={(event) =>
+              setPhotoCaption((event.target as unknown as { value: string }).value)
+            }
+            placeholder="Group speech practice at library"
+          />
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button component="label" variant="outlined">
+              Choose Photo
+              <input
+                hidden
+                type="file"
+                accept="image/*"
+                onChange={(event) => setPhotoFile(event.target.files?.[0] || null)}
+              />
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              {photoFile?.name || "No file selected"}
+            </Typography>
+          </Stack>
+        </Box>
+
+        <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            onClick={() => uploadPhotoMutation.mutate()}
+            disabled={!photoLocationId || !photoFile || uploadPhotoMutation.isPending}
+          >
+            {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photo"}
+          </Button>
+        </Stack>
+
+        {photoItems.length > 0 ? (
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" }, gap: 2 }}>
+            {photoItems.map((photo) => (
+              <Card key={photo.id} variant="outlined">
+                <Box
+                  component="img"
+                  src={photo.file_url}
+                  alt={photo.caption || photo.file_name}
+                  sx={{ width: "100%", height: 160, objectFit: "cover" }}
+                />
+                <CardContent>
+                  <Typography variant="body2" fontWeight={500}>
+                    {photo.location.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {photo.student ? `Student ${photo.student.initials}` : "Group photo"}
+                  </Typography>
+                  {photo.caption && (
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {photo.caption}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        ) : (
+          <Typography color="text.secondary">No photos uploaded for this date yet.</Typography>
+        )}
+      </Paper>
 
       {sessions.length === 0 ? (
         <Paper sx={{ p: 4, textAlign: "center" }}>

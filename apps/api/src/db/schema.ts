@@ -505,6 +505,27 @@ export const ChatMessageTable = pgTable("chat_messages", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ---------------- SESSION PHOTO ---------------- */
+
+export const PhotoTable = pgTable("photos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  location_id: uuid("location_id")
+    .notNull()
+    .references(() => LocationTable.id),
+  student_id: uuid("student_id").references(() => StudentTable.id),
+  session_date: date("session_date").notNull(),
+  caption: text("caption"),
+  file_url: text("file_url").notNull(),
+  file_name: text("file_name").notNull(),
+  file_size: integer("file_size"),
+  mime_type: text("mime_type"),
+  uploaded_by: uuid("uploaded_by")
+    .notNull()
+    .references(() => UserTable.id),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ==================== MAKE-UP SYSTEM ====================
 
 /* ---------------- MAKEUP REQUEST ---------------- */
@@ -849,6 +870,21 @@ export const chatMessageRelations = relations(ChatMessageTable, ({ one }) => ({
   }),
 }));
 
+export const photoRelations = relations(PhotoTable, ({ one }) => ({
+  location: one(LocationTable, {
+    fields: [PhotoTable.location_id],
+    references: [LocationTable.id],
+  }),
+  student: one(StudentTable, {
+    fields: [PhotoTable.student_id],
+    references: [StudentTable.id],
+  }),
+  uploadedByUser: one(UserTable, {
+    fields: [PhotoTable.uploaded_by],
+    references: [UserTable.id],
+  }),
+}));
+
 export const makeupRequestRelations = relations(MakeupRequestTable, ({ one, many }) => ({
   student: one(StudentTable, {
     fields: [MakeupRequestTable.student_id],
@@ -993,6 +1029,9 @@ export type BulletinAcknowledgementInsert = typeof BulletinAcknowledgementTable.
 
 export type ChatMessageEntity = typeof ChatMessageTable.$inferSelect;
 export type ChatMessageInsert = typeof ChatMessageTable.$inferInsert;
+
+export type PhotoEntity = typeof PhotoTable.$inferSelect;
+export type PhotoInsert = typeof PhotoTable.$inferInsert;
 
 export type MakeupRequestEntity = typeof MakeupRequestTable.$inferSelect;
 export type MakeupRequestInsert = typeof MakeupRequestTable.$inferInsert;
