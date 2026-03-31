@@ -92,6 +92,8 @@ export const bulletinRoleTargetEnum = pgEnum("bulletin_role_target", [
   "parent",
 ]);
 
+export const chatChannelEnum = pgEnum("chat_channel", ["community", "teacher"]);
+
 // ==================== CORE TABLES ====================
 
 /* ---------------- USER ---------------- */
@@ -473,6 +475,22 @@ export const BulletinAcknowledgementTable = pgTable(
   }),
 );
 
+/* ---------------- CHAT MESSAGE ---------------- */
+
+export const ChatMessageTable = pgTable("chat_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  channel: chatChannelEnum("channel").notNull().default("community"),
+  message: text("message").notNull(),
+  is_announcement: boolean("is_announcement").notNull().default(false),
+  created_by: uuid("created_by")
+    .notNull()
+    .references(() => UserTable.id),
+  deleted_at: timestamp("deleted_at", { withTimezone: true }),
+  deleted_by: uuid("deleted_by").references(() => UserTable.id),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ==================== MAKE-UP SYSTEM ====================
 
 /* ---------------- MAKEUP REQUEST ---------------- */
@@ -798,6 +816,17 @@ export const bulletinAcknowledgementRelations = relations(BulletinAcknowledgemen
   }),
 }));
 
+export const chatMessageRelations = relations(ChatMessageTable, ({ one }) => ({
+  createdByUser: one(UserTable, {
+    fields: [ChatMessageTable.created_by],
+    references: [UserTable.id],
+  }),
+  deletedByUser: one(UserTable, {
+    fields: [ChatMessageTable.deleted_by],
+    references: [UserTable.id],
+  }),
+}));
+
 export const makeupRequestRelations = relations(MakeupRequestTable, ({ one, many }) => ({
   student: one(StudentTable, {
     fields: [MakeupRequestTable.student_id],
@@ -936,6 +965,9 @@ export type BulletinViewInsert = typeof BulletinViewTable.$inferInsert;
 
 export type BulletinAcknowledgementEntity = typeof BulletinAcknowledgementTable.$inferSelect;
 export type BulletinAcknowledgementInsert = typeof BulletinAcknowledgementTable.$inferInsert;
+
+export type ChatMessageEntity = typeof ChatMessageTable.$inferSelect;
+export type ChatMessageInsert = typeof ChatMessageTable.$inferInsert;
 
 export type MakeupRequestEntity = typeof MakeupRequestTable.$inferSelect;
 export type MakeupRequestInsert = typeof MakeupRequestTable.$inferInsert;
