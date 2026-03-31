@@ -64,6 +64,11 @@ export interface AttendanceRecentEntry {
   reason_text: string | null;
   marked_at: string;
   schedule_id: string;
+  marked_by: {
+    id: string;
+    name: string;
+    role: "administrator" | "teacher" | "parent";
+  } | null;
 }
 
 export interface AttendanceOverview {
