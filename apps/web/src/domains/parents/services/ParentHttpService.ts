@@ -57,6 +57,24 @@ export interface RelevantBulletin {
   publish_at: string | null;
 }
 
+export type ParentDocumentType =
+  | "audiogram"
+  | "iep"
+  | "annual_test_result"
+  | "pre_report"
+  | "graduation_speech"
+  | "other";
+
+export interface ChildDocument {
+  id: string;
+  document_type: ParentDocumentType;
+  file_name: string;
+  file_url: string;
+  created_at: string;
+  review_status: "approved" | "pending" | "rejected";
+  session_date: string | null;
+}
+
 export interface ChildDetails {
   id: string;
   first_name: string;
@@ -82,6 +100,7 @@ export interface ChildDetails {
   pending_schedule_change_requests: number;
   missed_sessions: MissedSession[];
   relevant_bulletins: RelevantBulletin[];
+  approved_documents: ChildDocument[];
 }
 
 export interface MyChildrenResponse {

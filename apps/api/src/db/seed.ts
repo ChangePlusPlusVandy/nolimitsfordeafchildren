@@ -23,6 +23,7 @@ import {
   SessionNoteTable,
   AssessmentTable,
   BulletinTable,
+  DocumentTable,
   MakeupRequestTable,
   ScheduleChangeRequestTable,
 } from "./schema";

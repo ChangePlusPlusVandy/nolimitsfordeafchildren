@@ -41,6 +41,7 @@ import { useToast } from "../../global/components/ToastProvider";
 interface DocumentListProps {
   studentId: string;
   canDelete?: boolean;
+  reviewStatusFilter?: "approved" | "pending" | "rejected";
   onUploadClick?: () => void;
 }
 
@@ -52,6 +53,8 @@ const DOCUMENT_TYPE_CONFIG: Record<
   iep: { label: "IEP", icon: <AssignmentIcon />, color: "#00bcd4" },
   cv: { label: "CV", icon: <DescriptionIcon />, color: "#4caf50" },
   annual_test_result: { label: "Annual Test", icon: <SchoolIcon />, color: "#ff9800" },
+  pre_report: { label: "Pre-Report", icon: <DescriptionIcon />, color: "#0288d1" },
+  graduation_speech: { label: "Graduation Speech", icon: <SchoolIcon />, color: "#8d6e63" },
   other: { label: "Other", icon: <FileIcon />, color: "#9e9e9e" },
 };
 
@@ -84,6 +87,7 @@ function getDaysOverdue(nextDueDate: string | null): number | null {
 export default function DocumentList({
   studentId,
   canDelete = false,
+  reviewStatusFilter,
   onUploadClick,
 }: DocumentListProps) {
   const documentService = useDocumentHttpService();
@@ -103,7 +107,8 @@ export default function DocumentList({
     error,
   } = useQuery({
     queryKey: [documentService.key, "student", studentId, page, documentsPerPage],
-    queryFn: () => documentService.queries.listForStudent(studentId, page, documentsPerPage),
+    queryFn: () =>
+      documentService.queries.listForStudent(studentId, page, documentsPerPage, reviewStatusFilter),
     enabled: !!studentId,
   });
 

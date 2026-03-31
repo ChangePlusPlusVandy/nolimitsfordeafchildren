@@ -17,8 +17,16 @@ import {
 } from "@/s3";
 import { randomUUID } from "crypto";
 
-export type DocumentType = "audiogram" | "iep" | "cv" | "annual_test_result" | "other";
+export type DocumentType =
+  | "audiogram"
+  | "iep"
+  | "cv"
+  | "annual_test_result"
+  | "pre_report"
+  | "graduation_speech"
+  | "other";
 export type EntityType = "student" | "teacher";
+export type DocumentReviewStatus = "approved" | "pending" | "rejected";
 
 export interface GetUploadUrlInput {
   entity_type: EntityType;
@@ -37,6 +45,8 @@ export interface ConfirmUploadInput {
   file_size?: number;
   mime_type?: string;
   document_date?: string;
+  session_date?: string;
+  session_type?: string;
   uploaded_by: string;
 }
 
@@ -46,10 +56,11 @@ export interface ListDocumentsQuery {
   document_type?: DocumentType;
   page?: number;
   limit?: number;
+  review_status?: DocumentReviewStatus;
 }
 
 export interface PaginatedDocumentsResult {
-  items: DocumentEntity[];
+  items: DocumentWithMetadata[];
   total: number;
   page: number;
   limit: number;
@@ -60,6 +71,12 @@ export type DocumentWithMetadata = DocumentEntity & {
   is_overdue: boolean;
   days_until_due: number | null;
 };
+
+export interface ReviewDocumentInput {
+  status: Exclude<DocumentReviewStatus, "pending">;
+  review_notes?: string;
+  reviewed_by: string;
+}
 
 @Service()
 export class DocumentsService {
@@ -115,6 +132,15 @@ export class DocumentsService {
       mime_type: input.mime_type || null,
       document_date: input.document_date || null,
       next_due_date: nextDueDate,
+      review_status:
+        input.document_type === "pre_report" || input.document_type === "graduation_speech"
+          ? "pending"
+          : "approved",
+      reviewed_by: null,
+      reviewed_at: null,
+      review_notes: null,
+      session_date: input.session_date || null,
+      session_type: input.session_type || null,
       uploaded_by: input.uploaded_by,
     };
 
@@ -205,6 +231,10 @@ export class DocumentsService {
       conditions.push(eq(DocumentTable.document_type, query.document_type));
     }
 
+    if (query.review_status) {
+      conditions.push(eq(DocumentTable.review_status, query.review_status));
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Get total count
@@ -293,6 +323,27 @@ export class DocumentsService {
     return true;
   }
 
+  async reviewDocument(id: string, input: ReviewDocumentInput): Promise<DocumentEntity | null> {
+    const existing = await db.select().from(DocumentTable).where(eq(DocumentTable.id, id)).limit(1);
+    if (existing.length === 0) {
+      return null;
+    }
+
+    const result = await db
+      .update(DocumentTable)
+      .set({
+        review_status: input.status,
+        reviewed_by: input.reviewed_by,
+        reviewed_at: new Date(),
+        review_notes: input.review_notes || null,
+        updated_at: new Date(),
+      })
+      .where(eq(DocumentTable.id, id))
+      .returning();
+
+    return result[0] ?? null;
+  }
+
   /**
    * Get overdue audiograms (for admin alerts and cron jobs)
    */
@@ -343,6 +394,12 @@ export class DocumentsService {
         mime_type: DocumentTable.mime_type,
         document_date: DocumentTable.document_date,
         next_due_date: DocumentTable.next_due_date,
+        review_status: DocumentTable.review_status,
+        reviewed_by: DocumentTable.reviewed_by,
+        reviewed_at: DocumentTable.reviewed_at,
+        review_notes: DocumentTable.review_notes,
+        session_date: DocumentTable.session_date,
+        session_type: DocumentTable.session_type,
         uploaded_by: DocumentTable.uploaded_by,
         created_at: DocumentTable.created_at,
         updated_at: DocumentTable.updated_at,
@@ -375,6 +432,12 @@ export class DocumentsService {
         mime_type: row.mime_type,
         document_date: row.document_date,
         next_due_date: row.next_due_date,
+        review_status: row.review_status,
+        reviewed_by: row.reviewed_by,
+        reviewed_at: row.reviewed_at,
+        review_notes: row.review_notes,
+        session_date: row.session_date,
+        session_type: row.session_type,
         uploaded_by: row.uploaded_by,
         created_at: row.created_at,
         updated_at: row.updated_at,

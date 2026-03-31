@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -21,19 +21,29 @@ import { CloudUpload as CloudUploadIcon } from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
 
-type DocumentType = "audiogram" | "iep" | "cv" | "annual_test_result" | "other";
+type DocumentType =
+  | "audiogram"
+  | "iep"
+  | "cv"
+  | "annual_test_result"
+  | "pre_report"
+  | "graduation_speech"
+  | "other";
 
 interface UploadDocumentModalProps {
   open: boolean;
   onClose: () => void;
   studentId: string;
   studentName?: string;
+  defaultDocumentType?: DocumentType;
 }
 
 const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
   { value: "audiogram", label: "Audiogram" },
   { value: "iep", label: "IEP (Individualized Education Program)" },
   { value: "annual_test_result", label: "Annual Test Result" },
+  { value: "pre_report", label: "Pre-Report" },
+  { value: "graduation_speech", label: "Graduation Speech" },
   { value: "other", label: "Other" },
 ];
 
@@ -42,6 +52,7 @@ export default function UploadDocumentModal({
   onClose,
   studentId,
   studentName,
+  defaultDocumentType,
 }: UploadDocumentModalProps) {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
@@ -49,6 +60,7 @@ export default function UploadDocumentModal({
 
   const [documentType, setDocumentType] = useState<DocumentType | "">("");
   const [documentDate, setDocumentDate] = useState("");
+  const [sessionDate, setSessionDate] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -77,6 +89,8 @@ export default function UploadDocumentModal({
       file_size: number;
       mime_type: string;
       document_date?: string;
+      session_date?: string;
+      session_type?: string;
     }) => {
       const response = await httpClient.post("/v1/documents", data);
       return response.data;
@@ -142,6 +156,11 @@ export default function UploadDocumentModal({
           file_size: file.size,
           mime_type: file.type || "application/octet-stream",
           document_date: documentDate || undefined,
+          session_date: sessionDate || undefined,
+          session_type:
+            documentType === "pre_report" || documentType === "graduation_speech"
+              ? documentType
+              : undefined,
         });
 
         setUploadProgress(stepEnd);
@@ -165,6 +184,7 @@ export default function UploadDocumentModal({
     if (!uploading) {
       setDocumentType("");
       setDocumentDate("");
+      setSessionDate("");
       setSelectedFiles([]);
       setUploadProgress(0);
       setError(null);
@@ -172,7 +192,14 @@ export default function UploadDocumentModal({
     }
   };
 
+  useEffect(() => {
+    if (open && defaultDocumentType) {
+      setDocumentType(defaultDocumentType);
+    }
+  }, [open, defaultDocumentType]);
+
   const isAudiogram = documentType === "audiogram";
+  const isReviewDoc = documentType === "pre_report" || documentType === "graduation_speech";
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -235,6 +262,22 @@ export default function UploadDocumentModal({
                 setDocumentDate((event.target as unknown as { value: string }).value)
               }
               InputLabelProps={{ shrink: true }}
+              disabled={uploading}
+              fullWidth
+            />
+          )}
+
+          {isReviewDoc && (
+            <TextField
+              label="Session Date"
+              type="date"
+              value={sessionDate}
+              onChange={(event) =>
+                setSessionDate((event.target as unknown as { value: string }).value)
+              }
+              InputLabelProps={{ shrink: true }}
+              helperText="Required for pre-reports and graduation speeches."
+              required
               disabled={uploading}
               fullWidth
             />
@@ -304,7 +347,11 @@ export default function UploadDocumentModal({
           onClick={handleUpload}
           variant="contained"
           disabled={
-            selectedFiles.length === 0 || !documentType || (isAudiogram && !documentDate) || uploading
+            selectedFiles.length === 0 ||
+            !documentType ||
+            (isAudiogram && !documentDate) ||
+            (isReviewDoc && !sessionDate) ||
+            uploading
           }
         >
           {uploading ? "Uploading..." : "Upload"}

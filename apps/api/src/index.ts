@@ -102,6 +102,7 @@ import {
 import {
   PostDocumentsUploadUrlController,
   PostDocumentsController,
+  PatchDocumentReviewController,
   GetDocumentsController,
   GetDocumentController,
   GetDocumentDownloadController,
@@ -261,6 +262,7 @@ export function buildApplication() {
       // Documents
       PostDocumentsUploadUrlController,
       PostDocumentsController,
+      PatchDocumentReviewController,
       GetDocumentsController,
       GetDocumentController,
       GetDocumentDownloadController,

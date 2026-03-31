@@ -50,7 +50,15 @@ export const documentTypeEnum = pgEnum("document_type", [
   "iep",
   "cv",
   "annual_test_result",
+  "pre_report",
+  "graduation_speech",
   "other",
+]);
+
+export const documentReviewStatusEnum = pgEnum("document_review_status", [
+  "approved",
+  "pending",
+  "rejected",
 ]);
 
 export const assessmentTypeEnum = pgEnum("assessment_type", ["pre", "post"]);
@@ -355,6 +363,12 @@ export const DocumentTable = pgTable("documents", {
   mime_type: text("mime_type"),
   document_date: date("document_date"),
   next_due_date: date("next_due_date"),
+  review_status: documentReviewStatusEnum("review_status").notNull().default("approved"),
+  reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
+  reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+  review_notes: text("review_notes"),
+  session_date: date("session_date"),
+  session_type: text("session_type"),
   uploaded_by: uuid("uploaded_by")
     .notNull()
     .references(() => UserTable.id),
@@ -651,6 +665,10 @@ export const assessmentRelations = relations(AssessmentTable, ({ one }) => ({
 export const documentRelations = relations(DocumentTable, ({ one }) => ({
   uploadedByUser: one(UserTable, {
     fields: [DocumentTable.uploaded_by],
+    references: [UserTable.id],
+  }),
+  reviewedByUser: one(UserTable, {
+    fields: [DocumentTable.reviewed_by],
     references: [UserTable.id],
   }),
 }));
