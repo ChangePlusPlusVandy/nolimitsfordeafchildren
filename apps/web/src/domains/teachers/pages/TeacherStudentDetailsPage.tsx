@@ -55,6 +55,7 @@ interface Assessment {
   id: string;
   assessment_type: "pre" | "post";
   teaching_focus: string;
+  summary: string | null;
   score: number;
   notes: string | null;
   assessed_at: string;
@@ -108,6 +109,7 @@ export default function TeacherStudentDetailsPage() {
   const [assessmentType, setAssessmentType] = useState<"pre" | "post">("pre");
   const [assessmentCycleStartDate, setAssessmentCycleStartDate] = useState("");
   const [assessmentFocus, setAssessmentFocus] = useState("");
+  const [assessmentSummary, setAssessmentSummary] = useState("");
   const [assessmentScore, setAssessmentScore] = useState("10");
   const [assessmentNotes, setAssessmentNotes] = useState("");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -207,6 +209,7 @@ export default function TeacherStudentDetailsPage() {
         cycle_start_date: assessmentCycleStartDate,
         assessment_type: assessmentType,
         teaching_focus: assessmentFocus,
+        summary: assessmentSummary || undefined,
         score: Number.parseInt(assessmentScore, 10),
         notes: assessmentNotes || undefined,
       });
@@ -218,6 +221,7 @@ export default function TeacherStudentDetailsPage() {
       setAssessmentType("pre");
       setAssessmentCycleStartDate("");
       setAssessmentFocus("");
+      setAssessmentSummary("");
       setAssessmentScore("10");
       setAssessmentNotes("");
     },
@@ -510,6 +514,11 @@ export default function TeacherStudentDetailsPage() {
                                 Improvement: {cycle.improvement > 0 ? `+${cycle.improvement}` : cycle.improvement}
                               </Typography>
                             )}
+                            {(cycle.pre_assessment?.summary || cycle.post_assessment?.summary) && (
+                              <Typography component="div" variant="body2" sx={{ mt: 0.5 }}>
+                                Summary: {cycle.post_assessment?.summary || cycle.pre_assessment?.summary}
+                              </Typography>
+                            )}
                           </>
                         }
                       />
@@ -648,6 +657,16 @@ export default function TeacherStudentDetailsPage() {
               onChange={(event) =>
                 setAssessmentFocus((event.target as unknown as { value: string }).value)
               }
+            />
+
+            <TextField
+              label="Summary (optional)"
+              value={assessmentSummary}
+              onChange={(event) =>
+                setAssessmentSummary((event.target as unknown as { value: string }).value)
+              }
+              multiline
+              rows={2}
             />
 
             <TextField
