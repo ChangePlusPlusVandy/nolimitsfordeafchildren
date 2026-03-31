@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { AuthProvider } from "./auth";
 import MakeupRequestsPage from "./domains/admin/pages/MakeupRequestsPage.tsx";
+import PhotoGalleryPage from "./domains/admin/pages/PhotoGalleryPage.tsx";
 import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequestsPage.tsx";
 import DocumentReviewPage from "./domains/admin/pages/DocumentReviewPage.tsx";
 import ParentZipReportPage from "./domains/admin/pages/ParentZipReportPage.tsx";
@@ -123,6 +124,7 @@ createRoot(document.getElementById("root")!).render(
                       />
                       <Route path="/admin/document-reviews" element={<DocumentReviewPage />} />
                       <Route path="/admin/parent-zip-report" element={<ParentZipReportPage />} />
+                      <Route path="/admin/photo-gallery" element={<PhotoGalleryPage />} />
                     </Route>
                   </Routes>
                 </ThemeProvider>

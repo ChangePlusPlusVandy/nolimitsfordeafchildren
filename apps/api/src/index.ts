@@ -120,6 +120,13 @@ import {
   GetAudiogramsDueSoonController,
 } from "./domains/documents/endpoints/DocumentsController";
 
+import {
+  PostPhotoUploadUrlController,
+  PostPhotosController,
+  GetPhotosController,
+  DeletePhotoController,
+} from "./domains/photos/endpoints/PhotosController";
+
 // Session Notes Controllers
 import {
   GetStudentNotesController,
@@ -300,6 +307,12 @@ export function buildApplication() {
       GetTeacherDocumentsController,
       GetOverdueAudiogramsController,
       GetAudiogramsDueSoonController,
+
+      // Photos
+      PostPhotoUploadUrlController,
+      PostPhotosController,
+      GetPhotosController,
+      DeletePhotoController,
 
       // Session Notes
       GetStudentNotesController,
