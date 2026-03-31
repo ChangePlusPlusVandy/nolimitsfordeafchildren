@@ -125,6 +125,14 @@ export default function UserDetailsPage() {
     }
   };
 
+  const roleLabel = (value: UserRole): string => {
+    if (value === "parent") {
+      return "Parent/Guardian";
+    }
+
+    return value;
+  };
+
   if (isLoading) {
     return (
       <Box>
@@ -200,7 +208,7 @@ export default function UserDetailsPage() {
       {/* Status chips */}
       <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
         <Chip
-          label={user.role}
+          label={roleLabel(user.role)}
           color={
             user.role === "administrator"
               ? "primary"
@@ -254,7 +262,7 @@ export default function UserDetailsPage() {
             >
               <MenuItem value="administrator">Administrator</MenuItem>
               <MenuItem value="teacher">Teacher</MenuItem>
-              <MenuItem value="parent">Parent</MenuItem>
+              <MenuItem value="parent">Parent/Guardian</MenuItem>
             </Select>
           </FormControl>
 
