@@ -14,7 +14,7 @@ import {
 } from "@/db/schema";
 import { sendMissedSessionAlert } from "@/email";
 
-export type AttendanceStatus = "present" | "no_show" | "cancelled";
+export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
 export type AbsenceReason =
   | "sick"
   | "family_emergency"
@@ -28,6 +28,7 @@ export interface MarkAttendanceInput {
   schedule_id: string;
   session_date: string;
   status: AttendanceStatus;
+  late_minutes?: number;
   reason?: AbsenceReason;
   reason_text?: string;
   marked_by: string;
@@ -35,6 +36,7 @@ export interface MarkAttendanceInput {
 
 export interface UpdateAttendanceInput {
   status?: AttendanceStatus;
+  late_minutes?: number | null;
   reason?: AbsenceReason | null;
   reason_text?: string | null;
 }
@@ -54,6 +56,7 @@ export interface ListAttendanceQuery {
 export interface AttendanceSummary {
   total: number;
   present: number;
+  late: number;
   no_show: number;
   cancelled: number;
   attendance_rate: number;
@@ -63,6 +66,7 @@ export interface AttendanceRecentEntry {
   id: string;
   session_date: string;
   status: AttendanceStatus;
+  late_minutes: number | null;
   reason: AbsenceReason | null;
   reason_text: string | null;
   marked_at: Date;
@@ -77,6 +81,7 @@ export interface AttendanceRecentEntry {
 export interface StudentAttendanceOverview {
   total: number;
   present: number;
+  late: number;
   no_show: number;
   cancelled: number;
   attendance_rate: number;
@@ -96,6 +101,7 @@ export interface SessionForDay {
   attendance?: {
     id: string;
     status: AttendanceStatus;
+    late_minutes: number | null;
     reason: AbsenceReason | null;
     reason_text: string | null;
     marked_at: Date;
@@ -159,6 +165,12 @@ export class AttendanceService {
    * Mark attendance for a student
    */
   async mark(input: MarkAttendanceInput): Promise<AttendanceEntity> {
+    if (input.status === "late") {
+      if (![10, 15, 30].includes(input.late_minutes || 0)) {
+        throw new Error("Late minutes must be one of: 10, 15, or 30");
+      }
+    }
+
     // Check if attendance already exists for this student/schedule/date
     const existing = await db
       .select()
@@ -180,6 +192,7 @@ export class AttendanceService {
         .update(AttendanceTable)
         .set({
           status: input.status,
+          late_minutes: input.status === "late" ? input.late_minutes || null : null,
           reason: input.reason || null,
           reason_text: input.reason_text || null,
           marked_by: input.marked_by,
@@ -207,6 +220,7 @@ export class AttendanceService {
       schedule_id: input.schedule_id,
       session_date: input.session_date,
       status: input.status,
+      late_minutes: input.status === "late" ? input.late_minutes || null : null,
       reason: input.reason || null,
       reason_text: input.reason_text || null,
       marked_by: input.marked_by,
@@ -245,6 +259,12 @@ export class AttendanceService {
       return null;
     }
 
+    if (input.status === "late") {
+      if (![10, 15, 30].includes(input.late_minutes || 0)) {
+        throw new Error("Late minutes must be one of: 10, 15, or 30");
+      }
+    }
+
     const updateData: Partial<AttendanceInsert> = {
       updated_at: new Date(),
       marked_by: markedBy,
@@ -252,8 +272,13 @@ export class AttendanceService {
     };
 
     if (input.status !== undefined) updateData.status = input.status;
+    if (input.late_minutes !== undefined) updateData.late_minutes = input.late_minutes;
     if (input.reason !== undefined) updateData.reason = input.reason;
     if (input.reason_text !== undefined) updateData.reason_text = input.reason_text;
+
+    if (input.status && input.status !== "late" && input.late_minutes === undefined) {
+      updateData.late_minutes = null;
+    }
 
     const shouldSendNoShowAlert = existing[0]!.status !== "no_show" && input.status === "no_show";
 
@@ -345,6 +370,7 @@ export class AttendanceService {
         schedule_id: AttendanceTable.schedule_id,
         session_date: AttendanceTable.session_date,
         status: AttendanceTable.status,
+        late_minutes: AttendanceTable.late_minutes,
         reason: AttendanceTable.reason,
         reason_text: AttendanceTable.reason_text,
         marked_by: AttendanceTable.marked_by,
@@ -374,6 +400,7 @@ export class AttendanceService {
       schedule_id: row.schedule_id,
       session_date: row.session_date,
       status: row.status,
+      late_minutes: row.late_minutes,
       reason: row.reason,
       reason_text: row.reason_text,
       marked_by: row.marked_by,
@@ -418,6 +445,7 @@ export class AttendanceService {
       .groupBy(AttendanceTable.status);
 
     let present = 0;
+    let late = 0;
     let no_show = 0;
     let cancelled = 0;
 
@@ -425,6 +453,9 @@ export class AttendanceService {
       switch (row.status) {
         case "present":
           present = row.count;
+          break;
+        case "late":
+          late = row.count;
           break;
         case "no_show":
           no_show = row.count;
@@ -435,12 +466,14 @@ export class AttendanceService {
       }
     }
 
-    const total = present + no_show + cancelled;
-    const attendance_rate = total > 0 ? Math.round((present / (present + no_show)) * 100) : 0;
+    const total = present + late + no_show + cancelled;
+    const attendance_rate =
+      present + late + no_show > 0 ? Math.round(((present + late) / (present + late + no_show)) * 100) : 0;
 
     return {
       total,
       present,
+      late,
       no_show,
       cancelled,
       attendance_rate,
@@ -461,6 +494,7 @@ export class AttendanceService {
         id: AttendanceTable.id,
         session_date: AttendanceTable.session_date,
         status: AttendanceTable.status,
+        late_minutes: AttendanceTable.late_minutes,
         reason: AttendanceTable.reason,
         reason_text: AttendanceTable.reason_text,
         marked_at: AttendanceTable.marked_at,
@@ -481,6 +515,7 @@ export class AttendanceService {
         id: entry.id,
         session_date: entry.session_date,
         status: entry.status,
+        late_minutes: entry.late_minutes,
         reason: entry.reason,
         reason_text: entry.reason_text,
         marked_at: entry.marked_at,
@@ -595,6 +630,7 @@ export class AttendanceService {
           ? {
               id: attendance.id,
               status: attendance.status,
+              late_minutes: attendance.late_minutes,
               reason: attendance.reason,
               reason_text: attendance.reason_text,
               marked_at: attendance.marked_at,

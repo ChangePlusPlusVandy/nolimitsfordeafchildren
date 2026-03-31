@@ -32,6 +32,7 @@ export const locationTypeEnum = pgEnum("location_type", ["education_center", "po
 
 export const attendanceStatusEnum = pgEnum("attendance_status", [
   "present",
+  "late",
   "no_show",
   "cancelled",
 ]);
@@ -301,6 +302,7 @@ export const AttendanceTable = pgTable("attendance", {
     .references(() => ScheduleTable.id),
   session_date: date("session_date").notNull(),
   status: attendanceStatusEnum("status").notNull(),
+  late_minutes: integer("late_minutes"),
   reason: absenceReasonEnum("reason"),
   reason_text: text("reason_text"),
   marked_by: uuid("marked_by")
