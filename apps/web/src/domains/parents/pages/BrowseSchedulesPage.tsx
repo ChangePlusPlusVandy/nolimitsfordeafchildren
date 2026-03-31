@@ -192,6 +192,8 @@ export default function BrowseSchedulesPage() {
   const [dayPatternFilter, setDayPatternFilter] = useState<string>("");
   const [selectedSchedule, setSelectedSchedule] = useState<AvailableSchedule | null>(null);
   const [reason, setReason] = useState("");
+  const [preferredTimes, setPreferredTimes] = useState("");
+  const [flexibilityNotes, setFlexibilityNotes] = useState("");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Fetch linked children
@@ -206,10 +208,9 @@ export default function BrowseSchedulesPage() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (siteFilter) params.append("site_id", siteFilter);
-      if (dayPatternFilter) {
-        // Convert day pattern to mask
-        const mask = dayPatternFilter === "mws" ? 37 : dayPatternFilter === "tths" ? 42 : undefined;
-        if (mask) params.append("day_of_week_mask", mask.toString());
+      if (dayPatternFilter) params.append("day_pattern", dayPatternFilter);
+      if (selectedChildData?.current_schedule_id) {
+        params.append("exclude_current_schedule_id", selectedChildData.current_schedule_id);
       }
       const response = await httpClient.get(`/v1/schedules/available?${params.toString()}`);
       return response.data;
@@ -222,7 +223,9 @@ export default function BrowseSchedulesPage() {
     mutationFn: async (data: {
       student_id: string;
       current_schedule_id: string;
-      requested_schedule_id: string;
+      requested_schedule_id?: string;
+      preferred_times?: string;
+      flexibility_notes?: string;
       reason: string;
     }) => {
       const response = await httpClient.post("/v1/schedule-change-requests", data);
@@ -262,6 +265,8 @@ export default function BrowseSchedulesPage() {
     const value = (event.target as unknown as { value: string }).value;
     setSelectedChild(value);
     setSelectedSchedule(null);
+    setPreferredTimes("");
+    setFlexibilityNotes("");
   };
 
   const handleSiteFilterChange = (event: SelectChangeEvent) => {
@@ -277,7 +282,7 @@ export default function BrowseSchedulesPage() {
   };
 
   const handleSubmitRequest = () => {
-    if (!selectedChild || !selectedSchedule || !reason.trim()) return;
+    if (!selectedChild || !reason.trim()) return;
 
     const currentScheduleId = selectedChildData?.current_schedule_id;
     if (!currentScheduleId) {
@@ -289,10 +294,21 @@ export default function BrowseSchedulesPage() {
       return;
     }
 
+    const hasSpecificSchedule = Boolean(selectedSchedule);
+    if (!hasSpecificSchedule && !preferredTimes.trim()) {
+      showToast({
+        message: "Please add preferred times when requesting a flexible schedule change.",
+        severity: "error",
+      });
+      return;
+    }
+
     createRequestMutation.mutate({
       student_id: selectedChild,
       current_schedule_id: currentScheduleId,
-      requested_schedule_id: selectedSchedule.id,
+      requested_schedule_id: selectedSchedule?.id,
+      preferred_times: preferredTimes.trim() || undefined,
+      flexibility_notes: flexibilityNotes.trim() || undefined,
       reason: reason.trim(),
     });
     setConfirmDialogOpen(false);
@@ -401,39 +417,82 @@ export default function BrowseSchedulesPage() {
                   ))}
                 </Box>
               )}
+
+              {selectedSchedule && (
+                <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
+                  <Button size="small" onClick={() => setSelectedSchedule(null)}>
+                    Use flexible request instead
+                  </Button>
+                </Stack>
+              )}
             </CardContent>
           </Card>
 
           {/* Step 3: Submit Request */}
-          {selectedSchedule && (
+          {!selectedSchedule && (
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Step 3: Provide Reason & Submit
+                  Flexible Request (Optional Instead of Selecting a Schedule)
                 </Typography>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={3}
-                  label="Reason for schedule change"
-                  placeholder="Please explain why you're requesting this schedule change (e.g., new work schedule, transportation issues, etc.)"
-                  value={reason}
-                  onChange={handleReasonChange}
-                  sx={{ mb: 2 }}
-                />
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<SendIcon />}
-                  onClick={() => setConfirmDialogOpen(true)}
-                  disabled={!reason.trim()}
-                  size="large"
-                >
-                  Submit Schedule Change Request
-                </Button>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  If none of the listed schedules work, share your preferred times and any flexibility
+                  details so admins can coordinate with teachers.
+                </Typography>
+                <Stack spacing={2}>
+                  <TextField
+                    fullWidth
+                    label="Preferred times"
+                    placeholder="Example: Weekdays after 4:30 PM, Saturday mornings"
+                    value={preferredTimes}
+                    onChange={(event) =>
+                      setPreferredTimes((event.target as unknown as { value: string }).value)
+                    }
+                    required
+                  />
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    label="Flexibility notes (optional)"
+                    placeholder="Example: Can do either M/W/S or T/Th/S, but cannot start before 4 PM"
+                    value={flexibilityNotes}
+                    onChange={(event) =>
+                      setFlexibilityNotes((event.target as unknown as { value: string }).value)
+                    }
+                  />
+                </Stack>
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Step 3: Provide Reason & Submit
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Reason for schedule change"
+                placeholder="Please explain why you're requesting this schedule change (e.g., new work schedule, transportation issues, etc.)"
+                value={reason}
+                onChange={handleReasonChange}
+                sx={{ mb: 2 }}
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<SendIcon />}
+                onClick={() => setConfirmDialogOpen(true)}
+                disabled={!reason.trim() || (!selectedSchedule && !preferredTimes.trim())}
+                size="large"
+              >
+                Submit Schedule Change Request
+              </Button>
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -451,7 +510,7 @@ export default function BrowseSchedulesPage() {
               You are requesting to change <strong>{selectedChildData?.first_name}</strong>'s
               schedule to:
             </Typography>
-            {selectedSchedule && (
+            {selectedSchedule ? (
               <Card variant="outlined">
                 <CardContent>
                   <Stack spacing={1}>
@@ -463,6 +522,24 @@ export default function BrowseSchedulesPage() {
                       {getDayPattern(selectedSchedule.day_of_week_mask)} at{" "}
                       {formatTime(selectedSchedule.start_time)}
                     </Typography>
+                  </Stack>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card variant="outlined">
+                <CardContent>
+                  <Stack spacing={1}>
+                    <Typography variant="subtitle1" fontWeight={600}>
+                      Flexible schedule request
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Preferred times:</strong> {preferredTimes || "Not provided"}
+                    </Typography>
+                    {flexibilityNotes && (
+                      <Typography variant="body2">
+                        <strong>Flexibility notes:</strong> {flexibilityNotes}
+                      </Typography>
+                    )}
                   </Stack>
                 </CardContent>
               </Card>

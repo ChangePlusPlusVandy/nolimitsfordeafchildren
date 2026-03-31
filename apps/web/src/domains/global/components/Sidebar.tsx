@@ -93,6 +93,12 @@ const navItems: NavItem[] = [
     icon: <EventRepeatIcon />,
     roles: ["teacher"],
   },
+  {
+    text: "Schedule Requests",
+    to: "/teachers/schedule-change-requests",
+    icon: <SwapHorizIcon />,
+    roles: ["teacher"],
+  },
 
   // Parent items
   {

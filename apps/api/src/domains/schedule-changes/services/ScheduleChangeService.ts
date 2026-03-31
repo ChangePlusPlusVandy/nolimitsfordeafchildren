@@ -3,6 +3,7 @@ import { eq, and, desc, sql, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   ScheduleChangeRequestTable,
+  ScheduleChangeRequestEventTable,
   StudentTable,
   ScheduleTable,
   TeacherProfileTable,
@@ -15,12 +16,14 @@ import {
   type ScheduleChangeRequestInsert,
 } from "@/db/schema";
 
-export type RequestStatus = "pending" | "approved" | "denied" | "completed";
+export type RequestStatus = "pending" | "negotiating" | "approved" | "denied" | "completed";
 
 export interface CreateScheduleChangeInput {
   student_id: string;
   current_schedule_id: string;
-  requested_schedule_id: string;
+  requested_schedule_id?: string;
+  preferred_times?: string;
+  flexibility_notes?: string;
   reason: string;
   requested_by: string;
 }
@@ -59,10 +62,44 @@ export interface ScheduleChangeRequestWithDetails extends ScheduleChangeRequestE
     id: string;
     name: string;
   } | null;
+  events?: Array<{
+    id: string;
+    event_type: string;
+    from_status: string | null;
+    to_status: string | null;
+    notes: string | null;
+    created_at: Date;
+    actor_user: {
+      id: string;
+      name: string;
+      role: "administrator" | "teacher" | "parent";
+    };
+  }>;
+  preferred_times: string | null;
+  flexibility_notes: string | null;
+  teacher_response_status: string | null;
+  teacher_response_notes: string | null;
+  teacher_responded_by: string | null;
+  teacher_responded_at: Date | null;
+}
+
+export interface TeacherScheduleChangeResponseInput {
+  response_status: "available" | "unavailable" | "conditional";
+  notes?: string;
 }
 
 @Service()
 export class ScheduleChangeService {
+  private async getTeacherProfileId(teacherUserId: string): Promise<string | null> {
+    const teacherProfile = await db
+      .select({ id: TeacherProfileTable.id })
+      .from(TeacherProfileTable)
+      .where(eq(TeacherProfileTable.user_id, teacherUserId))
+      .limit(1);
+
+    return teacherProfile[0]?.id ?? null;
+  }
+
   private async getParentStudentIds(parentUserId: string): Promise<string[]> {
     const parentProfile = await db
       .select({ id: ParentProfileTable.id })
@@ -107,6 +144,33 @@ export class ScheduleChangeService {
     return request.length > 0;
   }
 
+  async isRequestVisibleToTeacher(requestId: string, teacherUserId: string): Promise<boolean> {
+    const teacherProfileId = await this.getTeacherProfileId(teacherUserId);
+    if (!teacherProfileId) {
+      return false;
+    }
+
+    const request = await db
+      .select({ id: ScheduleChangeRequestTable.id })
+      .from(ScheduleChangeRequestTable)
+      .leftJoin(ScheduleTable, eq(ScheduleChangeRequestTable.current_schedule_id, ScheduleTable.id))
+      .leftJoin(sql`"schedules" as requested_schedule`, sql`
+        requested_schedule.id = ${ScheduleChangeRequestTable.requested_schedule_id}
+      `)
+      .where(
+        and(
+          eq(ScheduleChangeRequestTable.id, requestId),
+          sql`(
+            ${ScheduleTable.teacher_id} = ${teacherProfileId}
+            OR requested_schedule.teacher_id = ${teacherProfileId}
+          )`,
+        ),
+      )
+      .limit(1);
+
+    return request.length > 0;
+  }
+
   /**
    * Create a schedule change request (parent)
    */
@@ -133,15 +197,16 @@ export class ScheduleChangeService {
       throw new Error("Current schedule not found");
     }
 
-    // Verify requested schedule exists
-    const requestedSchedule = await db
-      .select()
-      .from(ScheduleTable)
-      .where(eq(ScheduleTable.id, input.requested_schedule_id))
-      .limit(1);
+    if (input.requested_schedule_id) {
+      const requestedSchedule = await db
+        .select()
+        .from(ScheduleTable)
+        .where(eq(ScheduleTable.id, input.requested_schedule_id))
+        .limit(1);
 
-    if (requestedSchedule.length === 0) {
-      throw new Error("Requested schedule not found");
+      if (requestedSchedule.length === 0) {
+        throw new Error("Requested schedule not found");
+      }
     }
 
     // Check for duplicate pending request
@@ -163,7 +228,9 @@ export class ScheduleChangeService {
     const newRequest: ScheduleChangeRequestInsert = {
       student_id: input.student_id,
       current_schedule_id: input.current_schedule_id,
-      requested_schedule_id: input.requested_schedule_id,
+      requested_schedule_id: input.requested_schedule_id || null,
+      preferred_times: input.preferred_times || null,
+      flexibility_notes: input.flexibility_notes || null,
       reason: input.reason,
       status: "pending",
       requested_by: input.requested_by,
@@ -171,6 +238,17 @@ export class ScheduleChangeService {
     };
 
     const result = await db.insert(ScheduleChangeRequestTable).values(newRequest).returning();
+
+    if (result[0]) {
+      await db.insert(ScheduleChangeRequestEventTable).values({
+        schedule_change_request_id: result[0].id,
+        event_type: "created",
+        from_status: null,
+        to_status: "pending",
+        actor_user_id: input.requested_by,
+        notes: input.reason,
+      });
+    }
 
     return result[0]!;
   }
@@ -192,6 +270,12 @@ export class ScheduleChangeService {
         student_id: ScheduleChangeRequestTable.student_id,
         current_schedule_id: ScheduleChangeRequestTable.current_schedule_id,
         requested_schedule_id: ScheduleChangeRequestTable.requested_schedule_id,
+        preferred_times: ScheduleChangeRequestTable.preferred_times,
+        flexibility_notes: ScheduleChangeRequestTable.flexibility_notes,
+        teacher_response_status: ScheduleChangeRequestTable.teacher_response_status,
+        teacher_response_notes: ScheduleChangeRequestTable.teacher_response_notes,
+        teacher_responded_by: ScheduleChangeRequestTable.teacher_responded_by,
+        teacher_responded_at: ScheduleChangeRequestTable.teacher_responded_at,
         reason: ScheduleChangeRequestTable.reason,
         status: ScheduleChangeRequestTable.status,
         requested_by: ScheduleChangeRequestTable.requested_by,
@@ -219,7 +303,9 @@ export class ScheduleChangeService {
       if (filters.student_id && row.student_id !== filters.student_id) continue;
 
       const currentSchedule = await this.getScheduleInfo(row.current_schedule_id);
-      const requestedSchedule = await this.getScheduleInfo(row.requested_schedule_id);
+      const requestedSchedule = row.requested_schedule_id
+        ? await this.getScheduleInfo(row.requested_schedule_id)
+        : null;
 
       // Skip if site filter doesn't match
       if (filters.site_id && currentSchedule?.site.id !== filters.site_id) continue;
@@ -229,6 +315,12 @@ export class ScheduleChangeService {
         student_id: row.student_id,
         current_schedule_id: row.current_schedule_id,
         requested_schedule_id: row.requested_schedule_id,
+        preferred_times: row.preferred_times,
+        flexibility_notes: row.flexibility_notes,
+        teacher_response_status: row.teacher_response_status,
+        teacher_response_notes: row.teacher_response_notes,
+        teacher_responded_by: row.teacher_responded_by,
+        teacher_responded_at: row.teacher_responded_at,
         reason: row.reason,
         status: row.status,
         requested_by: row.requested_by,
@@ -250,6 +342,35 @@ export class ScheduleChangeService {
     }
 
     return { items };
+  }
+
+  async listRequestsForTeacher(
+    teacherUserId: string,
+    filters: {
+      status?: RequestStatus;
+      student_id?: string;
+      site_id?: string;
+      limit?: number;
+    },
+  ): Promise<{ items: ScheduleChangeRequestWithDetails[] }> {
+    const teacherProfileId = await this.getTeacherProfileId(teacherUserId);
+    if (!teacherProfileId) {
+      return { items: [] };
+    }
+
+    const allRequests = await this.listRequests(filters);
+    const visibleItems: ScheduleChangeRequestWithDetails[] = [];
+
+    for (const request of allRequests.items) {
+      const currentTeacherId = request.current_schedule?.teacher.id;
+      const requestedTeacherId = request.requested_schedule?.teacher.id;
+
+      if (currentTeacherId === teacherProfileId || requestedTeacherId === teacherProfileId) {
+        visibleItems.push(request);
+      }
+    }
+
+    return { items: visibleItems };
   }
 
   /**
@@ -307,6 +428,12 @@ export class ScheduleChangeService {
         student_id: ScheduleChangeRequestTable.student_id,
         current_schedule_id: ScheduleChangeRequestTable.current_schedule_id,
         requested_schedule_id: ScheduleChangeRequestTable.requested_schedule_id,
+        preferred_times: ScheduleChangeRequestTable.preferred_times,
+        flexibility_notes: ScheduleChangeRequestTable.flexibility_notes,
+        teacher_response_status: ScheduleChangeRequestTable.teacher_response_status,
+        teacher_response_notes: ScheduleChangeRequestTable.teacher_response_notes,
+        teacher_responded_by: ScheduleChangeRequestTable.teacher_responded_by,
+        teacher_responded_at: ScheduleChangeRequestTable.teacher_responded_at,
         reason: ScheduleChangeRequestTable.reason,
         status: ScheduleChangeRequestTable.status,
         requested_by: ScheduleChangeRequestTable.requested_by,
@@ -329,13 +456,38 @@ export class ScheduleChangeService {
 
     const row = results[0]!;
     const currentSchedule = await this.getScheduleInfo(row.current_schedule_id);
-    const requestedSchedule = await this.getScheduleInfo(row.requested_schedule_id);
+    const requestedSchedule = row.requested_schedule_id
+      ? await this.getScheduleInfo(row.requested_schedule_id)
+      : null;
+
+    const eventsRows = await db
+      .select({
+        id: ScheduleChangeRequestEventTable.id,
+        event_type: ScheduleChangeRequestEventTable.event_type,
+        from_status: ScheduleChangeRequestEventTable.from_status,
+        to_status: ScheduleChangeRequestEventTable.to_status,
+        notes: ScheduleChangeRequestEventTable.notes,
+        created_at: ScheduleChangeRequestEventTable.created_at,
+        actor_user_id: UserTable.id,
+        actor_user_name: UserTable.name,
+        actor_user_role: UserTable.role,
+      })
+      .from(ScheduleChangeRequestEventTable)
+      .innerJoin(UserTable, eq(ScheduleChangeRequestEventTable.actor_user_id, UserTable.id))
+      .where(eq(ScheduleChangeRequestEventTable.schedule_change_request_id, id))
+      .orderBy(desc(ScheduleChangeRequestEventTable.created_at));
 
     return {
       id: row.id,
       student_id: row.student_id,
       current_schedule_id: row.current_schedule_id,
       requested_schedule_id: row.requested_schedule_id,
+      preferred_times: row.preferred_times,
+      flexibility_notes: row.flexibility_notes,
+      teacher_response_status: row.teacher_response_status,
+      teacher_response_notes: row.teacher_response_notes,
+      teacher_responded_by: row.teacher_responded_by,
+      teacher_responded_at: row.teacher_responded_at,
       reason: row.reason,
       status: row.status,
       requested_by: row.requested_by,
@@ -353,6 +505,19 @@ export class ScheduleChangeService {
       },
       current_schedule: currentSchedule || undefined,
       requested_schedule: requestedSchedule || undefined,
+      events: eventsRows.map((event) => ({
+        id: event.id,
+        event_type: event.event_type,
+        from_status: event.from_status,
+        to_status: event.to_status,
+        notes: event.notes,
+        created_at: event.created_at,
+        actor_user: {
+          id: event.actor_user_id,
+          name: event.actor_user_name,
+          role: event.actor_user_role,
+        },
+      })),
     };
   }
 
@@ -362,7 +527,7 @@ export class ScheduleChangeService {
   async reviewRequest(
     requestId: string,
     adminId: string,
-    status: "approved" | "denied",
+    status: "approved" | "denied" | "negotiating",
     reviewNotes?: string,
   ): Promise<ScheduleChangeRequestEntity | null> {
     const existing = await db
@@ -379,9 +544,13 @@ export class ScheduleChangeService {
       throw new Error("Request has already been reviewed");
     }
 
-    // If approved, update the enrollment
+    // If approved, update the enrollment when a concrete requested schedule is present
     if (status === "approved") {
       const request = existing[0]!;
+
+      if (!request.requested_schedule_id) {
+        throw new Error("Cannot approve without a requested schedule");
+      }
 
       // End current enrollment
       await db
@@ -417,6 +586,96 @@ export class ScheduleChangeService {
       })
       .where(eq(ScheduleChangeRequestTable.id, requestId))
       .returning();
+
+    if (result[0]) {
+      await db.insert(ScheduleChangeRequestEventTable).values({
+        schedule_change_request_id: requestId,
+        event_type: "status_change",
+        from_status: existing[0]!.status,
+        to_status: status,
+        actor_user_id: adminId,
+        notes: reviewNotes || null,
+      });
+    }
+
+    return result[0] ?? null;
+  }
+
+  async teacherRespond(
+    requestId: string,
+    teacherUserId: string,
+    input: TeacherScheduleChangeResponseInput,
+  ): Promise<ScheduleChangeRequestEntity | null> {
+    const existing = await db
+      .select()
+      .from(ScheduleChangeRequestTable)
+      .where(eq(ScheduleChangeRequestTable.id, requestId))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return null;
+    }
+
+    const request = existing[0]!;
+
+    const teacherProfile = await db
+      .select({ id: TeacherProfileTable.id })
+      .from(TeacherProfileTable)
+      .where(eq(TeacherProfileTable.user_id, teacherUserId))
+      .limit(1);
+
+    if (teacherProfile.length === 0) {
+      throw new Error("Teacher profile not found");
+    }
+
+    const currentSchedule = await db
+      .select({ teacher_id: ScheduleTable.teacher_id })
+      .from(ScheduleTable)
+      .where(eq(ScheduleTable.id, request.current_schedule_id))
+      .limit(1);
+
+    const requestedSchedule = request.requested_schedule_id
+      ? await db
+          .select({ teacher_id: ScheduleTable.teacher_id })
+          .from(ScheduleTable)
+          .where(eq(ScheduleTable.id, request.requested_schedule_id))
+          .limit(1)
+      : [];
+
+    const teacherProfileId = teacherProfile[0]!.id;
+    const canRespondCurrent = currentSchedule[0]?.teacher_id === teacherProfileId;
+    const canRespondRequested = requestedSchedule[0]?.teacher_id === teacherProfileId;
+
+    if (!canRespondCurrent && !canRespondRequested) {
+      throw new Error("Teacher is not assigned to either schedule in this request");
+    }
+
+    const nextStatus: RequestStatus =
+      request.status === "pending" ? "negotiating" : (request.status as RequestStatus);
+
+    const result = await db
+      .update(ScheduleChangeRequestTable)
+      .set({
+        status: nextStatus,
+        teacher_response_status: input.response_status,
+        teacher_response_notes: input.notes || null,
+        teacher_responded_by: teacherUserId,
+        teacher_responded_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(ScheduleChangeRequestTable.id, requestId))
+      .returning();
+
+    if (result[0]) {
+      await db.insert(ScheduleChangeRequestEventTable).values({
+        schedule_change_request_id: requestId,
+        event_type: "teacher_response",
+        from_status: request.status,
+        to_status: nextStatus,
+        actor_user_id: teacherUserId,
+        notes: input.notes || input.response_status,
+      });
+    }
 
     return result[0] ?? null;
   }
@@ -509,6 +768,12 @@ export class ScheduleChangeService {
         student_id: ScheduleChangeRequestTable.student_id,
         current_schedule_id: ScheduleChangeRequestTable.current_schedule_id,
         requested_schedule_id: ScheduleChangeRequestTable.requested_schedule_id,
+        preferred_times: ScheduleChangeRequestTable.preferred_times,
+        flexibility_notes: ScheduleChangeRequestTable.flexibility_notes,
+        teacher_response_status: ScheduleChangeRequestTable.teacher_response_status,
+        teacher_response_notes: ScheduleChangeRequestTable.teacher_response_notes,
+        teacher_responded_by: ScheduleChangeRequestTable.teacher_responded_by,
+        teacher_responded_at: ScheduleChangeRequestTable.teacher_responded_at,
         reason: ScheduleChangeRequestTable.reason,
         status: ScheduleChangeRequestTable.status,
         requested_by: ScheduleChangeRequestTable.requested_by,
@@ -531,13 +796,21 @@ export class ScheduleChangeService {
 
     for (const row of results) {
       const currentSchedule = await this.getScheduleInfo(row.current_schedule_id);
-      const requestedSchedule = await this.getScheduleInfo(row.requested_schedule_id);
+      const requestedSchedule = row.requested_schedule_id
+        ? await this.getScheduleInfo(row.requested_schedule_id)
+        : null;
 
       items.push({
         id: row.id,
         student_id: row.student_id,
         current_schedule_id: row.current_schedule_id,
         requested_schedule_id: row.requested_schedule_id,
+        preferred_times: row.preferred_times,
+        flexibility_notes: row.flexibility_notes,
+        teacher_response_status: row.teacher_response_status,
+        teacher_response_notes: row.teacher_response_notes,
+        teacher_responded_by: row.teacher_responded_by,
+        teacher_responded_at: row.teacher_responded_at,
         reason: row.reason,
         status: row.status,
         requested_by: row.requested_by,

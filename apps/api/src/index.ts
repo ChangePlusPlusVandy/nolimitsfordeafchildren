@@ -157,6 +157,7 @@ import {
   GetScheduleChangeRequestsController,
   GetScheduleChangeRequestController,
   PatchScheduleChangeRequestController,
+  PatchScheduleChangeTeacherResponseController,
   GetAvailableSchedulesController,
   GetParentScheduleChangeRequestsController,
 } from "./domains/schedule-changes/endpoints/ScheduleChangeController";
@@ -316,6 +317,7 @@ export function buildApplication() {
       GetScheduleChangeRequestsController,
       GetScheduleChangeRequestController,
       PatchScheduleChangeRequestController,
+      PatchScheduleChangeTeacherResponseController,
       GetAvailableSchedulesController,
       GetParentScheduleChangeRequestsController,
 

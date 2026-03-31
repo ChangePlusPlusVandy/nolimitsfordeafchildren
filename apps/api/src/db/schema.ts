@@ -77,6 +77,7 @@ export const ageGroupSpecialtyEnum = pgEnum("age_group_specialty", [
 
 export const requestStatusEnum = pgEnum("request_status", [
   "pending",
+  "negotiating",
   "approved",
   "denied",
   "completed",
@@ -535,20 +536,39 @@ export const ScheduleChangeRequestTable = pgTable("schedule_change_requests", {
   current_schedule_id: uuid("current_schedule_id")
     .notNull()
     .references(() => ScheduleTable.id),
-  requested_schedule_id: uuid("requested_schedule_id")
-    .notNull()
-    .references(() => ScheduleTable.id),
+  requested_schedule_id: uuid("requested_schedule_id").references(() => ScheduleTable.id),
+  preferred_times: text("preferred_times"),
+  flexibility_notes: text("flexibility_notes"),
   reason: text("reason").notNull(),
   status: requestStatusEnum("status").notNull().default("pending"),
   requested_by: uuid("requested_by")
     .notNull()
     .references(() => UserTable.id),
+  teacher_response_status: text("teacher_response_status"),
+  teacher_response_notes: text("teacher_response_notes"),
+  teacher_responded_by: uuid("teacher_responded_by").references(() => UserTable.id),
+  teacher_responded_at: timestamp("teacher_responded_at", { withTimezone: true }),
   requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
   reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
   reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
   review_notes: text("review_notes"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const ScheduleChangeRequestEventTable = pgTable("schedule_change_request_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schedule_change_request_id: uuid("schedule_change_request_id")
+    .notNull()
+    .references(() => ScheduleChangeRequestTable.id),
+  event_type: text("event_type").notNull(),
+  from_status: text("from_status"),
+  to_status: text("to_status"),
+  actor_user_id: uuid("actor_user_id")
+    .notNull()
+    .references(() => UserTable.id),
+  notes: text("notes"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ==================== RELATIONS ====================
@@ -842,6 +862,20 @@ export const scheduleChangeRequestRelations = relations(ScheduleChangeRequestTab
   }),
 }));
 
+export const scheduleChangeRequestEventRelations = relations(
+  ScheduleChangeRequestEventTable,
+  ({ one }) => ({
+    scheduleChangeRequest: one(ScheduleChangeRequestTable, {
+      fields: [ScheduleChangeRequestEventTable.schedule_change_request_id],
+      references: [ScheduleChangeRequestTable.id],
+    }),
+    actorUser: one(UserTable, {
+      fields: [ScheduleChangeRequestEventTable.actor_user_id],
+      references: [UserTable.id],
+    }),
+  }),
+);
+
 // ==================== TYPE EXPORTS ====================
 
 export type UserEntity = typeof UserTable.$inferSelect;
@@ -909,3 +943,6 @@ export type MakeupSessionInsert = typeof MakeupSessionTable.$inferInsert;
 
 export type ScheduleChangeRequestEntity = typeof ScheduleChangeRequestTable.$inferSelect;
 export type ScheduleChangeRequestInsert = typeof ScheduleChangeRequestTable.$inferInsert;
+
+export type ScheduleChangeRequestEventEntity = typeof ScheduleChangeRequestEventTable.$inferSelect;
+export type ScheduleChangeRequestEventInsert = typeof ScheduleChangeRequestEventTable.$inferInsert;

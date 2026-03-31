@@ -7,9 +7,11 @@ import {
   Body,
   QueryParam,
   CurrentUser,
+  Req,
   Authorized,
   HttpError,
 } from "routing-controllers";
+import type { Request } from "express";
 import { Service } from "typedi";
 import Container from "@/container";
 import {
@@ -22,13 +24,20 @@ import type { UserEntity } from "@/db/schema";
 interface CreateScheduleChangeRequestBody {
   student_id: string;
   current_schedule_id: string;
-  requested_schedule_id: string;
+  requested_schedule_id?: string;
+  preferred_times?: string;
+  flexibility_notes?: string;
   reason: string;
 }
 
 interface ReviewScheduleChangeRequestBody {
-  status: "approved" | "denied";
+  status: "approved" | "denied" | "negotiating";
   review_notes?: string;
+}
+
+interface TeacherScheduleChangeResponseBody {
+  response_status: "available" | "unavailable" | "conditional";
+  notes?: string;
 }
 
 /**
@@ -53,6 +62,8 @@ export class PostScheduleChangeRequestController {
       student_id: body.student_id,
       current_schedule_id: body.current_schedule_id,
       requested_schedule_id: body.requested_schedule_id,
+      preferred_times: body.preferred_times,
+      flexibility_notes: body.flexibility_notes,
       reason: body.reason,
       requested_by: currentUser.id,
     };
@@ -85,20 +96,30 @@ export class GetScheduleChangeRequestsController {
   }
 
   @Get("/schedule-change-requests")
-  @Authorized(["administrator"])
+  @Authorized(["administrator", "teacher"])
   async handle(
+    @Req() req: Request,
     @QueryParam("status") status?: RequestStatus,
     @QueryParam("student_id") studentId?: string,
     @QueryParam("site_id") siteId?: string,
     @QueryParam("limit") limit?: number,
   ) {
-    const result = await this.scheduleChangeService.listRequests({
+    const currentUser = req.currentUser;
+    if (currentUser?.role === "teacher") {
+      return await this.scheduleChangeService.listRequestsForTeacher(currentUser.id, {
+        status,
+        student_id: studentId,
+        site_id: siteId,
+        limit,
+      });
+    }
+
+    return await this.scheduleChangeService.listRequests({
       status,
       student_id: studentId,
       site_id: siteId,
       limit,
     });
-    return result;
   }
 }
 
@@ -115,10 +136,17 @@ export class GetScheduleChangeRequestController {
   }
 
   @Get("/schedule-change-requests/:id")
-  @Authorized(["administrator", "parent"])
+  @Authorized(["administrator", "parent", "teacher"])
   async handle(@Param("id") id: string, @CurrentUser({ required: true }) currentUser: UserEntity) {
     if (currentUser.role === "parent") {
       const canView = await this.scheduleChangeService.isRequestVisibleToParent(id, currentUser.id);
+      if (!canView) {
+        throw new HttpError(404, "Schedule change request not found");
+      }
+    }
+
+    if (currentUser.role === "teacher") {
+      const canView = await this.scheduleChangeService.isRequestVisibleToTeacher(id, currentUser.id);
       if (!canView) {
         throw new HttpError(404, "Schedule change request not found");
       }
@@ -165,6 +193,42 @@ export class PatchScheduleChangeRequestController {
     } catch (error: any) {
       if (error.message.includes("already been reviewed")) {
         throw new HttpError(409, error.message);
+      }
+      if (error.message.includes("Cannot approve without a requested schedule")) {
+        throw new HttpError(422, error.message);
+      }
+      throw error;
+    }
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class PatchScheduleChangeTeacherResponseController {
+  private scheduleChangeService: ScheduleChangeService;
+  constructor() {
+    this.scheduleChangeService = Container.get(ScheduleChangeService);
+  }
+
+  @Patch("/schedule-change-requests/:id/teacher-response")
+  @Authorized(["teacher"])
+  async handle(
+    @Param("id") id: string,
+    @Body() body: TeacherScheduleChangeResponseBody,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+  ) {
+    try {
+      const updated = await this.scheduleChangeService.teacherRespond(id, currentUser.id, body);
+      if (!updated) {
+        throw new HttpError(404, "Schedule change request not found");
+      }
+      return updated;
+    } catch (error: any) {
+      if (error.message.includes("Teacher is not assigned")) {
+        throw new HttpError(403, error.message);
+      }
+      if (error.message.includes("not found")) {
+        throw new HttpError(404, error.message);
       }
       throw error;
     }
