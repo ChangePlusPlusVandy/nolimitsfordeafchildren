@@ -42,6 +42,7 @@ interface Assessment {
   cycle_start_date: string;
   assessment_type: "pre" | "post";
   teaching_focus: string;
+  summary: string | null;
   score: number;
   notes: string | null;
   assessed_at: string;
@@ -94,6 +95,7 @@ export default function AssessmentHistory({
   const [cycleStartDate, setCycleStartDate] = useState("");
   const [assessmentType, setAssessmentType] = useState<"pre" | "post">("pre");
   const [teachingFocus, setTeachingFocus] = useState("");
+  const [summary, setSummary] = useState("");
   const [score, setScore] = useState(10);
   const [notes, setNotes] = useState("");
 
@@ -112,6 +114,7 @@ export default function AssessmentHistory({
       cycle_start_date: string;
       assessment_type: "pre" | "post";
       teaching_focus: string;
+      summary?: string;
       score: number;
       notes?: string;
     }) => {
@@ -131,7 +134,7 @@ export default function AssessmentHistory({
       data,
     }: {
       id: string;
-      data: { teaching_focus?: string; score?: number; notes?: string };
+      data: { teaching_focus?: string; summary?: string; score?: number; notes?: string };
     }) => {
       const response = await httpClient.patch(`/v1/assessments/${id}`, data);
       return response.data;
@@ -158,6 +161,7 @@ export default function AssessmentHistory({
       setCycleStartDate(assessment.cycle_start_date);
       setAssessmentType(assessment.assessment_type);
       setTeachingFocus(assessment.teaching_focus);
+      setSummary(assessment.summary || "");
       setScore(assessment.score);
       setNotes(assessment.notes || "");
     } else {
@@ -166,9 +170,10 @@ export default function AssessmentHistory({
       const today = new Date();
       const monday = new Date(today);
       monday.setDate(today.getDate() - today.getDay() + 1);
-      setCycleStartDate(monday.toISOString().split("T")[0]);
+      setCycleStartDate(monday.toISOString().split("T")[0] ?? "");
       setAssessmentType("pre");
       setTeachingFocus("");
+      setSummary("");
       setScore(10);
       setNotes("");
     }
@@ -181,6 +186,7 @@ export default function AssessmentHistory({
     setCycleStartDate("");
     setAssessmentType("pre");
     setTeachingFocus("");
+    setSummary("");
     setScore(10);
     setNotes("");
   };
@@ -193,6 +199,7 @@ export default function AssessmentHistory({
         id: editingAssessment.id,
         data: {
           teaching_focus: teachingFocus,
+          summary: summary.trim() || undefined,
           score,
           notes: notes || undefined,
         },
@@ -202,6 +209,7 @@ export default function AssessmentHistory({
         cycle_start_date: cycleStartDate,
         assessment_type: assessmentType,
         teaching_focus: teachingFocus,
+        summary: summary.trim() || undefined,
         score,
         notes: notes || undefined,
       });
@@ -209,7 +217,11 @@ export default function AssessmentHistory({
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this assessment?")) {
+    const confirmed = (
+      globalThis as unknown as { confirm?: (message?: string) => boolean }
+    ).confirm?.("Are you sure you want to delete this assessment?");
+
+    if (confirmed !== false) {
       deleteMutation.mutate(id);
     }
   };
@@ -407,6 +419,11 @@ export default function AssessmentHistory({
                               <Typography variant="body2">
                                 <strong>Focus:</strong> {cycle.pre_assessment.teaching_focus}
                               </Typography>
+                              {cycle.pre_assessment.summary && (
+                                <Typography variant="body2">
+                                  <strong>Summary:</strong> {cycle.pre_assessment.summary}
+                                </Typography>
+                              )}
                               <Typography variant="body2">
                                 <strong>Score:</strong> {cycle.pre_assessment.score}/20
                               </Typography>
@@ -467,6 +484,11 @@ export default function AssessmentHistory({
                               <Typography variant="body2">
                                 <strong>Focus:</strong> {cycle.post_assessment.teaching_focus}
                               </Typography>
+                              {cycle.post_assessment.summary && (
+                                <Typography variant="body2">
+                                  <strong>Summary:</strong> {cycle.post_assessment.summary}
+                                </Typography>
+                              )}
                               <Typography variant="body2">
                                 <strong>Score:</strong> {cycle.post_assessment.score}/20
                               </Typography>
@@ -535,7 +557,9 @@ export default function AssessmentHistory({
               label="Cycle Start Date"
               type="date"
               value={cycleStartDate}
-              onChange={(e) => setCycleStartDate(e.target.value)}
+              onChange={(e) =>
+                setCycleStartDate((e.target as unknown as { value: string }).value)
+              }
               disabled={!!editingAssessment}
               InputLabelProps={{ shrink: true }}
               fullWidth
@@ -545,7 +569,9 @@ export default function AssessmentHistory({
               select
               label="Assessment Type"
               value={assessmentType}
-              onChange={(e) => setAssessmentType(e.target.value as "pre" | "post")}
+              onChange={(e) =>
+                setAssessmentType((e.target as unknown as { value: "pre" | "post" }).value)
+              }
               disabled={!!editingAssessment}
               fullWidth
             >
@@ -557,7 +583,7 @@ export default function AssessmentHistory({
               select
               label="Teaching Focus"
               value={teachingFocus}
-              onChange={(e) => setTeachingFocus(e.target.value)}
+              onChange={(e) => setTeachingFocus((e.target as unknown as { value: string }).value)}
               fullWidth
               required
             >
@@ -567,6 +593,16 @@ export default function AssessmentHistory({
                 </MenuItem>
               ))}
             </TextField>
+
+            <TextField
+              label="Summary (optional)"
+              value={summary}
+              onChange={(e) => setSummary((e.target as unknown as { value: string }).value)}
+              multiline
+              rows={2}
+              fullWidth
+              placeholder="Context such as implant changes or notable session factors"
+            />
 
             <Box>
               <Typography gutterBottom>Score: {score}/20</Typography>
@@ -590,7 +626,7 @@ export default function AssessmentHistory({
             <TextField
               label="Notes (optional)"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => setNotes((e.target as unknown as { value: string }).value)}
               multiline
               rows={3}
               fullWidth

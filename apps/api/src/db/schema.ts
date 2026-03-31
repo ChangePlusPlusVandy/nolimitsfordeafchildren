@@ -341,6 +341,7 @@ export const AssessmentTable = pgTable("assessments", {
   cycle_start_date: date("cycle_start_date").notNull(),
   assessment_type: assessmentTypeEnum("assessment_type").notNull(),
   teaching_focus: text("teaching_focus").notNull(),
+  summary: text("summary"),
   score: integer("score").notNull(),
   notes: text("notes"),
   assessed_at: timestamp("assessed_at", { withTimezone: true }).notNull().defaultNow(),

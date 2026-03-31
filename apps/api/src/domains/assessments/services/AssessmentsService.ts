@@ -16,6 +16,7 @@ export interface CreateAssessmentInput {
   cycle_start_date: string;
   assessment_type: "pre" | "post";
   teaching_focus: string;
+  summary?: string;
   score: number;
   notes?: string;
 }
@@ -96,6 +97,7 @@ export class AssessmentsService {
       cycle_start_date: input.cycle_start_date,
       assessment_type: input.assessment_type,
       teaching_focus: input.teaching_focus,
+      summary: input.summary || null,
       score: input.score,
       notes: input.notes || null,
       assessed_at: new Date(),
@@ -118,6 +120,7 @@ export class AssessmentsService {
         cycle_start_date: AssessmentTable.cycle_start_date,
         assessment_type: AssessmentTable.assessment_type,
         teaching_focus: AssessmentTable.teaching_focus,
+        summary: AssessmentTable.summary,
         score: AssessmentTable.score,
         notes: AssessmentTable.notes,
         assessed_at: AssessmentTable.assessed_at,
@@ -151,6 +154,7 @@ export class AssessmentsService {
         cycle_start_date: row.cycle_start_date,
         assessment_type: row.assessment_type,
         teaching_focus: row.teaching_focus,
+        summary: row.summary,
         score: row.score,
         notes: row.notes,
         assessed_at: row.assessed_at,
@@ -189,6 +193,7 @@ export class AssessmentsService {
         cycle_start_date: AssessmentTable.cycle_start_date,
         assessment_type: AssessmentTable.assessment_type,
         teaching_focus: AssessmentTable.teaching_focus,
+        summary: AssessmentTable.summary,
         score: AssessmentTable.score,
         notes: AssessmentTable.notes,
         assessed_at: AssessmentTable.assessed_at,
@@ -222,6 +227,7 @@ export class AssessmentsService {
         cycle_start_date: row.cycle_start_date,
         assessment_type: row.assessment_type,
         teaching_focus: row.teaching_focus,
+        summary: row.summary,
         score: row.score,
         notes: row.notes,
         assessed_at: row.assessed_at,
@@ -259,6 +265,7 @@ export class AssessmentsService {
         cycle_start_date: AssessmentTable.cycle_start_date,
         assessment_type: AssessmentTable.assessment_type,
         teaching_focus: AssessmentTable.teaching_focus,
+        summary: AssessmentTable.summary,
         score: AssessmentTable.score,
         notes: AssessmentTable.notes,
         assessed_at: AssessmentTable.assessed_at,
@@ -288,6 +295,7 @@ export class AssessmentsService {
       cycle_start_date: row.cycle_start_date,
       assessment_type: row.assessment_type,
       teaching_focus: row.teaching_focus,
+      summary: row.summary,
       score: row.score,
       notes: row.notes,
       assessed_at: row.assessed_at,
@@ -312,7 +320,7 @@ export class AssessmentsService {
   async update(
     id: string,
     teacherId: string,
-    data: Partial<Pick<CreateAssessmentInput, "teaching_focus" | "score" | "notes">>,
+    data: Partial<Pick<CreateAssessmentInput, "teaching_focus" | "summary" | "score" | "notes">>,
   ): Promise<AssessmentEntity | null> {
     // Verify the assessment exists and belongs to this teacher
     const existing = await db
