@@ -210,6 +210,19 @@ export const SiblingTable = pgTable("siblings", {
 
 // ==================== SCHEDULING TABLES ====================
 
+/* ---------------- SESSION ---------------- */
+
+export const SessionTable = pgTable("sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  start_date: date("start_date").notNull(),
+  end_date: date("end_date").notNull(),
+  is_active: boolean("is_active").notNull().default(true),
+  is_archived: boolean("is_archived").notNull().default(false),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ---------------- SCHEDULE ---------------- */
 
 export const ScheduleTable = pgTable("schedules", {
@@ -220,6 +233,7 @@ export const ScheduleTable = pgTable("schedules", {
   site_id: uuid("site_id")
     .notNull()
     .references(() => LocationTable.id),
+  session_id: uuid("session_id").references(() => SessionTable.id),
   day_of_week_mask: integer("day_of_week_mask").notNull(),
   start_time: time("start_time").notNull(),
   end_time: time("end_time").notNull(),
@@ -638,6 +652,10 @@ export const locationRelations = relations(LocationTable, ({ many }) => ({
   makeupSessions: many(MakeupSessionTable),
 }));
 
+export const sessionRelations = relations(SessionTable, ({ many }) => ({
+  schedules: many(ScheduleTable),
+}));
+
 export const studentRelations = relations(StudentTable, ({ one, many }) => ({
   site: one(LocationTable, {
     fields: [StudentTable.site_id],
@@ -671,6 +689,10 @@ export const scheduleRelations = relations(ScheduleTable, ({ one, many }) => ({
   site: one(LocationTable, {
     fields: [ScheduleTable.site_id],
     references: [LocationTable.id],
+  }),
+  session: one(SessionTable, {
+    fields: [ScheduleTable.session_id],
+    references: [SessionTable.id],
   }),
   enrollments: many(EnrollmentTable),
   attendance: many(AttendanceTable),
@@ -923,6 +945,9 @@ export type ParentProfileInsert = typeof ParentProfileTable.$inferInsert;
 
 export type StudentEntity = typeof StudentTable.$inferSelect;
 export type StudentInsert = typeof StudentTable.$inferInsert;
+
+export type SessionEntity = typeof SessionTable.$inferSelect;
+export type SessionInsert = typeof SessionTable.$inferInsert;
 
 export type SiblingEntity = typeof SiblingTable.$inferSelect;
 export type SiblingInsert = typeof SiblingTable.$inferInsert;

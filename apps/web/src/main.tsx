@@ -10,6 +10,7 @@ import MakeupRequestsPage from "./domains/admin/pages/MakeupRequestsPage.tsx";
 import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequestsPage.tsx";
 import DocumentReviewPage from "./domains/admin/pages/DocumentReviewPage.tsx";
 import ParentZipReportPage from "./domains/admin/pages/ParentZipReportPage.tsx";
+import SessionsPage from "./domains/admin/pages/SessionsPage.tsx";
 import BulletinBoardPage from "./domains/bulletin/pages/BulletinBoardPage.tsx";
 import AuthGuard from "./domains/global/components/AuthGuard.tsx";
 import ErrorBoundary from "./domains/global/components/ErrorBoundary.tsx";
@@ -115,6 +116,7 @@ createRoot(document.getElementById("root")!).render(
 
                       {/* Admin Request Pages */}
                       <Route path="/admin/makeup-requests" element={<MakeupRequestsPage />} />
+                      <Route path="/admin/sessions" element={<SessionsPage />} />
                       <Route
                         path="/admin/schedule-change-requests"
                         element={<ScheduleChangeRequestsPage />}

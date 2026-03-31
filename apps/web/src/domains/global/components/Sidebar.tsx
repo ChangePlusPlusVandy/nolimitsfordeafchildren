@@ -23,6 +23,7 @@ import FactCheckIcon from "@mui/icons-material/FactCheck";
 import BadgeIcon from "@mui/icons-material/Badge";
 import PinDropIcon from "@mui/icons-material/PinDrop";
 import ForumIcon from "@mui/icons-material/Forum";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
@@ -66,6 +67,12 @@ const navItems: NavItem[] = [
     text: "Schedule Changes",
     to: "/admin/schedule-change-requests",
     icon: <SwapHorizIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Sessions",
+    to: "/admin/sessions",
+    icon: <CalendarMonthIcon />,
     roles: ["administrator"],
   },
   {

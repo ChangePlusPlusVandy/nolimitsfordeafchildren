@@ -43,6 +43,7 @@ export interface TeacherDetails extends Teacher {
     id: string;
     teacher_id: string;
     site_id: string;
+    session_id: string | null;
     day_of_week_mask: number;
     start_time: string;
     end_time: string;
@@ -50,6 +51,7 @@ export interface TeacherDetails extends Teacher {
     cycle_end_date: string;
     is_active: boolean;
     site: { id: string; name: string };
+    session?: { id: string; name: string } | null;
   }>;
   students: Array<{
     id: string;
@@ -100,6 +102,7 @@ export interface UpdateTeacherInput {
 
 export interface CreateScheduleInput {
   site_id: string;
+  session_id?: string;
   day_of_week_mask: number;
   start_time: string;
   end_time: string;
@@ -111,6 +114,7 @@ export interface Schedule {
   id: string;
   teacher_id: string;
   site_id: string;
+  session_id: string | null;
   day_of_week_mask: number;
   start_time: string;
   end_time: string;

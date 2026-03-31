@@ -5,6 +5,7 @@ import {
   ScheduleTable,
   TeacherProfileTable,
   LocationTable,
+  SessionTable,
   UserTable,
   EnrollmentTable,
   StudentTable,
@@ -39,6 +40,10 @@ export interface ScheduleWithDetails extends ScheduleEntity {
     id: string;
     name: string;
   };
+  session?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface ScheduleDetails extends ScheduleWithDetails {
@@ -119,6 +124,7 @@ export class SchedulesService {
         id: ScheduleTable.id,
         teacher_id: ScheduleTable.teacher_id,
         site_id: ScheduleTable.site_id,
+        session_id: ScheduleTable.session_id,
         day_of_week_mask: ScheduleTable.day_of_week_mask,
         start_time: ScheduleTable.start_time,
         end_time: ScheduleTable.end_time,
@@ -133,11 +139,13 @@ export class SchedulesService {
         user_email: UserTable.email,
         location_id: LocationTable.id,
         location_name: LocationTable.name,
+        session_name: SessionTable.name,
       })
       .from(ScheduleTable)
       .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .leftJoin(SessionTable, eq(ScheduleTable.session_id, SessionTable.id))
       .where(whereClause)
       .orderBy(desc(ScheduleTable.created_at))
       .limit(limit)
@@ -147,6 +155,7 @@ export class SchedulesService {
       id: r.id,
       teacher_id: r.teacher_id,
       site_id: r.site_id,
+      session_id: r.session_id,
       day_of_week_mask: r.day_of_week_mask,
       start_time: r.start_time,
       end_time: r.end_time,
@@ -167,6 +176,12 @@ export class SchedulesService {
         id: r.location_id,
         name: r.location_name,
       },
+      session: r.session_id
+        ? {
+            id: r.session_id,
+            name: r.session_name || "Session",
+          }
+        : null,
     }));
 
     return {
@@ -187,6 +202,7 @@ export class SchedulesService {
         id: ScheduleTable.id,
         teacher_id: ScheduleTable.teacher_id,
         site_id: ScheduleTable.site_id,
+        session_id: ScheduleTable.session_id,
         day_of_week_mask: ScheduleTable.day_of_week_mask,
         start_time: ScheduleTable.start_time,
         end_time: ScheduleTable.end_time,
@@ -201,11 +217,13 @@ export class SchedulesService {
         user_email: UserTable.email,
         location_id: LocationTable.id,
         location_name: LocationTable.name,
+        session_name: SessionTable.name,
       })
       .from(ScheduleTable)
       .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .leftJoin(SessionTable, eq(ScheduleTable.session_id, SessionTable.id))
       .where(eq(ScheduleTable.id, id))
       .limit(1);
 
@@ -241,6 +259,7 @@ export class SchedulesService {
       id: r.id,
       teacher_id: r.teacher_id,
       site_id: r.site_id,
+      session_id: r.session_id,
       day_of_week_mask: r.day_of_week_mask,
       start_time: r.start_time,
       end_time: r.end_time,
@@ -261,6 +280,12 @@ export class SchedulesService {
         id: r.location_id,
         name: r.location_name,
       },
+      session: r.session_id
+        ? {
+            id: r.session_id,
+            name: r.session_name || "Session",
+          }
+        : null,
       enrolledStudents,
     };
   }
@@ -312,6 +337,7 @@ export class SchedulesService {
         id: ScheduleTable.id,
         teacher_id: ScheduleTable.teacher_id,
         site_id: ScheduleTable.site_id,
+        session_id: ScheduleTable.session_id,
         day_of_week_mask: ScheduleTable.day_of_week_mask,
         start_time: ScheduleTable.start_time,
         end_time: ScheduleTable.end_time,
@@ -326,11 +352,13 @@ export class SchedulesService {
         user_email: UserTable.email,
         location_id: LocationTable.id,
         location_name: LocationTable.name,
+        session_name: SessionTable.name,
       })
       .from(ScheduleTable)
       .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .leftJoin(SessionTable, eq(ScheduleTable.session_id, SessionTable.id))
       .where(whereClause)
       .orderBy(asc(ScheduleTable.start_time))
       .limit(limit)
@@ -340,6 +368,7 @@ export class SchedulesService {
       id: r.id,
       teacher_id: r.teacher_id,
       site_id: r.site_id,
+      session_id: r.session_id,
       day_of_week_mask: r.day_of_week_mask,
       start_time: r.start_time,
       end_time: r.end_time,
@@ -360,6 +389,12 @@ export class SchedulesService {
         id: r.location_id,
         name: r.location_name,
       },
+      session: r.session_id
+        ? {
+            id: r.session_id,
+            name: r.session_name || "Session",
+          }
+        : null,
     }));
 
     return {

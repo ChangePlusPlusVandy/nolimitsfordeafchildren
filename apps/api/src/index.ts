@@ -171,6 +171,12 @@ import {
 } from "./domains/chat/endpoints/ChatController";
 
 import { ProfilesController } from "./domains/profiles/endpoints/ProfilesController";
+import {
+  GetSessionsController,
+  GetCurrentSessionController,
+  PostSessionsController,
+  PatchSessionController,
+} from "./domains/sessions/endpoints/SessionsController";
 import { SchedulesController } from "./domains/schedules/endpoints/SchedulesController";
 import { SitesController } from "./domains/sites/endpoints/SitesController";
 
@@ -342,6 +348,12 @@ export function buildApplication() {
       PatchUserController,
       DeleteUserController,
       PostEnableUserController,
+
+      // Sessions
+      GetSessionsController,
+      GetCurrentSessionController,
+      PostSessionsController,
+      PatchSessionController,
 
       // Other
       ProfilesController,
