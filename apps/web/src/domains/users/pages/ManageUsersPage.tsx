@@ -19,14 +19,13 @@ import {
   InputLabel,
   Button,
   Chip,
-  IconButton,
   InputAdornment,
   Alert,
 } from "@mui/material";
 import { TableSkeleton } from "../../global/components/skeletons";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import {
   useUserHttpService,
   type UserRole,
@@ -190,13 +189,14 @@ export default function ManageUsersPage() {
                         />
                       </TableCell>
                       <TableCell align="right">
-                        <IconButton
-                          onClick={() => navigate(`/users/${user.id}`)}
+                        <Button
                           size="small"
-                          title="View details"
+                          onClick={() => navigate(`/users/${user.id}`)}
+                          endIcon={<ChevronRightIcon fontSize="small" />}
+                          sx={{ textTransform: "none" }}
                         >
-                          <VisibilityIcon />
-                        </IconButton>
+                          View user
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

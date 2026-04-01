@@ -20,11 +20,10 @@ import {
   FormControl,
   InputLabel,
   InputAdornment,
-  IconButton,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import SchoolIcon from "@mui/icons-material/School";
 import { TableSkeleton } from "../../global/components/skeletons";
 import { useServerTable } from "../../global/hooks/useServerTable";
@@ -240,15 +239,18 @@ export default function StudentsIndexPage() {
                     />
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton
+                    <Button
                       size="small"
+                      color="inherit"
+                      endIcon={<ChevronRightIcon fontSize="small" />}
+                      sx={{ textTransform: "none" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(`/students/${student.id}`);
                       }}
                     >
-                      <VisibilityIcon />
-                    </IconButton>
+                      View student
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

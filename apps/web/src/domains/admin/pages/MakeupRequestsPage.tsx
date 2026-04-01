@@ -32,7 +32,6 @@ import {
 import {
   CheckCircle as ApproveIcon,
   Cancel as DenyIcon,
-  Visibility as ViewIcon,
   Refresh as RefreshIcon,
   Event as EventIcon,
 } from "@mui/icons-material";
@@ -423,9 +422,9 @@ export default function MakeupRequestsPage() {
                     )}
                     {request.status !== "pending" && request.review_notes && (
                       <Tooltip title={request.review_notes}>
-                        <IconButton size="small">
-                          <ViewIcon />
-                        </IconButton>
+                        <Button size="small" sx={{ textTransform: "none" }}>
+                          View notes
+                        </Button>
                       </Tooltip>
                     )}
                   </TableCell>

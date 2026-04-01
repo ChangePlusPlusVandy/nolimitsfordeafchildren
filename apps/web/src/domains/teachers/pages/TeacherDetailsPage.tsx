@@ -35,7 +35,7 @@ import AddIcon from "@mui/icons-material/Add";
 import PersonIcon from "@mui/icons-material/Person";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SchoolIcon from "@mui/icons-material/School";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
@@ -322,9 +322,15 @@ export default function TeacherDetailsPage() {
                       }
                     />
                     <ListItemSecondaryAction>
-                      <IconButton component={Link} to={`/schedules/${schedule.id}`} size="small">
-                        <VisibilityIcon />
-                      </IconButton>
+                      <Button
+                        component={Link}
+                        to={`/schedules/${schedule.id}`}
+                        size="small"
+                        endIcon={<ChevronRightIcon fontSize="small" />}
+                        sx={{ textTransform: "none" }}
+                      >
+                        Open schedule
+                      </Button>
                     </ListItemSecondaryAction>
                   </ListItem>
                 </Box>
@@ -409,15 +415,17 @@ export default function TeacherDetailsPage() {
                       secondary={student.site.name}
                     />
                     <ListItemSecondaryAction>
-                      <IconButton
+                      <Button
                         component={Link}
                         to={
                           isAdmin ? `/students/${student.id}` : `/teachers/students/${student.id}`
                         }
                         size="small"
+                        endIcon={<ChevronRightIcon fontSize="small" />}
+                        sx={{ textTransform: "none" }}
                       >
-                        <VisibilityIcon />
-                      </IconButton>
+                        View student
+                      </Button>
                     </ListItemSecondaryAction>
                   </ListItem>
                 </Box>

@@ -30,7 +30,6 @@ import {
   CheckCircle as ApproveIcon,
   Cancel as DenyIcon,
   HourglassTop as NegotiateIcon,
-  Visibility as ViewIcon,
   Refresh as RefreshIcon,
   ArrowForward as ArrowIcon,
 } from "@mui/icons-material";
@@ -383,9 +382,9 @@ export default function ScheduleChangeRequestsPage() {
                     )}
                     {request.status !== "pending" && request.review_notes && (
                       <Tooltip title={request.review_notes}>
-                        <IconButton size="small">
-                          <ViewIcon />
-                        </IconButton>
+                        <Button size="small" sx={{ textTransform: "none" }}>
+                          View notes
+                        </Button>
                       </Tooltip>
                     )}
                   </TableCell>
