@@ -17,6 +17,7 @@ import {
   Alert,
   CircularProgress,
   Stack,
+  FormHelperText,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import { useStudentHttpService, type CreateStudentInput } from "../services/StudentHttpService";
@@ -42,7 +43,20 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
   const [dob, setDob] = useState("");
   const [siteId, setSiteId] = useState("");
   const [currentSchool, setCurrentSchool] = useState("");
+  const [hearingDevices, setHearingDevices] = useState<string[]>([]);
+  const [otherHearingDevice, setOtherHearingDevice] = useState("");
+  const [hearingLossType, setHearingLossType] = useState<string>("");
   const [guardianSummary, setGuardianSummary] = useState("");
+
+  const hearingDeviceOptions = ["BAHA", "Hearing Aid", "Cochlear Implant", "Other"];
+  const hearingLossOptions = [
+    { value: "mild", label: "Mild" },
+    { value: "moderate", label: "Moderate" },
+    { value: "moderately_severe", label: "Moderately Severe" },
+    { value: "severe", label: "Severe" },
+    { value: "profound", label: "Profound" },
+    { value: "unknown", label: "Unknown" },
+  ];
 
   // Auto-generate initials from first and last name
   useEffect(() => {
@@ -89,6 +103,9 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
       setDob("");
       setSiteId("");
       setCurrentSchool("");
+      setHearingDevices([]);
+      setOtherHearingDevice("");
+      setHearingLossType("");
       setGuardianSummary("");
       onClose();
     }
@@ -105,6 +122,13 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
       dob,
       site_id: siteId,
       current_school: currentSchool.trim() || undefined,
+      hearing_devices: [
+        ...hearingDevices.filter((value) => value !== "Other"),
+        ...(hearingDevices.includes("Other") && otherHearingDevice.trim()
+          ? [otherHearingDevice.trim()]
+          : []),
+      ],
+      hearing_loss_type: hearingLossType ? (hearingLossType as any) : null,
       guardian_summary: guardianSummary.trim() || undefined,
     });
   };
@@ -202,6 +226,53 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
               placeholder="Enter current school name"
               disabled={isDisabled}
             />
+
+            <FormControl fullWidth disabled={isDisabled}>
+              <InputLabel>Hearing Devices</InputLabel>
+              <Select
+                multiple
+                value={hearingDevices}
+                label="Hearing Devices"
+                onChange={(e) => setHearingDevices(e.target.value as string[])}
+                renderValue={(selected) => (selected as string[]).join(", ")}
+              >
+                {hearingDeviceOptions.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>Select one or more devices</FormHelperText>
+            </FormControl>
+
+            {hearingDevices.includes("Other") && (
+              <TextField
+                label="Other Hearing Device"
+                value={otherHearingDevice}
+                onChange={(e) => setOtherHearingDevice(e.target.value)}
+                fullWidth
+                placeholder="Describe other device"
+                disabled={isDisabled}
+              />
+            )}
+
+            <FormControl fullWidth disabled={isDisabled}>
+              <InputLabel>Hearing Loss Type</InputLabel>
+              <Select
+                value={hearingLossType}
+                label="Hearing Loss Type"
+                onChange={(e) => setHearingLossType(e.target.value)}
+              >
+                <MenuItem value="">
+                  <em>Not specified</em>
+                </MenuItem>
+                {hearingLossOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             {/* Guardian Summary */}
             <TextField

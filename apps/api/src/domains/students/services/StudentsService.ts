@@ -42,6 +42,15 @@ export interface CreateStudentInput {
   dob: string;
   current_school?: string;
   preferred_language?: string;
+  hearing_devices?: string[];
+  hearing_loss_type?:
+    | "mild"
+    | "moderate"
+    | "moderately_severe"
+    | "severe"
+    | "profound"
+    | "unknown"
+    | null;
   guardian_summary?: string;
 }
 
@@ -54,6 +63,15 @@ export interface UpdateStudentInput {
   dob?: string;
   current_school?: string;
   preferred_language?: string;
+  hearing_devices?: string[];
+  hearing_loss_type?:
+    | "mild"
+    | "moderate"
+    | "moderately_severe"
+    | "severe"
+    | "profound"
+    | "unknown"
+    | null;
   guardian_summary?: string;
   is_active?: boolean;
 }
@@ -94,6 +112,20 @@ export class StudentsService {
 
   constructor() {
     this.attendanceService = Container.get(AttendanceService);
+  }
+
+  private normalizeHearingDevices(input?: string[] | null): string[] {
+    if (!input || input.length === 0) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        input
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0),
+      ),
+    );
   }
 
   /**
@@ -146,7 +178,24 @@ export class StudentsService {
     const orderFn = filters.order === "desc" ? desc : asc;
     const secondarySort = filters.order === "desc" ? desc(StudentTable.id) : asc(StudentTable.id);
 
-    let students: StudentEntity[];
+    let students: Array<
+      Pick<
+        StudentEntity,
+        | "id"
+        | "site_id"
+        | "first_name"
+        | "last_name"
+        | "initials"
+        | "photo_url"
+        | "dob"
+        | "current_school"
+        | "preferred_language"
+        | "guardian_summary"
+        | "is_active"
+        | "created_at"
+        | "updated_at"
+      >
+    >;
     let total = 0;
 
     if (userRole === "administrator") {
@@ -547,6 +596,8 @@ export class StudentsService {
         dob: data.dob,
         current_school: data.current_school,
         preferred_language: data.preferred_language || "English",
+        hearing_devices: this.normalizeHearingDevices(data.hearing_devices),
+        hearing_loss_type: data.hearing_loss_type ?? null,
         guardian_summary: data.guardian_summary,
       })
       .returning();
@@ -562,12 +613,18 @@ export class StudentsService {
    * Update a student (admin only)
    */
   async update(id: string, data: UpdateStudentInput): Promise<StudentEntity | null> {
+    const updatePayload: Record<string, unknown> = {
+      ...data,
+      updated_at: new Date(),
+    };
+
+    if (data.hearing_devices !== undefined) {
+      updatePayload.hearing_devices = this.normalizeHearingDevices(data.hearing_devices);
+    }
+
     const [student] = await db
       .update(StudentTable)
-      .set({
-        ...data,
-        updated_at: new Date(),
-      })
+      .set(updatePayload)
       .where(eq(StudentTable.id, id))
       .returning();
 

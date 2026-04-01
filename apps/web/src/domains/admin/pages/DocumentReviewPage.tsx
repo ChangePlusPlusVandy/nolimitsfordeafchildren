@@ -17,6 +17,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import type { AxiosError } from "axios";
 import { useDocumentHttpService, type Document } from "../../documents/services/DocumentHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 import { useStudentHttpService } from "../../students/services/StudentHttpService";
@@ -32,6 +33,12 @@ export default function DocumentReviewPage() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [action, setAction] = useState<"approved" | "rejected" | null>(null);
   const [notes, setNotes] = useState("");
+
+  const closeDialog = () => {
+    setSelectedDocument(null);
+    setAction(null);
+    setNotes("");
+  };
 
   const { data: studentsResponse } = useQuery({
     queryKey: [studentService.key, "index", "review-map"],
@@ -67,12 +74,11 @@ export default function DocumentReviewPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [documentService.key] });
       toast.success("Document review saved");
-      setSelectedDocument(null);
-      setAction(null);
-      setNotes("");
+      closeDialog();
     },
-    onError: () => {
-      toast.error("Failed to review document");
+    onError: (error: unknown) => {
+      const axiosError = error as AxiosError<{ message?: string }>;
+      toast.error(axiosError.response?.data?.message || "Failed to review document");
     },
   });
 
@@ -158,7 +164,7 @@ export default function DocumentReviewPage() {
         />
       )}
 
-      <Dialog open={!!selectedDocument && !!action} onClose={() => setSelectedDocument(null)}>
+      <Dialog open={!!selectedDocument && !!action} onClose={closeDialog}>
         <DialogTitle>{action === "approved" ? "Approve" : "Reject"} document</DialogTitle>
         <DialogContent>
           <TextField
@@ -172,7 +178,7 @@ export default function DocumentReviewPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSelectedDocument(null)}>Cancel</Button>
+          <Button onClick={closeDialog}>Cancel</Button>
           <Button
             variant="contained"
             color={action === "approved" ? "primary" : "error"}

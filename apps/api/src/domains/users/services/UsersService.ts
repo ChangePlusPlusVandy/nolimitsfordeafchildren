@@ -5,6 +5,8 @@ import {
   UserTable,
   TeacherProfileTable,
   ParentProfileTable,
+  ParentStudentLinkTable,
+  StudentTable,
   type UserEntity,
   type UserInsert,
 } from "@/db/schema";
@@ -36,6 +38,19 @@ export interface UpdateUserInput {
   locale?: string;
   role?: "administrator" | "teacher" | "parent" | "unassigned";
   is_active?: boolean;
+}
+
+export interface UserWithLinkedStudents extends UserEntity {
+  linked_students: Array<{
+    link_id: string;
+    student_id: string;
+    initials: string;
+    first_name: string;
+    last_name: string;
+    relationship: string | null;
+    is_primary: boolean;
+    linked_at: Date;
+  }>;
 }
 
 @Service()
@@ -116,6 +131,142 @@ export class UsersService {
     const users = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
 
     return users[0] ?? null;
+  }
+
+  async showWithLinkedStudents(id: string): Promise<UserWithLinkedStudents | null> {
+    const user = await this.show(id);
+    if (!user) {
+      return null;
+    }
+
+    if (user.role !== "parent") {
+      return {
+        ...user,
+        linked_students: [],
+      };
+    }
+
+    const parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, id))
+      .limit(1);
+
+    if (parentProfile.length === 0) {
+      return {
+        ...user,
+        linked_students: [],
+      };
+    }
+
+    const links = await db
+      .select({
+        link_id: ParentStudentLinkTable.id,
+        student_id: StudentTable.id,
+        initials: StudentTable.initials,
+        first_name: StudentTable.first_name,
+        last_name: StudentTable.last_name,
+        relationship: ParentStudentLinkTable.relationship,
+        is_primary: ParentStudentLinkTable.is_primary,
+        linked_at: ParentStudentLinkTable.linked_at,
+      })
+      .from(ParentStudentLinkTable)
+      .innerJoin(StudentTable, eq(ParentStudentLinkTable.student_id, StudentTable.id))
+      .where(
+        and(
+          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+          sql`${ParentStudentLinkTable.revoked_at} IS NULL`,
+        ),
+      )
+      .orderBy(asc(StudentTable.last_name), asc(StudentTable.first_name));
+
+    return {
+      ...user,
+      linked_students: links,
+    };
+  }
+
+  async linkStudentToParentUser(
+    parentUserId: string,
+    studentId: string,
+    relationship?: string,
+    isPrimary?: boolean,
+  ): Promise<{ ok: boolean; link_id: string }> {
+    let parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, parentUserId))
+      .limit(1);
+
+    if (parentProfile.length === 0) {
+      const [created] = await db
+        .insert(ParentProfileTable)
+        .values({ user_id: parentUserId })
+        .returning({ id: ParentProfileTable.id });
+
+      if (!created) {
+        throw new Error("Failed to create parent profile");
+      }
+
+      parentProfile = [created];
+    }
+
+    const existing = await db
+      .select({ id: ParentStudentLinkTable.id })
+      .from(ParentStudentLinkTable)
+      .where(
+        and(
+          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+          eq(ParentStudentLinkTable.student_id, studentId),
+          sql`${ParentStudentLinkTable.revoked_at} IS NULL`,
+        ),
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      return { ok: true, link_id: existing[0]!.id };
+    }
+
+    const [link] = await db
+      .insert(ParentStudentLinkTable)
+      .values({
+        parent_id: parentProfile[0]!.id,
+        student_id: studentId,
+        relationship: relationship ?? null,
+        is_primary: isPrimary ?? false,
+      })
+      .returning({ id: ParentStudentLinkTable.id });
+
+    if (!link) {
+      throw new Error("Failed to link student to parent");
+    }
+
+    return { ok: true, link_id: link.id };
+  }
+
+  async unlinkStudentFromParentUser(parentUserId: string, studentId: string): Promise<{ ok: boolean }> {
+    const parentProfile = await db
+      .select({ id: ParentProfileTable.id })
+      .from(ParentProfileTable)
+      .where(eq(ParentProfileTable.user_id, parentUserId))
+      .limit(1);
+
+    if (parentProfile.length === 0) {
+      return { ok: true };
+    }
+
+    await db
+      .update(ParentStudentLinkTable)
+      .set({ revoked_at: new Date() })
+      .where(
+        and(
+          eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+          eq(ParentStudentLinkTable.student_id, studentId),
+          sql`${ParentStudentLinkTable.revoked_at} IS NULL`,
+        ),
+      );
+
+    return { ok: true };
   }
 
   /**

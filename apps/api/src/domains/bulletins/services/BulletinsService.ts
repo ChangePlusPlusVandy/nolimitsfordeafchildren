@@ -11,6 +11,7 @@ import {
   UserTable,
   LocationTable,
   TeacherProfileTable,
+  TeacherLocationTable,
   ParentProfileTable,
   StudentTable,
   ParentStudentLinkTable,
@@ -45,6 +46,7 @@ export interface CreateBulletinInput {
   site_id?: string | null;
   role_target: BulletinRoleTarget;
   requires_approval?: boolean;
+  requires_initials?: boolean;
   publish_at?: Date | string | null;
   expire_at?: Date | string | null;
 }
@@ -56,6 +58,7 @@ export interface UpdateBulletinInput {
   site_id?: string | null;
   role_target?: BulletinRoleTarget;
   requires_approval?: boolean;
+  requires_initials?: boolean;
   approval_status?: "draft" | "pending" | "approved" | "rejected";
   reviewed_by?: string | null;
   reviewed_at?: Date | string | null;
@@ -163,6 +166,61 @@ export class BulletinsService {
     }
 
     return null;
+  }
+
+  private async resolveTeacherPostingSite(
+    userId: string,
+    requestedSiteId?: string | null,
+  ): Promise<string> {
+    const teacherProfile = await db
+      .select({ id: TeacherProfileTable.id, primary_site_id: TeacherProfileTable.primary_site_id })
+      .from(TeacherProfileTable)
+      .where(eq(TeacherProfileTable.user_id, userId))
+      .limit(1);
+
+    if (!teacherProfile[0]) {
+      throw new Error("Teacher profile not found");
+    }
+
+    if (requestedSiteId) {
+      if (teacherProfile[0].primary_site_id === requestedSiteId) {
+        return requestedSiteId;
+      }
+
+      const assignedSite = await db
+        .select({ id: TeacherLocationTable.id })
+        .from(TeacherLocationTable)
+        .where(
+          and(
+            eq(TeacherLocationTable.teacher_profile_id, teacherProfile[0].id),
+            eq(TeacherLocationTable.location_id, requestedSiteId),
+          ),
+        )
+        .limit(1);
+
+      if (assignedSite[0]) {
+        return requestedSiteId;
+      }
+
+      throw new Error("Teacher is not assigned to the selected site");
+    }
+
+    if (teacherProfile[0].primary_site_id) {
+      return teacherProfile[0].primary_site_id;
+    }
+
+    const fallbackSite = await db
+      .select({ location_id: TeacherLocationTable.location_id })
+      .from(TeacherLocationTable)
+      .where(eq(TeacherLocationTable.teacher_profile_id, teacherProfile[0].id))
+      .orderBy(TeacherLocationTable.assigned_at)
+      .limit(1);
+
+    if (fallbackSite[0]?.location_id) {
+      return fallbackSite[0].location_id;
+    }
+
+    throw new Error("Teacher must have an assigned site to create bulletins");
   }
 
   async recordView(bulletinId: string, userId: string): Promise<void> {
@@ -558,13 +616,12 @@ export class BulletinsService {
     let siteId = data.scope === "site" ? data.site_id : null;
 
     if (userRole === "teacher") {
-      const teacherSiteId = await this.getUserSiteId(userId, "teacher");
-      if (!teacherSiteId) {
-        throw new Error("Teacher must have an assigned site to create bulletins");
-      }
-
       scope = "site";
-      siteId = teacherSiteId;
+      siteId = await this.resolveTeacherPostingSite(userId, data.site_id);
+    }
+
+    if (data.requires_initials && data.role_target !== "parent" && data.role_target !== "all") {
+      throw new Error("requires_initials can only be enabled for parent-facing bulletins");
     }
 
     const newBulletin: BulletinInsert = {
@@ -574,6 +631,7 @@ export class BulletinsService {
       site_id: siteId,
       role_target: data.role_target,
       requires_approval: data.requires_approval || false,
+      requires_initials: data.requires_initials || false,
       approval_status: data.requires_approval ? "pending" : "approved",
       reviewed_by: null,
       reviewed_at: null,
@@ -600,6 +658,11 @@ export class BulletinsService {
       return null;
     }
 
+    const resolvedRoleTarget = data.role_target ?? existing[0]!.role_target;
+    if (data.requires_initials && resolvedRoleTarget !== "parent" && resolvedRoleTarget !== "all") {
+      throw new Error("requires_initials can only be enabled for parent-facing bulletins");
+    }
+
     const updateData: Partial<BulletinInsert> = {
       updated_at: new Date(),
     };
@@ -613,6 +676,7 @@ export class BulletinsService {
     }
     if (data.role_target !== undefined) updateData.role_target = data.role_target;
     if (data.requires_approval !== undefined) updateData.requires_approval = data.requires_approval;
+    if (data.requires_initials !== undefined) updateData.requires_initials = data.requires_initials;
     if (data.approval_status !== undefined) updateData.approval_status = data.approval_status;
     if (data.reviewed_by !== undefined) updateData.reviewed_by = data.reviewed_by;
     if (data.reviewed_at !== undefined) {
@@ -709,13 +773,17 @@ export class BulletinsService {
     }
 
     const bulletin = await db
-      .select({ id: BulletinTable.id })
+      .select({ id: BulletinTable.id, requires_initials: BulletinTable.requires_initials })
       .from(BulletinTable)
       .where(eq(BulletinTable.id, bulletinId))
       .limit(1);
 
     if (bulletin.length === 0) {
       throw new Error("Bulletin not found");
+    }
+
+    if (!bulletin[0]!.requires_initials) {
+      throw new Error("This bulletin does not require initials acknowledgement");
     }
 
     const now = new Date();

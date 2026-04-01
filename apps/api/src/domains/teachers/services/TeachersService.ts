@@ -571,11 +571,22 @@ export class TeachersService {
    */
   async myDay(query: {
     date?: string;
+    start_date?: string;
+    end_date?: string;
     teacher_id?: string;
   }): Promise<{ sessions: SessionForDay[] }> {
     const teacherId = query.teacher_id;
     if (!teacherId) {
       return { sessions: [] };
+    }
+
+    if (query.start_date && query.end_date) {
+      const sessions = await this.attendanceService.getTeacherSessionsInRange(
+        teacherId,
+        query.start_date,
+        query.end_date,
+      );
+      return { sessions };
     }
 
     const date = query.date || new Date().toISOString().split("T")[0]!;

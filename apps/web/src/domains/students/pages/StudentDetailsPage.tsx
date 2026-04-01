@@ -93,6 +93,17 @@ function formatTime(time: string) {
   return `${hour12}:${minutes} ${ampm}`;
 }
 
+function formatHearingLossType(value: string | null): string {
+  if (!value) {
+    return "Not specified";
+  }
+
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function StudentDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -421,6 +432,24 @@ export default function StudentDetailsPage() {
                   <Typography>{student.preferred_language}</Typography>
                 </Box>
               )}
+
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Hearing Devices
+                </Typography>
+                <Typography>
+                  {student.hearing_devices.length > 0
+                    ? student.hearing_devices.join(", ")
+                    : "Not specified"}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Hearing Loss Type
+                </Typography>
+                <Typography>{formatHearingLossType(student.hearing_loss_type)}</Typography>
+              </Box>
 
               {student.guardian_summary && (
                 <Box>

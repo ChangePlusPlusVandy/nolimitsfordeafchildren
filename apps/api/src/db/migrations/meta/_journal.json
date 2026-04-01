@@ -15,6 +15,27 @@
       "when": 1774982711000,
       "tag": "0001_server_side_pagination_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775062800000,
+      "tag": "0002_student_hearing_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775066400000,
+      "tag": "0003_sick_day_and_bulletin_initials",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775068200000,
+      "tag": "0004_sibling_participation_attendance",
+      "breakpoints": true
     }
   ]
 }

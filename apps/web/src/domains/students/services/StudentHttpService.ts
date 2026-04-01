@@ -12,6 +12,15 @@ export interface Student {
   dob: string;
   current_school: string | null;
   preferred_language: string;
+  hearing_devices: string[];
+  hearing_loss_type:
+    | "mild"
+    | "moderate"
+    | "moderately_severe"
+    | "severe"
+    | "profound"
+    | "unknown"
+    | null;
   guardian_summary: string | null;
   is_active: boolean;
   created_at: string;
@@ -172,6 +181,15 @@ export interface CreateStudentInput {
   dob: string;
   current_school?: string;
   preferred_language?: string;
+  hearing_devices?: string[];
+  hearing_loss_type?:
+    | "mild"
+    | "moderate"
+    | "moderately_severe"
+    | "severe"
+    | "profound"
+    | "unknown"
+    | null;
   guardian_summary?: string;
 }
 
@@ -184,6 +202,15 @@ export interface UpdateStudentInput {
   dob?: string;
   current_school?: string;
   preferred_language?: string;
+  hearing_devices?: string[];
+  hearing_loss_type?:
+    | "mild"
+    | "moderate"
+    | "moderately_severe"
+    | "severe"
+    | "profound"
+    | "unknown"
+    | null;
   guardian_summary?: string;
   is_active?: boolean;
 }

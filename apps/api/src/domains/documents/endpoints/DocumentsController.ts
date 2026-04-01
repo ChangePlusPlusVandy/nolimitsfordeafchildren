@@ -10,6 +10,7 @@ import {
   CurrentUser,
   Authorized,
   HttpCode,
+  BadRequestError,
 } from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
@@ -192,10 +193,18 @@ export class PatchDocumentReviewController {
     @Body() body: Omit<ReviewDocumentInput, "reviewed_by">,
     @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
-    const result = await this.documentsService.reviewDocument(id, {
-      ...body,
-      reviewed_by: currentUser.id,
-    });
+    let result;
+    try {
+      result = await this.documentsService.reviewDocument(id, {
+        ...body,
+        reviewed_by: currentUser.id,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new BadRequestError(error.message);
+      }
+      throw error;
+    }
 
     if (!result) {
       throw new Error("Document not found");

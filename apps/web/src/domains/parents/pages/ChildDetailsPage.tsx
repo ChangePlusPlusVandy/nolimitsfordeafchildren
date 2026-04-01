@@ -82,6 +82,17 @@ function calculateAge(dob: string): number {
   return age;
 }
 
+function formatHearingLossType(value: string | null): string {
+  if (!value) {
+    return "Not specified";
+  }
+
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function getStatusIcon(status: ChildScheduleSession["attendance_status"]) {
   switch (status) {
     case "present":
@@ -298,6 +309,16 @@ export default function ChildDetailsPage() {
                   size="small"
                 />
               )}
+              <Chip
+                label={`Devices: ${child.hearing_devices.length > 0 ? child.hearing_devices.join(", ") : "Not specified"}`}
+                variant="outlined"
+                size="small"
+              />
+              <Chip
+                label={`Loss Type: ${formatHearingLossType(child.hearing_loss_type)}`}
+                variant="outlined"
+                size="small"
+              />
             </Stack>
           </Box>
         </Stack>

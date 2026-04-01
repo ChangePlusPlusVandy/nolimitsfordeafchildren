@@ -18,6 +18,7 @@ import {
   CircularProgress,
   Skeleton,
   Avatar,
+  FormHelperText,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -37,6 +38,9 @@ type FormData = {
   preferred_language: string;
   guardian_summary: string;
   is_active: boolean;
+  hearing_devices: string[];
+  hearing_loss_type: string;
+  other_hearing_device: string;
 };
 
 export default function EditStudentPage() {
@@ -82,9 +86,24 @@ export default function EditStudentPage() {
         preferred_language: student.preferred_language || "",
         guardian_summary: student.guardian_summary || "",
         is_active: student.is_active,
+        hearing_devices: (student.hearing_devices || []).filter((value) => value !== "Other"),
+        hearing_loss_type: student.hearing_loss_type || "",
+        other_hearing_device: (student.hearing_devices || []).find((value) => {
+          return !["BAHA", "Hearing Aid", "Cochlear Implant"].includes(value);
+        }) || "",
       });
     }
   }, [student]);
+
+  const hearingDeviceOptions = ["BAHA", "Hearing Aid", "Cochlear Implant", "Other"];
+  const hearingLossOptions = [
+    { value: "mild", label: "Mild" },
+    { value: "moderate", label: "Moderate" },
+    { value: "moderately_severe", label: "Moderately Severe" },
+    { value: "severe", label: "Severe" },
+    { value: "profound", label: "Profound" },
+    { value: "unknown", label: "Unknown" },
+  ];
 
   const { mutate, isPending } = useMutation({
     mutationFn: (payload: UpdateStudentInput & { id: string }) =>
@@ -162,6 +181,15 @@ export default function EditStudentPage() {
       dob: formData.dob,
       current_school: formData.current_school.trim() || undefined,
       preferred_language: formData.preferred_language.trim() || undefined,
+      hearing_devices: [
+        ...formData.hearing_devices.filter((value) => value !== "Other"),
+        ...(formData.hearing_devices.includes("Other") && formData.other_hearing_device.trim()
+          ? [formData.other_hearing_device.trim()]
+          : []),
+      ],
+      hearing_loss_type: formData.hearing_loss_type
+        ? (formData.hearing_loss_type as any)
+        : null,
       is_active: formData.is_active,
     };
 
@@ -369,6 +397,62 @@ export default function EditStudentPage() {
                 fullWidth
                 placeholder="e.g., English, Spanish"
               />
+
+              <FormControl fullWidth>
+                <InputLabel>Hearing Devices</InputLabel>
+                <Select
+                  multiple
+                  value={formData.hearing_devices}
+                  label="Hearing Devices"
+                  onChange={(event) => {
+                    const values = event.target.value as string[];
+                    setFormData((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            hearing_devices: values,
+                          }
+                        : null,
+                    );
+                  }}
+                  renderValue={(selected) => (selected as string[]).join(", ")}
+                >
+                  {hearingDeviceOptions.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>Select one or more devices</FormHelperText>
+              </FormControl>
+
+              {formData.hearing_devices.includes("Other") && (
+                <TextField
+                  label="Other Hearing Device"
+                  value={formData.other_hearing_device}
+                  onChange={handleChange("other_hearing_device")}
+                  fullWidth
+                  placeholder="Describe other device"
+                />
+              )}
+
+              <FormControl fullWidth>
+                <InputLabel>Hearing Loss Type</InputLabel>
+                <Select
+                  value={formData.hearing_loss_type}
+                  label="Hearing Loss Type"
+                  onChange={handleChange("hearing_loss_type")}
+                >
+                  <MenuItem value="">
+                    <em>Not specified</em>
+                  </MenuItem>
+                  {hearingLossOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <TextField
                 label="Guardian Summary"

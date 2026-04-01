@@ -6,6 +6,7 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import BlockIcon from "@mui/icons-material/Block";
+import HowToRegIcon from "@mui/icons-material/HowToReg";
 import type { Bulletin, BulletinScope, BulletinRoleTarget } from "../services/BulletinHttpService";
 
 interface BulletinCardProps {
@@ -104,6 +105,15 @@ export default function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
                   label="Rejected"
                   size="small"
                   color="error"
+                  variant="outlined"
+                />
+              )}
+              {bulletin.requires_initials && (
+                <Chip
+                  icon={<HowToRegIcon />}
+                  label="Initials Required"
+                  size="small"
+                  color="info"
                   variant="outlined"
                 />
               )}

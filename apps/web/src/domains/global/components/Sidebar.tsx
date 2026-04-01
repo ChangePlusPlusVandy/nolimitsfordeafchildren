@@ -27,6 +27,7 @@ import PinDropIcon from "@mui/icons-material/PinDrop";
 import ForumIcon from "@mui/icons-material/Forum";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
+import Diversity3Icon from "@mui/icons-material/Diversity3";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
 
@@ -89,6 +90,12 @@ const navItems: NavItem[] = [
     text: "Parent ZIP Report",
     to: "/admin/parent-zip-report",
     icon: <PinDropIcon />,
+    roles: ["administrator"],
+  },
+  {
+    text: "Sibling Participation",
+    to: "/admin/sibling-participation-report",
+    icon: <Diversity3Icon />,
     roles: ["administrator"],
   },
   {

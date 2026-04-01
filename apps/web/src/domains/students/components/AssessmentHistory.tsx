@@ -30,6 +30,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -99,6 +100,7 @@ export default function AssessmentHistory({
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
+  const [cloningAssessmentId, setCloningAssessmentId] = useState<string | null>(null);
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -179,9 +181,34 @@ export default function AssessmentHistory({
     },
   });
 
+  const cloneMutation = useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload?: {
+        cycle_start_date?: string;
+        assessment_type?: "pre" | "post";
+        teaching_focus?: string;
+        focuses?: AssessmentFocus[];
+        score?: number;
+        notes?: string;
+      };
+    }) => {
+      const response = await httpClient.post(`/v1/assessments/${id}/clone`, payload || {});
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assessments", studentId] });
+      handleCloseDialog();
+    },
+  });
+
   const handleOpenDialog = (assessment?: Assessment) => {
     if (assessment) {
       setEditingAssessment(assessment);
+      setCloningAssessmentId(null);
       setCycleStartDate(assessment.cycle_start_date);
       setAssessmentType(assessment.assessment_type);
       setTeachingFocus(assessment.teaching_focus);
@@ -201,6 +228,7 @@ export default function AssessmentHistory({
       );
     } else {
       setEditingAssessment(null);
+      setCloningAssessmentId(null);
       // Default to today's Monday as cycle start
       const today = new Date();
       const monday = new Date(today);
@@ -215,9 +243,33 @@ export default function AssessmentHistory({
     setDialogOpen(true);
   };
 
+  const handleCloneDialog = (assessment: Assessment) => {
+    setEditingAssessment(null);
+    setCloningAssessmentId(assessment.id);
+    setCycleStartDate(assessment.cycle_start_date);
+    setAssessmentType(assessment.assessment_type === "pre" ? "post" : "pre");
+    setTeachingFocus(assessment.teaching_focus);
+    setScore(assessment.score);
+    setNotes(assessment.notes || "");
+    setFocuses(
+      assessment.focuses && assessment.focuses.length > 0
+        ? assessment.focuses
+            .slice()
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((focus) => ({
+              goal: focus.goal,
+              score: focus.score,
+              max_score: focus.max_score,
+            }))
+        : [{ goal: assessment.teaching_focus || "", score: assessment.score, max_score: 20 }],
+    );
+    setDialogOpen(true);
+  };
+
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingAssessment(null);
+    setCloningAssessmentId(null);
     setCycleStartDate("");
     setAssessmentType("pre");
     setTeachingFocus("");
@@ -254,6 +306,18 @@ export default function AssessmentHistory({
       updateMutation.mutate({
         id: editingAssessment.id,
         data: {
+          teaching_focus: legacyTeachingFocus,
+          focuses: sanitizedFocuses,
+          score: legacyScore,
+          notes: notes || undefined,
+        },
+      });
+    } else if (cloningAssessmentId) {
+      cloneMutation.mutate({
+        id: cloningAssessmentId,
+        payload: {
+          cycle_start_date: cycleStartDate,
+          assessment_type: assessmentType,
           teaching_focus: legacyTeachingFocus,
           focuses: sanitizedFocuses,
           score: legacyScore,
@@ -462,6 +526,15 @@ export default function AssessmentHistory({
                                     </IconButton>
                                     <IconButton
                                       size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCloneDialog(cycle.pre_assessment!);
+                                      }}
+                                    >
+                                      <ContentCopyIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
                                       color="error"
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -529,6 +602,15 @@ export default function AssessmentHistory({
                                       }}
                                     >
                                       <EditIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCloneDialog(cycle.post_assessment!);
+                                      }}
+                                    >
+                                      <ContentCopyIcon fontSize="small" />
                                     </IconButton>
                                     <IconButton
                                       size="small"
@@ -630,7 +712,9 @@ export default function AssessmentHistory({
 
       {/* Add/Edit Assessment Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingAssessment ? "Edit Assessment" : "Add Assessment"}</DialogTitle>
+        <DialogTitle>
+          {editingAssessment ? "Edit Assessment" : cloningAssessmentId ? "Clone Assessment" : "Add Assessment"}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
             <TextField
@@ -789,13 +873,16 @@ export default function AssessmentHistory({
               sanitizedFocuses.length === 0 ||
               hasInvalidFocuses ||
               createMutation.isPending ||
-              updateMutation.isPending
+              updateMutation.isPending ||
+              cloneMutation.isPending
             }
           >
-            {createMutation.isPending || updateMutation.isPending ? (
+            {createMutation.isPending || updateMutation.isPending || cloneMutation.isPending ? (
               <CircularProgress size={20} />
             ) : editingAssessment ? (
               "Update"
+            ) : cloningAssessmentId ? (
+              "Clone"
             ) : (
               "Save"
             )}

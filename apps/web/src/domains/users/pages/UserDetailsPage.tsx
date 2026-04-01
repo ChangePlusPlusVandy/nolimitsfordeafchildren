@@ -23,9 +23,15 @@ import {
   DialogActions,
   Skeleton,
   Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import {
   useUserHttpService,
   type UserRole,
@@ -48,6 +54,9 @@ export default function UserDetailsPage() {
   const [role, setRole] = useState<UserRole>("parent");
   const [isEditing, setIsEditing] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
+  const [linkStudentDialogOpen, setLinkStudentDialogOpen] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [linkRelationship, setLinkRelationship] = useState("");
 
   // Fetch user
   const {
@@ -106,6 +115,46 @@ export default function UserDetailsPage() {
     },
     onError: () => {
       toast.error("Failed to enable user. Please try again.");
+    },
+  });
+
+  const { data: availableStudents } = useQuery({
+    queryKey: [userHttpService.key, "students-for-link", id],
+    queryFn: () => userHttpService.queries.students({ page: 1, limit: 200 }),
+    enabled: user?.role === "parent",
+  });
+
+  const linkStudentMutation = useMutation({
+    mutationFn: () =>
+      userHttpService.mutations.linkStudent({
+        userId: id!,
+        studentId: selectedStudentId,
+        relationship: linkRelationship.trim() || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [userHttpService.key, "show", id] });
+      setLinkStudentDialogOpen(false);
+      setSelectedStudentId("");
+      setLinkRelationship("");
+      toast.success("Student linked to parent");
+    },
+    onError: () => {
+      toast.error("Failed to link student");
+    },
+  });
+
+  const unlinkStudentMutation = useMutation({
+    mutationFn: (studentId: string) =>
+      userHttpService.mutations.unlinkStudent({
+        userId: id!,
+        studentId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [userHttpService.key, "show", id] });
+      toast.success("Student unlinked from parent");
+    },
+    onError: () => {
+      toast.error("Failed to unlink student");
     },
   });
 
@@ -312,6 +361,58 @@ export default function UserDetailsPage() {
               Last updated: {new Date(user.updated_at).toLocaleString()}
             </Typography>
           </Box>
+
+          {user.role === "parent" && (
+            <>
+              <Divider />
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Linked Students
+                  </Typography>
+                  <Button
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={() => setLinkStudentDialogOpen(true)}
+                  >
+                    Link Student
+                  </Button>
+                </Box>
+
+                {(user.linked_students ?? []).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No linked students.
+                  </Typography>
+                ) : (
+                  <List dense>
+                    {(user.linked_students ?? []).map((linkedStudent) => (
+                      <ListItem
+                        key={linkedStudent.link_id}
+                        secondaryAction={
+                          <IconButton
+                            edge="end"
+                            color="error"
+                            onClick={() => unlinkStudentMutation.mutate(linkedStudent.student_id)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        }
+                      >
+                        <ListItemText
+                          primary={`${linkedStudent.first_name} ${linkedStudent.last_name} (${linkedStudent.initials})`}
+                          secondary={
+                            linkedStudent.relationship
+                              ? `${linkedStudent.relationship} • Linked ${new Date(linkedStudent.linked_at).toLocaleDateString()}`
+                              : `Linked ${new Date(linkedStudent.linked_at).toLocaleDateString()}`
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Box>
+            </>
+          )}
         </Box>
       </Paper>
 
@@ -331,6 +432,49 @@ export default function UserDetailsPage() {
             disabled={disableMutation.isPending}
           >
             Disable
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={linkStudentDialogOpen} onClose={() => setLinkStudentDialogOpen(false)} fullWidth>
+        <DialogTitle>Link Student to Parent</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Select a student and optional relationship label.
+          </DialogContentText>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Student</InputLabel>
+            <Select
+              value={selectedStudentId}
+              label="Student"
+              onChange={(event) => setSelectedStudentId(event.target.value)}
+            >
+              {(availableStudents?.items ?? []).map((student) => (
+                <MenuItem key={student.id} value={student.id}>
+                  {student.first_name && student.last_name
+                    ? `${student.first_name} ${student.last_name} (${student.initials})`
+                    : student.initials}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            label="Relationship (optional)"
+            value={linkRelationship}
+            onChange={(event) => setLinkRelationship(event.target.value)}
+            fullWidth
+            placeholder="Mother, Father, Guardian..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLinkStudentDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => linkStudentMutation.mutate()}
+            disabled={!selectedStudentId || linkStudentMutation.isPending}
+          >
+            Link
           </Button>
         </DialogActions>
       </Dialog>

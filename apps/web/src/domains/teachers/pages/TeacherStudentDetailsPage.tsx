@@ -30,6 +30,7 @@ import NotesIcon from "@mui/icons-material/Notes";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import ScheduleIcon from "@mui/icons-material/Schedule";
@@ -125,6 +126,7 @@ export default function TeacherStudentDetailsPage() {
   const [uploadType, setUploadType] = useState<"pre_report" | "graduation_speech" | null>(null);
   const [guardianSummaryEditOpen, setGuardianSummaryEditOpen] = useState(false);
   const [guardianSummaryDraft, setGuardianSummaryDraft] = useState("");
+  const [saveMessageText, setSaveMessageText] = useState("");
   const [saveMessageOpen, setSaveMessageOpen] = useState(false);
 
   const {
@@ -218,6 +220,7 @@ export default function TeacherStudentDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
       setGuardianSummaryEditOpen(false);
+      setSaveMessageText("Guardian summary updated");
       setSaveMessageOpen(true);
     },
   });
@@ -254,6 +257,29 @@ export default function TeacherStudentDetailsPage() {
       setAssessmentFocuses([{ goal: "", score: 0, max_score: 10 }]);
       setAssessmentScore("10");
       setAssessmentNotes("");
+    },
+  });
+
+  const cloneAssessmentMutation = useMutation({
+    mutationFn: async ({
+      id,
+      assessment_type,
+      cycle_start_date,
+    }: {
+      id: string;
+      assessment_type: "pre" | "post";
+      cycle_start_date: string;
+    }) => {
+      const response = await httpClient.post(`/v1/assessments/${id}/clone`, {
+        assessment_type,
+        cycle_start_date,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assessments", id, "teacher-scope"] });
+      setSaveMessageText("Assessment cloned");
+      setSaveMessageOpen(true);
     },
   });
 
@@ -539,14 +565,48 @@ export default function TeacherStudentDetailsPage() {
                             <Typography component="span" variant="body2" sx={{ ml: 1.5 }}>
                               Post: {cycle.post_assessment ? `${cycle.post_assessment.score}/20` : "-"}
                             </Typography>
-                            {typeof cycle.improvement === "number" && (
-                              <Typography component="span" variant="body2" sx={{ ml: 1.5 }}>
-                                Improvement: {cycle.improvement > 0 ? `+${cycle.improvement}` : cycle.improvement}
-                              </Typography>
+                          {typeof cycle.improvement === "number" && (
+                            <Typography component="span" variant="body2" sx={{ ml: 1.5 }}>
+                              Improvement: {cycle.improvement > 0 ? `+${cycle.improvement}` : cycle.improvement}
+                            </Typography>
+                          )}
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            {cycle.pre_assessment && (
+                              <Button
+                                size="small"
+                                startIcon={<ContentCopyIcon fontSize="small" />}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  cloneAssessmentMutation.mutate({
+                                    id: cycle.pre_assessment!.id,
+                                    assessment_type: "post",
+                                    cycle_start_date: cycle.cycle_start_date,
+                                  });
+                                }}
+                              >
+                                Clone Pre to Post
+                              </Button>
                             )}
-                            {(cycle.post_assessment?.focuses?.length || cycle.pre_assessment?.focuses?.length) && (
-                              <Typography component="div" variant="body2" sx={{ mt: 0.5 }}>
-                                Focuses: {(cycle.post_assessment?.focuses || cycle.pre_assessment?.focuses || [])
+                            {cycle.post_assessment && (
+                              <Button
+                                size="small"
+                                startIcon={<ContentCopyIcon fontSize="small" />}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  cloneAssessmentMutation.mutate({
+                                    id: cycle.post_assessment!.id,
+                                    assessment_type: "pre",
+                                    cycle_start_date: cycle.cycle_start_date,
+                                  });
+                                }}
+                              >
+                                Clone Post to Pre
+                              </Button>
+                            )}
+                          </Stack>
+                          {(cycle.post_assessment?.focuses?.length || cycle.pre_assessment?.focuses?.length) && (
+                            <Typography component="div" variant="body2" sx={{ mt: 0.5 }}>
+                              Focuses: {(cycle.post_assessment?.focuses || cycle.pre_assessment?.focuses || [])
                                   .map((focus) => `${focus.goal} (${focus.score}/${focus.max_score})`)
                                   .join("; ")}
                               </Typography>
@@ -856,7 +916,7 @@ export default function TeacherStudentDetailsPage() {
         open={saveMessageOpen}
         autoHideDuration={3000}
         onClose={() => setSaveMessageOpen(false)}
-        message="Guardian summary updated"
+        message={saveMessageText || "Saved"}
       />
     </Box>
   );

@@ -12,7 +12,7 @@ import {
   pgEnum,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // ==================== CUSTOM TYPES ====================
 
@@ -68,6 +68,15 @@ export const documentReviewStatusEnum = pgEnum("document_review_status", [
 ]);
 
 export const assessmentTypeEnum = pgEnum("assessment_type", ["pre", "post"]);
+
+export const hearingLossTypeEnum = pgEnum("hearing_loss_type", [
+  "mild",
+  "moderate",
+  "moderately_severe",
+  "severe",
+  "profound",
+  "unknown",
+]);
 
 export const ageGroupSpecialtyEnum = pgEnum("age_group_specialty", [
   "infant",
@@ -250,6 +259,8 @@ export const StudentTable = pgTable("students", {
   dob: date("dob").notNull(),
   current_school: text("current_school"),
   preferred_language: text("preferred_language").notNull().default("English"),
+  hearing_devices: text("hearing_devices").array().notNull().default(sql`'{}'::text[]`),
+  hearing_loss_type: hearingLossTypeEnum("hearing_loss_type"),
   guardian_summary: text("guardian_summary"),
   is_active: boolean("is_active").notNull().default(true),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -405,6 +416,25 @@ export const AttendanceTable = pgTable("attendance", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const AttendanceSiblingParticipantTable = pgTable(
+  "attendance_sibling_participants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attendance_id: uuid("attendance_id")
+      .notNull()
+      .references(() => AttendanceTable.id),
+    sibling_id: uuid("sibling_id")
+      .notNull()
+      .references(() => SiblingTable.id),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    attendanceSiblingParticipantUnique: uniqueIndex(
+      "attendance_sibling_participants_attendance_id_sibling_id_idx",
+    ).on(table.attendance_id, table.sibling_id),
+  }),
+);
+
 /* ---------------- SESSION NOTES ---------------- */
 
 export const SessionNoteTable = pgTable("session_notes", {
@@ -497,6 +527,7 @@ export const BulletinTable = pgTable("bulletins", {
   approval_status: text("approval_status").notNull().default("approved"),
   title: text("title").notNull(),
   body: text("body"),
+  requires_initials: boolean("requires_initials").notNull().default(false),
   publish_at: timestamp("publish_at", { withTimezone: true }),
   expire_at: timestamp("expire_at", { withTimezone: true }),
   reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
@@ -572,6 +603,26 @@ export const BulletinAcknowledgementTable = pgTable(
     ),
   }),
 );
+
+/* ---------------- TEACHER SICK DAY NOTICE ---------------- */
+
+export const TeacherSickDayNoticeTable = pgTable("teacher_sick_day_notices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  teacher_id: uuid("teacher_id")
+    .notNull()
+    .references(() => TeacherProfileTable.id),
+  site_id: uuid("site_id")
+    .notNull()
+    .references(() => LocationTable.id),
+  notice_date: date("notice_date").notNull(),
+  note: text("note"),
+  bulletin_id: uuid("bulletin_id").references(() => BulletinTable.id),
+  created_by: uuid("created_by")
+    .notNull()
+    .references(() => UserTable.id),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /* ---------------- CHAT MESSAGE ---------------- */
 
@@ -761,6 +812,7 @@ export const teacherProfileRelations = relations(TeacherProfileTable, ({ one, ma
   sessionNotes: many(SessionNoteTable),
   assessments: many(AssessmentTable),
   makeupSessions: many(MakeupSessionTable),
+  sickDayNotices: many(TeacherSickDayNoticeTable),
 }));
 
 export const parentProfileRelations = relations(ParentProfileTable, ({ one, many }) => ({
@@ -778,6 +830,7 @@ export const locationRelations = relations(LocationTable, ({ many }) => ({
   schedules: many(ScheduleTable),
   bulletins: many(BulletinTable),
   makeupSessions: many(MakeupSessionTable),
+  teacherSickDayNotices: many(TeacherSickDayNoticeTable),
 }));
 
 export const sessionRelations = relations(SessionTable, ({ many }) => ({
@@ -886,6 +939,20 @@ export const attendanceRelations = relations(AttendanceTable, ({ one }) => ({
   }),
 }));
 
+export const attendanceSiblingParticipantRelations = relations(
+  AttendanceSiblingParticipantTable,
+  ({ one }) => ({
+    attendance: one(AttendanceTable, {
+      fields: [AttendanceSiblingParticipantTable.attendance_id],
+      references: [AttendanceTable.id],
+    }),
+    sibling: one(SiblingTable, {
+      fields: [AttendanceSiblingParticipantTable.sibling_id],
+      references: [SiblingTable.id],
+    }),
+  }),
+);
+
 export const sessionNoteRelations = relations(SessionNoteTable, ({ one }) => ({
   student: one(StudentTable, {
     fields: [SessionNoteTable.student_id],
@@ -943,6 +1010,26 @@ export const bulletinRelations = relations(BulletinTable, ({ one, many }) => ({
   attachments: many(BulletinAttachmentTable),
   views: many(BulletinViewTable),
   acknowledgements: many(BulletinAcknowledgementTable),
+  sickDayNotices: many(TeacherSickDayNoticeTable),
+}));
+
+export const teacherSickDayNoticeRelations = relations(TeacherSickDayNoticeTable, ({ one }) => ({
+  teacher: one(TeacherProfileTable, {
+    fields: [TeacherSickDayNoticeTable.teacher_id],
+    references: [TeacherProfileTable.id],
+  }),
+  site: one(LocationTable, {
+    fields: [TeacherSickDayNoticeTable.site_id],
+    references: [LocationTable.id],
+  }),
+  bulletin: one(BulletinTable, {
+    fields: [TeacherSickDayNoticeTable.bulletin_id],
+    references: [BulletinTable.id],
+  }),
+  createdByUser: one(UserTable, {
+    fields: [TeacherSickDayNoticeTable.created_by],
+    references: [UserTable.id],
+  }),
 }));
 
 export const bulletinAttachmentRelations = relations(BulletinAttachmentTable, ({ one }) => ({
@@ -1133,6 +1220,9 @@ export type TeacherLocationInsert = typeof TeacherLocationTable.$inferInsert;
 export type AttendanceEntity = typeof AttendanceTable.$inferSelect;
 export type AttendanceInsert = typeof AttendanceTable.$inferInsert;
 
+export type AttendanceSiblingParticipantEntity = typeof AttendanceSiblingParticipantTable.$inferSelect;
+export type AttendanceSiblingParticipantInsert = typeof AttendanceSiblingParticipantTable.$inferInsert;
+
 export type SessionNoteEntity = typeof SessionNoteTable.$inferSelect;
 export type SessionNoteInsert = typeof SessionNoteTable.$inferInsert;
 
@@ -1156,6 +1246,9 @@ export type BulletinViewInsert = typeof BulletinViewTable.$inferInsert;
 
 export type BulletinAcknowledgementEntity = typeof BulletinAcknowledgementTable.$inferSelect;
 export type BulletinAcknowledgementInsert = typeof BulletinAcknowledgementTable.$inferInsert;
+
+export type TeacherSickDayNoticeEntity = typeof TeacherSickDayNoticeTable.$inferSelect;
+export type TeacherSickDayNoticeInsert = typeof TeacherSickDayNoticeTable.$inferInsert;
 
 export type ChatMessageEntity = typeof ChatMessageTable.$inferSelect;
 export type ChatMessageInsert = typeof ChatMessageTable.$inferInsert;

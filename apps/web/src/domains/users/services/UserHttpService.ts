@@ -14,6 +14,16 @@ export interface User {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  linked_students?: Array<{
+    link_id: string;
+    student_id: string;
+    initials: string;
+    first_name: string;
+    last_name: string;
+    relationship: string | null;
+    is_primary: boolean;
+    linked_at: string;
+  }>;
 }
 
 export interface ListUsersParams {
@@ -74,6 +84,22 @@ export function useUserHttpService() {
         const response = await httpClient.get(`/v1/users/${id}`);
         return response.data;
       },
+
+      students: async (params?: { search?: string; page?: number; limit?: number }) => {
+        const response = await httpClient.get("/v1/students", { params });
+        return response.data as {
+          items: Array<{
+            id: string;
+            initials: string;
+            first_name?: string;
+            last_name?: string;
+          }>;
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        };
+      },
     },
 
     mutations: {
@@ -106,6 +132,35 @@ export function useUserHttpService() {
        */
       enable: async (id: string): Promise<User> => {
         const response = await httpClient.post(`/v1/users/${id}/enable`);
+        return response.data;
+      },
+
+      linkStudent: async ({
+        userId,
+        studentId,
+        relationship,
+        is_primary,
+      }: {
+        userId: string;
+        studentId: string;
+        relationship?: string;
+        is_primary?: boolean;
+      }): Promise<{ ok: boolean; link_id: string }> => {
+        const response = await httpClient.post(`/v1/users/${userId}/students/${studentId}`, {
+          relationship,
+          is_primary,
+        });
+        return response.data;
+      },
+
+      unlinkStudent: async ({
+        userId,
+        studentId,
+      }: {
+        userId: string;
+        studentId: string;
+      }): Promise<{ ok: boolean }> => {
+        const response = await httpClient.delete(`/v1/users/${userId}/students/${studentId}`);
         return response.data;
       },
     },

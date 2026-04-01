@@ -22,11 +22,13 @@ import {
   List,
   ListItem,
   ListItemText,
+  FormHelperText,
 } from "@mui/material";
 import { CardGridSkeleton } from "../../global/components/skeletons";
 import AddIcon from "@mui/icons-material/Add";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import HowToRegIcon from "@mui/icons-material/HowToReg";
 import { useAuth } from "../../../auth";
 import {
   useBulletinHttpService,
@@ -316,6 +318,15 @@ export default function BulletinBoardPage() {
                   size="small"
                   variant="outlined"
                 />
+                {selectedBulletin.requires_initials && (
+                  <Chip
+                    icon={<HowToRegIcon />}
+                    label="Initials Required"
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                  />
+                )}
               </Stack>
 
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -413,7 +424,7 @@ export default function BulletinBoardPage() {
                 </Box>
               )}
 
-              {isParent && (
+              {isParent && selectedBulletin.requires_initials && (
                 <Box sx={{ mt: 3 }}>
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="subtitle2" gutterBottom>
@@ -451,6 +462,9 @@ export default function BulletinBoardPage() {
                       {selectedBulletin.acknowledged ? "Update" : "Acknowledge"}
                     </Button>
                   </Box>
+                  <FormHelperText>
+                    This announcement can only be acknowledged with initials.
+                  </FormHelperText>
                 </Box>
               )}
             </DialogContent>

@@ -245,7 +245,7 @@ export default function MakeupSessionsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]!);
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const table = useServerTable({ defaultLimit: 20 });
 
   // Get teacher profile ID - in a real app, this would come from user context or a separate query
@@ -258,7 +258,7 @@ export default function MakeupSessionsPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["teachers", teacherId, "makeup-sessions", selectedDate, table.page, table.limit],
+    queryKey: ["teachers", teacherId, "makeup-sessions", selectedDate || "all", table.page, table.limit],
     queryFn: async () => {
       if (!teacherId) {
         // If no teacher profile ID, fetch from /me endpoint
@@ -267,13 +267,21 @@ export default function MakeupSessionsPage() {
         if (!profileId) throw new Error("No teacher profile found");
 
         const response = await httpClient.get(`/v1/teachers/${profileId}/makeup-sessions`, {
-          params: { date: selectedDate, page: table.page, limit: table.limit },
+          params: {
+            ...(selectedDate ? { date: selectedDate } : {}),
+            page: table.page,
+            limit: table.limit,
+          },
         });
         return response.data;
       }
 
       const response = await httpClient.get(`/v1/teachers/${teacherId}/makeup-sessions`, {
-        params: { date: selectedDate, page: table.page, limit: table.limit },
+        params: {
+          ...(selectedDate ? { date: selectedDate } : {}),
+          page: table.page,
+          limit: table.limit,
+        },
       });
       return response.data;
     },
@@ -334,6 +342,18 @@ export default function MakeupSessionsPage() {
               label="Filter by Date"
             />
           </FormControl>
+          <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              size="small"
+              onClick={() => {
+                setSelectedDate("");
+                table.setPage(1);
+              }}
+              disabled={!selectedDate}
+            >
+              Show All Dates
+            </Button>
+          </Box>
         </CardContent>
       </Card>
 
@@ -350,7 +370,7 @@ export default function MakeupSessionsPage() {
         <Stack spacing={3}>
           <Box>
             <Typography variant="h6" gutterBottom color="primary">
-              Sessions on {formatDate(selectedDate)}
+              {selectedDate ? `Sessions on ${formatDate(selectedDate)}` : "All Assigned Sessions"}
             </Typography>
             {sessions.map((session) => (
               <MakeupSessionCard

@@ -26,6 +26,7 @@ export interface Bulletin {
   review_notes: string | null;
   title: string;
   body: string | null;
+  requires_initials: boolean;
   publish_at: string | null;
   expire_at: string | null;
   created_by: string;
@@ -117,6 +118,7 @@ export interface CreateBulletinInput {
   site_id?: string | null;
   role_target: BulletinRoleTarget;
   requires_approval?: boolean;
+  requires_initials?: boolean;
   publish_at?: string | null;
   expire_at?: string | null;
 }
@@ -128,6 +130,7 @@ export interface UpdateBulletinInput {
   site_id?: string | null;
   role_target?: BulletinRoleTarget;
   requires_approval?: boolean;
+  requires_initials?: boolean;
   approval_status?: BulletinApprovalStatus;
   review_notes?: string | null;
   publish_at?: string | null;

@@ -19,6 +19,8 @@ import { GetAuthMeController } from "./domains/auth/endpoints/AuthController";
 import {
   GetUsersController,
   GetUserController,
+  PostUserLinkStudentController,
+  DeleteUserLinkStudentController,
   PostUsersInviteController,
   PatchUserController,
   DeleteUserController,
@@ -61,6 +63,10 @@ import {
 } from "./domains/teachers/endpoints/TeachersController";
 import { GetTeachersMeDayController } from "./domains/teachers/endpoints/TeacherMyDayController";
 import {
+  GetTeacherSickDayNoticesController,
+  PostTeacherSickDayNoticeController,
+} from "./domains/teachers/endpoints/TeacherSickDayController";
+import {
   PatchSchedulesController,
   PostTeacherSchedulesController,
 } from "./domains/teachers/endpoints/TeacherSchedulesController";
@@ -101,6 +107,7 @@ import {
   PostAttendanceController,
   GetAttendanceShowController,
   GetStudentAttendanceSummaryController,
+  GetAttendanceSiblingParticipationReportController,
 } from "./domains/attendance/endpoints/AttendanceController";
 
 // Document Controllers
@@ -142,6 +149,7 @@ import {
   GetAssessmentController,
   PatchAssessmentController,
   DeleteAssessmentController,
+  PostAssessmentCloneController,
 } from "./domains/assessments/endpoints/AssessmentsController";
 
 // Makeup Controllers
@@ -233,7 +241,6 @@ export function buildApplication() {
       GetBulletinViewsController,
       GetBulletinAcknowledgementsController,
       GetBulletinsPendingController,
-      GetBulletinAcknowledgementsController,
       PostBulletinsController,
       PatchBulletinController,
       PatchBulletinReviewController,
@@ -249,6 +256,8 @@ export function buildApplication() {
       // Teachers
       GetTeachersController,
       PostTeachersController,
+      GetTeacherSickDayNoticesController,
+      PostTeacherSickDayNoticeController,
       GetTeacherController,
       PatchTeacherController,
       GetTeacherStudentsController,
@@ -288,6 +297,7 @@ export function buildApplication() {
       PostAttendanceController,
       PatchAttendanceController,
       GetStudentAttendanceSummaryController,
+      GetAttendanceSiblingParticipationReportController,
 
       // Documents
       PostDocumentsUploadUrlController,
@@ -322,6 +332,7 @@ export function buildApplication() {
       GetAssessmentController,
       PatchAssessmentController,
       DeleteAssessmentController,
+      PostAssessmentCloneController,
 
       // Makeup Requests & Sessions
       PostMakeupRequestController,
@@ -350,6 +361,8 @@ export function buildApplication() {
       // Users
       GetUsersController,
       GetUserController,
+      PostUserLinkStudentController,
+      DeleteUserLinkStudentController,
       PostUsersInviteController,
       PatchUserController,
       DeleteUserController,

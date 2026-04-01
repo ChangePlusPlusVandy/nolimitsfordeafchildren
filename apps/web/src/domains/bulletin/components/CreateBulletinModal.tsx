@@ -20,6 +20,8 @@ import {
   ListItemSecondaryAction,
   IconButton,
   LinearProgress,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -64,6 +66,7 @@ export default function CreateBulletinModal({
   const [siteId, setSiteId] = useState<string>("");
   const [roleTarget, setRoleTarget] = useState<BulletinRoleTarget>("all");
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [requiresInitials, setRequiresInitials] = useState(false);
   const [publishAt, setPublishAt] = useState<string>("");
   const [expireAt, setExpireAt] = useState<string>("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -123,6 +126,7 @@ export default function CreateBulletinModal({
     setSiteId("");
     setRoleTarget("all");
     setRequiresApproval(false);
+    setRequiresInitials(false);
     setPublishAt("");
     setExpireAt("");
     setPendingAttachments([]);
@@ -206,6 +210,7 @@ export default function CreateBulletinModal({
       site_id: scope === "site" ? siteId : null,
       role_target: roleTarget,
       requires_approval: requiresApproval,
+      requires_initials: requiresInitials,
       publish_at: publishAt || null,
       expire_at: expireAt || null,
     };
@@ -305,6 +310,16 @@ export default function CreateBulletinModal({
                 <MenuItem value="approval">Require Admin Approval</MenuItem>
               </Select>
             </FormControl>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={requiresInitials}
+                  onChange={(event) => setRequiresInitials(event.target.checked)}
+                />
+              }
+              label="Require parent initials acknowledgement"
+            />
 
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <TextField
