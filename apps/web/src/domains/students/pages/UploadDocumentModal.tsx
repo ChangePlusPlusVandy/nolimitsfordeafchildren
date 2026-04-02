@@ -339,7 +339,7 @@ export default function UploadDocumentModal({
           )}
         </Stack>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={handleClose} disabled={uploading}>
           Cancel
         </Button>

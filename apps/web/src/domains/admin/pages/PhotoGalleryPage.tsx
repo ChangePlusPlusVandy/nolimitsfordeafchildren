@@ -1,13 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  Alert,
   Box,
-  Card,
   CardContent,
   FormControl,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Stack,
   TextField,
@@ -18,6 +15,13 @@ import { PhotoLibrary as PhotoLibraryIcon } from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
 import { useServerTable } from "../../global/hooks/useServerTable";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import CardGridSkeleton from "../../global/components/skeletons/CardGridSkeleton";
+import { formatDate } from "../../../utils/formatDate";
 
 interface GalleryPhoto {
   id: string;
@@ -51,7 +55,7 @@ export default function PhotoGalleryPage() {
     queryFn: locationHttpService.queries.index,
   });
 
-  const { data, isLoading, error } = useQuery<{
+  const { data, isLoading, error, refetch } = useQuery<{
     items: GalleryPhoto[];
     total: number;
     page: number;
@@ -75,13 +79,12 @@ export default function PhotoGalleryPage() {
   const photos = data?.items ?? [];
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        <PhotoLibraryIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-        Photo Gallery
-      </Typography>
+    <PageContainer>
+      <PageHeader title="Photo Gallery" />
 
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <Stack spacing={3}>
+      {/* Filters */}
+      <SectionCard>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <FormControl fullWidth>
             <InputLabel>Filter by location</InputLabel>
@@ -107,14 +110,24 @@ export default function PhotoGalleryPage() {
             fullWidth
           />
         </Stack>
-      </Paper>
+      </SectionCard>
 
-      {error ? (
-        <Alert severity="error">Failed to load photo gallery.</Alert>
-      ) : isLoading ? (
-        <Typography color="text.secondary">Loading photos...</Typography>
+      {/* Content */}
+      {isLoading ? (
+        <CardGridSkeleton />
+      ) : error ? (
+        <ErrorAlert
+          message="Failed to load photo gallery."
+          onRetry={() => refetch()}
+        />
       ) : photos.length === 0 ? (
-        <Typography color="text.secondary">No photos found for current filters.</Typography>
+        <SectionCard>
+          <EmptyState
+            icon={<PhotoLibraryIcon sx={{ fontSize: 48 }} />}
+            title="No Photos Found"
+            description="No photos found for the current filters."
+          />
+        </SectionCard>
       ) : (
         <>
           <Box
@@ -125,7 +138,7 @@ export default function PhotoGalleryPage() {
             }}
           >
             {photos.map((photo) => (
-              <Card key={photo.id} variant="outlined">
+              <SectionCard key={photo.id} noPadding>
                 <Box
                   component="img"
                   src={photo.file_url}
@@ -137,17 +150,22 @@ export default function PhotoGalleryPage() {
                     {photo.location.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    {new Date(photo.session_date).toLocaleDateString()}
+                    {formatDate(photo.session_date)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block">
                     {photo.student ? `Student ${photo.student.initials}` : "Group photo"}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    sx={{ mb: 0.5 }}
+                  >
                     Uploaded by {photo.uploaded_by_user.name}
                   </Typography>
                   {photo.caption && <Typography variant="body2">{photo.caption}</Typography>}
                 </CardContent>
-              </Card>
+              </SectionCard>
             ))}
           </Box>
           <TablePagination
@@ -161,6 +179,7 @@ export default function PhotoGalleryPage() {
           />
         </>
       )}
-    </Box>
+      </Stack>
+    </PageContainer>
   );
 }

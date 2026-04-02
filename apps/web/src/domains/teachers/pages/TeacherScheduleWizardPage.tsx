@@ -4,8 +4,8 @@ import { useParams, useNavigate } from "react-router";
 import {
   Box,
   Typography,
-  Paper,
   Button,
+  Stack,
   Stepper,
   Step,
   StepLabel,
@@ -24,7 +24,6 @@ import {
   ListItem,
   ListItemText,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckIcon from "@mui/icons-material/Check";
 import {
@@ -40,6 +39,11 @@ import {
 } from "../../locations/services/LocationHttpService";
 import { useHttpClient } from "../../../plugins/axios";
 import type { SelectChangeEvent } from "@mui/material/Select";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import { FormSkeleton } from "../../global/components/skeletons";
+import { formatTime } from "../../../utils/formatDate";
 
 const STEPS = ["Schedule Pattern", "Set Times", "Cycle Dates", "Review"];
 
@@ -277,19 +281,12 @@ export default function TeacherScheduleWizardPage() {
     setCycleEndDate((event.target as unknown as { value: string }).value);
   };
 
-  const formatTime = (time: string): string => {
-    const [hours, minutes] = time.split(":");
-    const h = parseInt(hours!, 10);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${minutes} ${ampm}`;
-  };
 
   if (teacherLoading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
+      <PageContainer>
+        <FormSkeleton fields={4} maxWidth={600} />
+      </PageContainer>
     );
   }
 
@@ -298,26 +295,16 @@ export default function TeacherScheduleWizardPage() {
   const selectedDays = decodeDayMask(dayMask);
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Create Schedule
-          </Typography>
-          {teacher && (
-            <Typography variant="body2" color="text.secondary">
-              for {teacher.user.name}
-            </Typography>
-          )}
-        </Box>
-      </Box>
+    <PageContainer>
+      <PageHeader
+        title="Create Schedule"
+        subtitle={teacher ? "for " + teacher.user.name : undefined}
+        back
+        breadcrumbs={[{ label: "Teachers", href: "/teachers" }, ...(teacher ? [{ label: teacher.user.name, href: "/teachers/" + teacherId }] : []), { label: "New Schedule" }]}
+      />
 
       {/* Stepper */}
-      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+      <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
         {STEPS.map((label) => (
           <Step key={label}>
             <StepLabel>{label}</StepLabel>
@@ -331,10 +318,10 @@ export default function TeacherScheduleWizardPage() {
         </Alert>
       )}
 
-      <Paper sx={{ p: 3, maxWidth: 600, mx: "auto" }}>
+      <SectionCard sx={{ maxWidth: 600, mx: "auto" }}>
         {/* Step 1: Schedule Pattern */}
         {activeStep === 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Stack spacing={3}>
             <Typography variant="h6">Select Schedule Pattern</Typography>
 
             {/* Site Selection */}
@@ -433,13 +420,13 @@ export default function TeacherScheduleWizardPage() {
                     <Chip key={day} label={day} size="small" variant="outlined" />
                   ))}
                 </Box>
-              </Box>
-          </Box>
+                </Box>
+          </Stack>
         )}
 
         {/* Step 2: Set Times */}
         {activeStep === 1 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Stack spacing={3}>
             <Typography variant="h6">Set Session Times</Typography>
 
             <TextField
@@ -485,12 +472,12 @@ export default function TeacherScheduleWizardPage() {
                 )}
               </Typography>
             </Box>
-          </Box>
+          </Stack>
         )}
 
         {/* Step 3: Cycle Dates */}
         {activeStep === 2 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Stack spacing={3}>
             <Typography variant="h6">Set 10-Week Cycle Dates</Typography>
 
             <TextField
@@ -534,12 +521,12 @@ export default function TeacherScheduleWizardPage() {
                 )}
               </Typography>
             </Box>
-          </Box>
+          </Stack>
         )}
 
         {/* Step 4: Review */}
         {activeStep === 3 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Stack spacing={3}>
             <Typography variant="h6">Review Schedule</Typography>
 
             <List>
@@ -582,7 +569,7 @@ export default function TeacherScheduleWizardPage() {
                 <ListItemText primary="Cycle" secondary={`${cycleStartDate} to ${cycleEndDate}`} />
               </ListItem>
             </List>
-          </Box>
+          </Stack>
         )}
 
         {/* Navigation Buttons */}
@@ -608,7 +595,7 @@ export default function TeacherScheduleWizardPage() {
             )}
           </Box>
         </Box>
-      </Paper>
-    </Box>
+      </SectionCard>
+    </PageContainer>
   );
 }

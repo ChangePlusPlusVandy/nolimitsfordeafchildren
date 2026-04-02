@@ -4,20 +4,28 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
   Chip,
-  Alert,
   Divider,
-  Skeleton,
+  Stack,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import { DetailPageSkeleton } from "../../global/components/skeletons";
+import { formatDate } from "../../../utils/formatDate";
 import { useLocationHttpService, type LocationType } from "../services/LocationHttpService";
 import { useAuth } from "../../../auth";
+
+const LOCATION_TYPE_LABEL: Record<LocationType, string> = {
+  education_center: "Education Center",
+  pop_up: "Pop-up",
+  remote: "Remote",
+};
 
 export default function LocationDetailsPage() {
   const { siteId } = useParams<{ siteId: string }>();
@@ -25,214 +33,150 @@ export default function LocationDetailsPage() {
   const { isAdmin } = useAuth();
   const locationHttpService = useLocationHttpService();
 
-  const LOCATION_TYPE_LABEL: Record<LocationType, string> = {
-    education_center: "Education Center",
-    pop_up: "Pop-up",
-    remote: "Remote",
-  };
-
   const {
     data: location,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: [locationHttpService.key, "show", siteId],
     queryFn: () => locationHttpService.queries.show(siteId!),
     enabled: !!siteId,
   });
 
+  const breadcrumbs = [
+    { label: "Locations", href: "/locations" },
+    { label: location?.name ?? "Location Details" },
+  ];
+
   if (isLoading) {
     return (
-      <Box sx={{ p: 3 }}>
-        {/* Header Skeleton */}
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
-          <Box>
-            <Skeleton variant="rounded" width={150} height={36} sx={{ mb: 1 }} />
-            <Skeleton variant="text" width={250} height={40} />
-            <Box display="flex" gap={1} mt={1}>
-              <Skeleton variant="rounded" width={120} height={32} />
-              <Skeleton variant="rounded" width={80} height={32} />
-            </Box>
-          </Box>
-          <Skeleton variant="rounded" width={140} height={36} />
-        </Box>
-        {/* Cards Skeleton */}
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-          <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
-            <CardContent>
-              <Skeleton variant="text" width={100} height={28} sx={{ mb: 2 }} />
-              <Skeleton variant="text" width="80%" />
-              <Skeleton variant="text" width="60%" />
-              <Skeleton variant="text" width="70%" />
-            </CardContent>
-          </Card>
-          <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
-            <CardContent>
-              <Skeleton variant="text" width={80} height={28} sx={{ mb: 2 }} />
-              <Skeleton variant="text" width="50%" />
-              <Skeleton variant="text" width="40%" />
-              <Skeleton variant="text" width="45%" />
-            </CardContent>
-          </Card>
-        </Box>
-      </Box>
+      <PageContainer>
+        <DetailPageSkeleton />
+      </PageContainer>
     );
   }
 
   if (error || !location) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">
-          {error ? "Failed to load location details." : "Location not found."}
-        </Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/locations")} sx={{ mt: 2 }}>
-          Back to Locations
-        </Button>
-      </Box>
+      <PageContainer>
+        <PageHeader title="Location Details" back="/locations" breadcrumbs={breadcrumbs} />
+        <ErrorAlert
+          message={error ? "Failed to load location details." : "Location not found."}
+          onRetry={error ? () => refetch() : undefined}
+        />
+      </PageContainer>
     );
   }
 
   const formatAddress = () => {
-    const parts = [
+    return [
       location.address_line1,
       location.address_line2,
       `${location.city}, ${location.state} ${location.postal_code}`,
       location.country !== "USA" ? location.country : null,
     ].filter(Boolean);
-    return parts;
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
-        <Box>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate("/locations")}
-            sx={{ mb: 1 }}
-          >
-            Back to Locations
-          </Button>
-          <Typography variant="h4" component="h1" gutterBottom>
-            {location.name}
-          </Typography>
-          <Box display="flex" gap={1} flexWrap="wrap">
-            <Chip
-              label={LOCATION_TYPE_LABEL[location.type]}
-              variant="outlined"
-            />
-            <Chip
-              label={location.is_active ? "Active" : "Inactive"}
-              color={location.is_active ? "success" : "default"}
-              variant={location.is_active ? "filled" : "outlined"}
-            />
-          </Box>
-        </Box>
-        {isAdmin && (
-          <Button
-            variant="contained"
-            startIcon={<EditIcon />}
-            onClick={() => navigate(`/locations/${siteId}/edit`)}
-          >
-            Edit Location
-          </Button>
-        )}
-      </Box>
+    <PageContainer>
+      <PageHeader
+        title={location.name}
+        breadcrumbs={breadcrumbs}
+        back="/locations"
+        actions={
+          isAdmin ? (
+            <Button
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={() => navigate(`/locations/${siteId}/edit`)}
+            >
+              Edit Location
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+        <Chip label={LOCATION_TYPE_LABEL[location.type]} variant="outlined" />
+        <Chip
+          label={location.is_active ? "Active" : "Inactive"}
+          color={location.is_active ? "success" : "default"}
+          variant={location.is_active ? "filled" : "outlined"}
+        />
+      </Stack>
+
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3 }}>
         {/* Address Card */}
-        <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
-          <CardContent>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <LocationOnIcon color="primary" />
-              <Typography variant="h6">Address</Typography>
+        <SectionCard title="Address" icon={<LocationOnIcon color="primary" />}>
+          {formatAddress().map((line, index) => (
+            <Typography key={index} variant="body1">
+              {line}
+            </Typography>
+          ))}
+          {location.latitude && location.longitude && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Coordinates: {location.latitude}, {location.longitude}
+              </Typography>
+              <Button
+                size="small"
+                href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ mt: 1 }}
+              >
+                View on Google Maps
+              </Button>
             </Box>
-            <Box>
-              {formatAddress().map((line, index) => (
-                <Typography key={index} variant="body1">
-                  {line}
-                </Typography>
-              ))}
-            </Box>
-            {location.latitude && location.longitude && (
-              <Box mt={2}>
-                <Typography variant="body2" color="text.secondary">
-                  Coordinates: {location.latitude}, {location.longitude}
-                </Typography>
-                <Button
-                  size="small"
-                  href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ mt: 1 }}
-                >
-                  View on Google Maps
-                </Button>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </SectionCard>
 
         {/* Details Card */}
-        <Card sx={{ flex: "1 1 300px", minWidth: 300 }}>
-          <CardContent>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <AccessTimeIcon color="primary" />
-              <Typography variant="h6">Details</Typography>
-            </Box>
-            <Box display="flex" flexDirection="column" gap={1}>
-              <Box>
-                <Typography variant="body2" color="text.secondary">
-                  Timezone
-                </Typography>
-                <Typography variant="body1">{location.timezone}</Typography>
-              </Box>
-              <Divider sx={{ my: 1 }} />
-              <Box>
-                <Typography variant="body2" color="text.secondary">
-                  Created
-                </Typography>
-                <Typography variant="body1">
-                  {new Date(location.created_at).toLocaleDateString()}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary">
-                  Last Updated
-                </Typography>
-                <Typography variant="body1">
-                  {new Date(location.updated_at).toLocaleDateString()}
-                </Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+        <SectionCard title="Details" icon={<AccessTimeIcon color="primary" />}>
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              Timezone
+            </Typography>
+            <Typography variant="body1">{location.timezone}</Typography>
+          </Box>
+          <Divider sx={{ my: 1.5 }} />
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              Created
+            </Typography>
+            <Typography variant="body1">{formatDate(location.created_at)}</Typography>
+          </Box>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Last Updated
+            </Typography>
+            <Typography variant="body1">{formatDate(location.updated_at)}</Typography>
+          </Box>
+        </SectionCard>
 
         {/* Zoom Link Card */}
         {location.zoom_link && (
-          <Card sx={{ flex: "1 1 100%", minWidth: 300 }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <VideocamIcon color="primary" />
-                <Typography variant="h6">Virtual Meeting</Typography>
-              </Box>
-              <Button
-                variant="outlined"
-                href={location.zoom_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                startIcon={<VideocamIcon />}
-              >
-                Join Zoom Meeting
-              </Button>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {location.zoom_link}
-              </Typography>
-            </CardContent>
-          </Card>
+          <SectionCard
+            title="Virtual Meeting"
+            icon={<VideocamIcon color="primary" />}
+            sx={{ gridColumn: { md: "1 / -1" } }}
+          >
+            <Button
+              variant="outlined"
+              href={location.zoom_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              startIcon={<VideocamIcon />}
+            >
+              Join Zoom Meeting
+            </Button>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {location.zoom_link}
+            </Typography>
+          </SectionCard>
         )}
       </Box>
-    </Box>
+    </PageContainer>
   );
 }

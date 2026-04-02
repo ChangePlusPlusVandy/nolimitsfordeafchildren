@@ -40,6 +40,7 @@ export default function SiblingAvatars({ siblings, onEdit, onDelete }: SiblingAv
                         e.stopPropagation();
                         onEdit(sibling);
                       }}
+                      aria-label={`Edit ${sibling.name}`}
                     >
                       <EditIcon fontSize="small" />
                     </IconButton>
@@ -52,6 +53,7 @@ export default function SiblingAvatars({ siblings, onEdit, onDelete }: SiblingAv
                         e.stopPropagation();
                         onDelete(sibling.id);
                       }}
+                      aria-label={`Remove ${sibling.name}`}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>

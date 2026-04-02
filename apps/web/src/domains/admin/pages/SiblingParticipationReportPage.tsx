@@ -1,13 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Alert,
-  Box,
   Button,
-  Card,
-  CardContent,
   Chip,
-  CircularProgress,
   FormControl,
   InputLabel,
   MenuItem,
@@ -22,8 +17,18 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import {
+  FamilyRestroom as FamilyIcon,
+  Refresh as RefreshIcon,
+} from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import TableSkeleton from "../../global/components/skeletons/TableSkeleton";
 
 interface SiblingParticipationReportItem {
   sibling_id: string;
@@ -67,101 +72,135 @@ export default function SiblingParticipationReportPage() {
   const items = data?.items ?? [];
   const totalSessions = items.reduce((sum, item) => sum + item.total_sessions, 0);
   const presentSessions = items.reduce((sum, item) => sum + item.present_sessions, 0);
-  const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
+  const attendanceRate =
+    totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        Sibling Participation Report
-      </Typography>
+    <PageContainer>
+      <PageHeader title="Sibling Participation Report" />
 
-      <Card variant="outlined" sx={{ mb: 3 }}>
-        <CardContent>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
-            <TextField
-              label="Date from"
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-            <TextField
-              label="Date to"
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-            <FormControl fullWidth>
-              <InputLabel>Location</InputLabel>
-              <Select value={siteId} label="Location" onChange={(event) => setSiteId(event.target.value)}>
-                <MenuItem value="">All locations</MenuItem>
-                {locationOptions.map((location) => (
-                  <MenuItem key={location.id} value={location.id}>
-                    {location.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Button variant="contained" onClick={() => refetch()} disabled={isFetching}>
-              Refresh
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
+      <Stack spacing={3}>
+      {/* Filters */}
+      <SectionCard>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
+          <TextField
+            label="Date from"
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <TextField
+            label="Date to"
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <FormControl fullWidth>
+            <InputLabel>Location</InputLabel>
+            <Select
+              value={siteId}
+              label="Location"
+              onChange={(event) => setSiteId(event.target.value)}
+            >
+              <MenuItem value="">All locations</MenuItem>
+              {locationOptions.map((location) => (
+                <MenuItem key={location.id} value={location.id}>
+                  {location.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            variant="contained"
+            startIcon={<RefreshIcon />}
+            onClick={() => refetch()}
+            disabled={isFetching}
+            sx={{ minWidth: 110 }}
+          >
+            Refresh
+          </Button>
+        </Stack>
+      </SectionCard>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
+      {/* Summary chips */}
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
         <Chip label={`${items.length} sibling entries`} variant="outlined" />
-        <Chip label={`${presentSessions}/${totalSessions} present sessions`} variant="outlined" />
-        <Chip label={`${attendanceRate}% attendance rate`} color={attendanceRate >= 80 ? "success" : "default"} />
+        <Chip
+          label={`${presentSessions}/${totalSessions} present sessions`}
+          variant="outlined"
+        />
+        <Chip
+          label={`${attendanceRate}% attendance rate`}
+          color={attendanceRate >= 80 ? "success" : "default"}
+        />
       </Stack>
 
-      {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-          <CircularProgress size={28} />
-        </Box>
+      {/* Content */}
+      {isLoading ? (
+        <TableSkeleton />
+      ) : error ? (
+        <ErrorAlert
+          message="Failed to load sibling participation report."
+          onRetry={() => refetch()}
+        />
+      ) : items.length === 0 ? (
+        <SectionCard>
+          <EmptyState
+            icon={<FamilyIcon sx={{ fontSize: 48 }} />}
+            title="No Records Found"
+            description="No sibling participation records found for the selected filters."
+          />
+        </SectionCard>
+      ) : (
+        <SectionCard noPadding>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Location</TableCell>
+                  <TableCell>Student</TableCell>
+                  <TableCell>Sibling</TableCell>
+                  <TableCell align="right">Present</TableCell>
+                  <TableCell align="right">Total</TableCell>
+                  <TableCell align="right">Rate</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((item) => {
+                  const rowRate =
+                    item.total_sessions > 0
+                      ? Math.round((item.present_sessions / item.total_sessions) * 100)
+                      : 0;
+
+                  return (
+                    <TableRow key={`${item.sibling_id}-${item.student_id}-${item.site_id}`}>
+                      <TableCell>{item.site_name}</TableCell>
+                      <TableCell>{item.student_initials}</TableCell>
+                      <TableCell>{item.sibling_name}</TableCell>
+                      <TableCell align="right">{item.present_sessions}</TableCell>
+                      <TableCell align="right">{item.total_sessions}</TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          color={rowRate >= 80 ? "success.main" : "text.primary"}
+                          fontWeight={rowRate >= 80 ? 600 : 400}
+                        >
+                          {rowRate}%
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </SectionCard>
       )}
-
-      {error && <Alert severity="error">Failed to load sibling participation report.</Alert>}
-
-      {!isLoading && !error && items.length === 0 && (
-        <Alert severity="info">No sibling participation records found for the selected filters.</Alert>
-      )}
-
-      {!isLoading && !error && items.length > 0 && (
-        <TableContainer component={Card} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Location</TableCell>
-                <TableCell>Student</TableCell>
-                <TableCell>Sibling</TableCell>
-                <TableCell align="right">Present</TableCell>
-                <TableCell align="right">Total</TableCell>
-                <TableCell align="right">Rate</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((item) => {
-                const rowRate = item.total_sessions > 0 ? Math.round((item.present_sessions / item.total_sessions) * 100) : 0;
-
-                return (
-                  <TableRow key={`${item.sibling_id}-${item.student_id}-${item.site_id}`}>
-                    <TableCell>{item.site_name}</TableCell>
-                    <TableCell>{item.student_initials}</TableCell>
-                    <TableCell>{item.sibling_name}</TableCell>
-                    <TableCell align="right">{item.present_sessions}</TableCell>
-                    <TableCell align="right">{item.total_sessions}</TableCell>
-                    <TableCell align="right">{rowRate}%</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-    </Box>
+      </Stack>
+    </PageContainer>
   );
 }

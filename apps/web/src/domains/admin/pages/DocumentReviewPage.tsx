@@ -1,12 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,11 +13,26 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import {
+  Description as DocIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as RejectIcon,
+} from "@mui/icons-material";
 import type { AxiosError } from "axios";
-import { useDocumentHttpService, type Document } from "../../documents/services/DocumentHttpService";
+import {
+  useDocumentHttpService,
+  type Document,
+} from "../../documents/services/DocumentHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 import { useStudentHttpService } from "../../students/services/StudentHttpService";
 import { useServerTable } from "../../global/hooks/useServerTable";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import CardGridSkeleton from "../../global/components/skeletons/CardGridSkeleton";
+import { formatDateTime } from "../../../utils/formatDate";
 
 export default function DocumentReviewPage() {
   const documentService = useDocumentHttpService();
@@ -55,7 +66,7 @@ export default function DocumentReviewPage() {
     return map;
   }, [studentsResponse]);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: [documentService.key, "pending-review", table.queryParams],
     queryFn: () =>
       documentService.queries.index({
@@ -69,8 +80,11 @@ export default function DocumentReviewPage() {
   const pendingDocuments = useMemo(() => (data?.items ?? []) as Document[], [data]);
 
   const reviewMutation = useMutation({
-    mutationFn: (payload: { id: string; status: "approved" | "rejected"; review_notes?: string }) =>
-      documentService.mutations.review(payload),
+    mutationFn: (payload: {
+      id: string;
+      status: "approved" | "rejected";
+      review_notes?: string;
+    }) => documentService.mutations.review(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [documentService.key] });
       toast.success("Document review saved");
@@ -82,32 +96,38 @@ export default function DocumentReviewPage() {
     },
   });
 
-  if (isLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-        <CircularProgress size={28} />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return <Alert severity="error">Failed to load pending document reviews.</Alert>;
-  }
-
   return (
-    <Box>
-      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        Document Reviews
-      </Typography>
+    <PageContainer>
+      <PageHeader title="Document Reviews" />
 
-      {pendingDocuments.length === 0 ? (
-        <Alert severity="info">No pending pre-reports or graduation speeches.</Alert>
+      {isLoading ? (
+        <CardGridSkeleton />
+      ) : error ? (
+        <ErrorAlert
+          message="Failed to load pending document reviews."
+          onRetry={() => refetch()}
+        />
+      ) : pendingDocuments.length === 0 ? (
+        <SectionCard>
+          <EmptyState
+            icon={<DocIcon sx={{ fontSize: 48 }} />}
+            title="All Caught Up"
+            description="No pending pre-reports or graduation speeches to review."
+          />
+        </SectionCard>
       ) : (
-        <Stack spacing={2}>
-          {pendingDocuments.map((doc) => (
-            <Card key={doc.id} variant="outlined">
-              <CardContent>
-                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+        <>
+          <Stack spacing={2}>
+            {pendingDocuments.map((doc) => (
+              <SectionCard key={doc.id}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 2,
+                    flexDirection: { xs: "column", sm: "row" },
+                  }}
+                >
                   <Box>
                     <Typography variant="h6">{doc.file_name}</Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -117,7 +137,7 @@ export default function DocumentReviewPage() {
                       Student: {studentNameById.get(doc.entity_id) || doc.entity_id}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Uploaded: {new Date(doc.created_at).toLocaleString()}
+                      Uploaded: {formatDateTime(doc.created_at)}
                     </Typography>
                   </Box>
 
@@ -126,6 +146,8 @@ export default function DocumentReviewPage() {
                     <Button
                       size="small"
                       variant="outlined"
+                      startIcon={<ApproveIcon />}
+                      aria-label={`Approve ${doc.file_name}`}
                       onClick={() => {
                         setSelectedDocument(doc);
                         setAction("approved");
@@ -137,6 +159,8 @@ export default function DocumentReviewPage() {
                       size="small"
                       variant="outlined"
                       color="error"
+                      startIcon={<RejectIcon />}
+                      aria-label={`Reject ${doc.file_name}`}
                       onClick={() => {
                         setSelectedDocument(doc);
                         setAction("rejected");
@@ -146,42 +170,46 @@ export default function DocumentReviewPage() {
                     </Button>
                   </Stack>
                 </Box>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
+              </SectionCard>
+            ))}
+          </Stack>
+
+          <TablePagination
+            rowsPerPageOptions={[10, 20, 50]}
+            component="div"
+            count={data?.total ?? 0}
+            rowsPerPage={table.limit}
+            page={Math.max(table.page - 1, 0)}
+            onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+          />
+        </>
       )}
 
-      {pendingDocuments.length > 0 && (
-        <TablePagination
-          rowsPerPageOptions={[10, 20, 50]}
-          component="div"
-          count={data?.total ?? 0}
-          rowsPerPage={table.limit}
-          page={Math.max(table.page - 1, 0)}
-          onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
-          onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
-        />
-      )}
-
-      <Dialog open={!!selectedDocument && !!action} onClose={closeDialog}>
-        <DialogTitle>{action === "approved" ? "Approve" : "Reject"} document</DialogTitle>
+      {/* Review Dialog */}
+      <Dialog open={!!selectedDocument && !!action} onClose={closeDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{action === "approved" ? "Approve" : "Reject"} Document</DialogTitle>
         <DialogContent>
           <TextField
             label="Review notes"
             value={notes}
-            onChange={(event) => setNotes((event.target as unknown as { value: string }).value)}
+            onChange={(event) =>
+              setNotes((event.target as unknown as { value: string }).value)
+            }
             multiline
             minRows={3}
             fullWidth
             sx={{ mt: 1 }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDialog}>Cancel</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={closeDialog} disabled={reviewMutation.isPending}>
+            Cancel
+          </Button>
           <Button
             variant="contained"
             color={action === "approved" ? "primary" : "error"}
+            disabled={reviewMutation.isPending}
             onClick={() => {
               if (!selectedDocument || !action) return;
               reviewMutation.mutate({
@@ -191,10 +219,10 @@ export default function DocumentReviewPage() {
               });
             }}
           >
-            Save
+            {reviewMutation.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

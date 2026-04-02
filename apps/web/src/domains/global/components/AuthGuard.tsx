@@ -22,9 +22,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
           bgcolor: "background.default",
         }}
       >
-        <CircularProgress size={48} />
-        <Typography variant="body1" color="text.secondary">
-          Loading...
+        <CircularProgress size={40} />
+        <Typography variant="body2" color="text.secondary">
+          Loading your session...
         </Typography>
       </Box>
     );

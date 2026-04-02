@@ -1,4 +1,4 @@
-import { Card, CardContent, CardActionArea, Typography, Box, Chip, Stack } from "@mui/material";
+import { CardActionArea, Typography, Box, Chip, Stack, Paper, CardContent } from "@mui/material";
 import PublicIcon from "@mui/icons-material/Public";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -8,6 +8,7 @@ import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import BlockIcon from "@mui/icons-material/Block";
 import HowToRegIcon from "@mui/icons-material/HowToReg";
 import type { Bulletin, BulletinScope, BulletinRoleTarget } from "../services/BulletinHttpService";
+import { formatDate } from "../../../utils/formatDate";
 
 interface BulletinCardProps {
   bulletin: Bulletin;
@@ -39,16 +40,6 @@ function getRoleTargetChip(roleTarget: BulletinRoleTarget) {
   return <Chip label={labels[roleTarget]} size="small" variant="outlined" />;
 }
 
-function formatDate(dateString: string | null): string {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 function truncateText(text: string | null, maxLength: number): string {
   if (!text) return "";
   if (text.length <= maxLength) return text;
@@ -66,7 +57,7 @@ export default function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
   };
 
   return (
-    <Card sx={{ mb: 2 }}>
+    <Paper sx={{ mb: 2 }}>
       <CardActionArea onClick={handleClick} disabled={!onClick}>
         <CardContent>
           {/* Header with badges */}
@@ -141,7 +132,9 @@ export default function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
           )}
 
           {/* Footer with date and author */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box
+            sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          >
             <Typography variant="caption" color="text.secondary">
               {formatDate(publishDate)}
               {bulletin.created_by_name && ` by ${bulletin.created_by_name}`}
@@ -157,6 +150,6 @@ export default function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
           </Box>
         </CardContent>
       </CardActionArea>
-    </Card>
+    </Paper>
   );
 }

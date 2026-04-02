@@ -1,6 +1,4 @@
 import {
-  Alert,
-  Box,
   Paper,
   Table,
   TableBody,
@@ -9,53 +7,88 @@ import {
   TableHead,
   TablePagination,
   TableRow,
-  Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import type { ReactNode } from "react";
 import { TableSkeleton } from "./skeletons";
+import ErrorAlert from "./ErrorAlert";
+import EmptyState from "./EmptyState";
 
 export interface DataTableColumn {
   key: string;
   label: string;
   align?: "left" | "right" | "center";
+  /** Hide this column at the given breakpoint and below. */
+  hideBelow?: "sm" | "md" | "lg";
 }
 
 interface DataTableProps {
   columns: DataTableColumn[];
   loading: boolean;
   error?: unknown;
+  /** Called when the user clicks "Retry" on the error alert. */
+  onRetry?: () => void;
   total: number;
   page: number;
   rowsPerPage: number;
   onPageChange: (page: number) => void;
   onRowsPerPageChange: (rowsPerPage: number) => void;
-  emptyMessage?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyIcon?: ReactNode;
   children: ReactNode;
 }
 
+/**
+ * Enhanced DataTable with:
+ * - SectionCard wrapper (white Paper on grey background)
+ * - Responsive column hiding via `hideBelow`
+ * - ErrorAlert with retry button
+ * - EmptyState with icon + description
+ */
 export function DataTable({
   columns,
   loading,
   error,
+  onRetry,
   total,
   page,
   rowsPerPage,
   onPageChange,
   onRowsPerPageChange,
-  emptyMessage = "No results found",
+  emptyTitle = "No results found",
+  emptyDescription,
+  emptyIcon,
   children,
 }: DataTableProps) {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
+  const isLgDown = useMediaQuery(theme.breakpoints.down("lg"));
+
   if (loading) {
     return <TableSkeleton columns={columns.length} rows={8} />;
   }
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        Failed to load records.
-      </Alert>
+      <ErrorAlert
+        message="Failed to load records."
+        onRetry={onRetry}
+      />
     );
   }
+
+  const shouldHide = (col: DataTableColumn): boolean => {
+    if (!col.hideBelow) return false;
+    if (col.hideBelow === "sm") return isSmDown;
+    if (col.hideBelow === "md") return isMdDown;
+    if (col.hideBelow === "lg") return isLgDown;
+    return false;
+  };
+
+  const visibleColumns = columns.filter((col) => !shouldHide(col));
 
   return (
     <Paper>
@@ -63,7 +96,7 @@ export function DataTable({
         <Table>
           <TableHead>
             <TableRow>
-              {columns.map((column) => (
+              {visibleColumns.map((column) => (
                 <TableCell key={column.key} align={column.align ?? "left"}>
                   {column.label}
                 </TableCell>
@@ -75,9 +108,11 @@ export function DataTable({
       </TableContainer>
 
       {total === 0 && (
-        <Box sx={{ p: 3, textAlign: "center" }}>
-          <Typography color="text.secondary">{emptyMessage}</Typography>
-        </Box>
+        <EmptyState
+          icon={emptyIcon}
+          title={emptyTitle}
+          description={emptyDescription}
+        />
       )}
 
       <TablePagination
@@ -91,4 +126,28 @@ export function DataTable({
       />
     </Paper>
   );
+}
+
+/**
+ * Utility hook: returns a function to check if a column should be hidden.
+ * Useful in table row rendering to skip cells for hidden columns.
+ */
+export function useResponsiveColumns(columns: DataTableColumn[]) {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
+  const isLgDown = useMediaQuery(theme.breakpoints.down("lg"));
+
+  const isHidden = (col: DataTableColumn): boolean => {
+    if (!col.hideBelow) return false;
+    if (col.hideBelow === "sm") return isSmDown;
+    if (col.hideBelow === "md") return isMdDown;
+    if (col.hideBelow === "lg") return isLgDown;
+    return false;
+  };
+
+  return {
+    visibleColumns: columns.filter((col) => !isHidden(col)),
+    isHidden,
+  };
 }

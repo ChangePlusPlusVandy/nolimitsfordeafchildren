@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router";
+import { useParams } from "react-router";
 import {
   Box,
   Typography,
-  Paper,
   Avatar,
   Chip,
-  Skeleton,
-  Alert,
   Stack,
   Divider,
   Button,
@@ -17,9 +14,9 @@ import {
   ListItemIcon,
   ListItemText,
   LinearProgress,
+  Paper,
 } from "@mui/material";
 import {
-  ArrowBack as ArrowBackIcon,
   Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
@@ -37,6 +34,13 @@ import {
 import { useParentHttpService, type ChildScheduleSession } from "../services/ParentHttpService";
 import RequestMakeupModal from "../components/RequestMakeupModal";
 import { useHttpClient } from "../../../plugins/axios";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import DetailPageSkeleton from "../../global/components/skeletons/DetailPageSkeleton";
+import { formatDate, formatTime } from "../../../utils/formatDate";
 
 interface ChildPhoto {
   id: string;
@@ -52,23 +56,6 @@ interface ChildPhoto {
     id: string;
     initials: string;
   } | null;
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
 }
 
 function calculateAge(dob: string): number {
@@ -169,29 +156,8 @@ function SessionItem({
   );
 }
 
-function LoadingSkeleton() {
-  return (
-    <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-        <Skeleton variant="circular" width={40} height={40} />
-        <Skeleton variant="text" width={200} />
-      </Stack>
-      <Stack direction="row" spacing={3} sx={{ mb: 3 }}>
-        <Skeleton variant="circular" width={80} height={80} />
-        <Box sx={{ flex: 1 }}>
-          <Skeleton variant="text" width="40%" />
-          <Skeleton variant="text" width="30%" />
-        </Box>
-      </Stack>
-      <Skeleton variant="rounded" height={200} sx={{ mb: 3 }} />
-      <Skeleton variant="rounded" height={150} />
-    </Box>
-  );
-}
-
 export default function ChildDetailsPage() {
   const { studentId } = useParams<{ studentId: string }>();
-  const navigate = useNavigate();
   const parentHttpService = useParentHttpService();
   const httpClient = useHttpClient();
 
@@ -207,6 +173,7 @@ export default function ChildDetailsPage() {
     data: child,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: [parentHttpService.key, "childDetails", studentId],
     queryFn: () => parentHttpService.queries.childDetails(studentId!),
@@ -229,39 +196,48 @@ export default function ChildDetailsPage() {
   });
 
   if (isLoading) {
-    return <LoadingSkeleton />;
+    return (
+      <PageContainer>
+        <DetailPageSkeleton />
+      </PageContainer>
+    );
   }
 
   if (error || !child) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/my-students")}
-          sx={{ mb: 2 }}
-        >
-          Back to My Students
-        </Button>
-        <Alert severity="error">Failed to load child details. Please try again later.</Alert>
-      </Box>
+      <PageContainer>
+        <PageHeader
+          title="Child Details"
+          back="/my-students"
+          breadcrumbs={[
+            { label: "My Students", href: "/my-students" },
+            { label: "Details" },
+          ]}
+        />
+        <ErrorAlert
+          message="Failed to load child details. Please try again."
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
     );
   }
 
   const attendanceRate = child.attendance_summary.attendance_rate;
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Back Button */}
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate("/my-students")}
-        sx={{ mb: 3 }}
-      >
-        Back to My Students
-      </Button>
+    <PageContainer>
+      <PageHeader
+        title={`${child.first_name} ${child.last_name}`}
+        back="/my-students"
+        breadcrumbs={[
+          { label: "My Students", href: "/my-students" },
+          { label: `${child.first_name} ${child.last_name}` },
+        ]}
+      />
 
+      <Stack spacing={3}>
       {/* Header with Avatar and Basic Info */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <SectionCard>
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={3}
@@ -280,14 +256,12 @@ export default function ChildDetailsPage() {
             {child.initials}
           </Avatar>
           <Box sx={{ flex: 1, textAlign: { xs: "center", sm: "left" } }}>
-            <Typography variant="h4" gutterBottom>
-              {child.first_name} {child.last_name}
-            </Typography>
             <Stack
               direction={{ xs: "column", sm: "row" }}
-              spacing={2}
+              spacing={1}
               alignItems={{ xs: "center", sm: "flex-start" }}
               flexWrap="wrap"
+              useFlexGap
             >
               <Chip
                 icon={<LocationIcon />}
@@ -322,13 +296,10 @@ export default function ChildDetailsPage() {
             </Stack>
           </Box>
         </Stack>
-      </Paper>
+      </SectionCard>
 
       {/* Attendance Summary */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Attendance Summary
-        </Typography>
+      <SectionCard title="Attendance Summary">
         <Box sx={{ mb: 2 }}>
           <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="body2">{attendanceRate.toFixed(0)}% Attendance Rate</Typography>
@@ -365,67 +336,61 @@ export default function ChildDetailsPage() {
             size="small"
           />
         </Stack>
-      </Paper>
+      </SectionCard>
 
       {/* Pending Requests Banner */}
       {(child.pending_makeup_requests > 0 || child.pending_schedule_change_requests > 0) && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          You have {child.pending_makeup_requests + child.pending_schedule_change_requests} pending
-          request(s) being reviewed.
-        </Alert>
+        <Box>
+          <ErrorAlert
+            message={`You have ${child.pending_makeup_requests + child.pending_schedule_change_requests} pending request(s) being reviewed.`}
+            sx={{ mb: 0 }}
+          />
+        </Box>
       )}
 
       {/* Two Column Layout for Sessions */}
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mb: 3 }}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
         {/* Upcoming Sessions */}
-        <Paper sx={{ p: 3, flex: "1 1 400px", minWidth: 0 }}>
-          <Typography variant="h6" gutterBottom>
-            <ScheduleIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            Upcoming Sessions
-          </Typography>
-          {child.upcoming_sessions.length === 0 ? (
-            <Typography color="text.secondary">No upcoming sessions scheduled.</Typography>
-          ) : (
-            <List disablePadding>
-              {child.upcoming_sessions.slice(0, 5).map((session, idx) => (
-                <SessionItem
-                  key={`${session.schedule_id}-${session.date}-${idx}`}
-                  session={session}
-                  showStatus={false}
-                />
-              ))}
-            </List>
-          )}
-        </Paper>
+        <Box sx={{ flex: "1 1 400px", minWidth: 0 }}>
+          <SectionCard title="Upcoming Sessions" icon={<ScheduleIcon />}>
+            {child.upcoming_sessions.length === 0 ? (
+              <Typography color="text.secondary">No upcoming sessions scheduled.</Typography>
+            ) : (
+              <List disablePadding>
+                {child.upcoming_sessions.slice(0, 5).map((session, idx) => (
+                  <SessionItem
+                    key={`${session.schedule_id}-${session.date}-${idx}`}
+                    session={session}
+                    showStatus={false}
+                  />
+                ))}
+              </List>
+            )}
+          </SectionCard>
+        </Box>
 
         {/* Recent Sessions */}
-        <Paper sx={{ p: 3, flex: "1 1 400px", minWidth: 0 }}>
-          <Typography variant="h6" gutterBottom>
-            <CalendarIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            Recent Sessions
-          </Typography>
-          {child.recent_sessions.length === 0 ? (
-            <Typography color="text.secondary">No recent sessions.</Typography>
-          ) : (
-            <List disablePadding>
-              {child.recent_sessions.slice(0, 5).map((session, idx) => (
-                <SessionItem
-                  key={`${session.schedule_id}-${session.date}-${idx}`}
-                  session={session}
-                />
-              ))}
-            </List>
-          )}
-        </Paper>
+        <Box sx={{ flex: "1 1 400px", minWidth: 0 }}>
+          <SectionCard title="Recent Sessions" icon={<CalendarIcon />}>
+            {child.recent_sessions.length === 0 ? (
+              <Typography color="text.secondary">No recent sessions.</Typography>
+            ) : (
+              <List disablePadding>
+                {child.recent_sessions.slice(0, 5).map((session, idx) => (
+                  <SessionItem
+                    key={`${session.schedule_id}-${session.date}-${idx}`}
+                    session={session}
+                  />
+                ))}
+              </List>
+            )}
+          </SectionCard>
+        </Box>
       </Box>
 
       {/* Missed Sessions (can request makeup) */}
       {child.missed_sessions.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            <MissedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            Missed Sessions
-          </Typography>
+        <SectionCard title="Missed Sessions" icon={<MissedIcon />}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             You may request a make-up class for these missed sessions.
           </Typography>
@@ -469,16 +434,12 @@ export default function ChildDetailsPage() {
               </ListItem>
             ))}
           </List>
-        </Paper>
+        </SectionCard>
       )}
 
       {/* Relevant Bulletins */}
       {child.relevant_bulletins.length > 0 && (
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            <AnnouncementIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            Recent Announcements
-          </Typography>
+        <SectionCard title="Recent Announcements" icon={<AnnouncementIcon />}>
           <Stack spacing={2} divider={<Divider />}>
             {child.relevant_bulletins.map((bulletin) => (
               <Box key={bulletin.id}>
@@ -494,22 +455,18 @@ export default function ChildDetailsPage() {
                 )}
                 {bulletin.publish_at && (
                   <Typography variant="caption" color="text.secondary">
-                    {new Date(bulletin.publish_at).toLocaleDateString()}
+                    {formatDate(bulletin.publish_at)}
                   </Typography>
                 )}
               </Box>
             ))}
           </Stack>
-        </Paper>
+        </SectionCard>
       )}
 
       {/* Siblings */}
       {child.siblings.length > 0 && (
-        <Paper sx={{ p: 3, mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            <FamilyRestroomIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            Siblings
-          </Typography>
+        <SectionCard title="Siblings" icon={<FamilyRestroomIcon />}>
           <Stack spacing={1.5} divider={<Divider />}>
             {child.siblings.map((sibling) => (
               <Box key={sibling.id}>
@@ -525,17 +482,17 @@ export default function ChildDetailsPage() {
               </Box>
             ))}
           </Stack>
-        </Paper>
+        </SectionCard>
       )}
 
       {/* Photo Gallery */}
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          <PhotoLibraryIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-          Photo Gallery
-        </Typography>
+      <SectionCard title="Photo Gallery" icon={<PhotoLibraryIcon />}>
         {(photosData?.items.length || 0) === 0 ? (
-          <Typography color="text.secondary">No photos have been shared yet.</Typography>
+          <EmptyState
+            icon={<PhotoLibraryIcon sx={{ fontSize: 48 }} />}
+            title="No Photos Yet"
+            description="No photos have been shared yet."
+          />
         ) : (
           <Box
             sx={{
@@ -554,7 +511,7 @@ export default function ChildDetailsPage() {
                 />
                 <Box sx={{ p: 1.5 }}>
                   <Typography variant="body2" fontWeight={500}>
-                    {new Date(photo.session_date).toLocaleDateString()} - {photo.location.name}
+                    {formatDate(photo.session_date)} - {photo.location.name}
                   </Typography>
                   {photo.caption && (
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -566,15 +523,11 @@ export default function ChildDetailsPage() {
             ))}
           </Box>
         )}
-      </Paper>
+      </SectionCard>
 
       {/* Approved Documents */}
       {child.approved_documents.length > 0 && (
-        <Paper sx={{ p: 3, mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            <DescriptionIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            Approved Documents
-          </Typography>
+        <SectionCard title="Approved Documents" icon={<DescriptionIcon />}>
           <Stack spacing={1.5} divider={<Divider />}>
             {child.approved_documents.map((doc) => (
               <Box key={doc.id}>
@@ -583,10 +536,10 @@ export default function ChildDetailsPage() {
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Type: {doc.document_type.replace(/_/g, " ")}
-                  {doc.session_date ? ` • Session: ${new Date(doc.session_date).toLocaleDateString()}` : ""}
+                  {doc.session_date ? ` • Session: ${formatDate(doc.session_date)}` : ""}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
-                  {new Date(doc.created_at).toLocaleDateString()}
+                  {formatDate(doc.created_at)}
                 </Typography>
                 <Button
                   size="small"
@@ -602,8 +555,9 @@ export default function ChildDetailsPage() {
               </Box>
             ))}
           </Stack>
-        </Paper>
+        </SectionCard>
       )}
+      </Stack>
 
       {/* Request Make-Up Modal */}
       <RequestMakeupModal
@@ -615,6 +569,6 @@ export default function ChildDetailsPage() {
         studentId={studentId!}
         missedSession={selectedMissedSession}
       />
-    </Box>
+    </PageContainer>
   );
 }

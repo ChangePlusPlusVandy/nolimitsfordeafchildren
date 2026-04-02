@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
   Avatar,
   Box,
   Button,
@@ -19,13 +18,10 @@ import {
   ListItemAvatar,
   ListItemText,
   MenuItem,
-  Paper,
   Stack,
   TextField,
   Typography,
-  Snackbar,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import NotesIcon from "@mui/icons-material/Notes";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -36,11 +32,19 @@ import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SchoolIcon from "@mui/icons-material/School";
 import DescriptionIcon from "@mui/icons-material/Description";
+import PersonIcon from "@mui/icons-material/Person";
 import { useHttpClient } from "../../../plugins/axios";
 import { useStudentHttpService } from "../../students/services/StudentHttpService";
 import { DetailPageSkeleton } from "../../global/components/skeletons";
 import DocumentList from "../../students/components/DocumentList";
 import UploadDocumentModal from "../../students/pages/UploadDocumentModal";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import ConfirmDialog from "../../global/components/ConfirmDialog";
+import { useToast } from "../../global/components/ToastProvider";
+import { formatDate, formatDateTime } from "../../../utils/formatDate";
 
 interface SessionNote {
   id: string;
@@ -104,7 +108,6 @@ function calculateAge(dob: string): number {
 
 export default function TeacherStudentDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const httpClient = useHttpClient();
   const studentHttpService = useStudentHttpService();
@@ -126,8 +129,8 @@ export default function TeacherStudentDetailsPage() {
   const [uploadType, setUploadType] = useState<"pre_report" | "graduation_speech" | null>(null);
   const [guardianSummaryEditOpen, setGuardianSummaryEditOpen] = useState(false);
   const [guardianSummaryDraft, setGuardianSummaryDraft] = useState("");
-  const [saveMessageText, setSaveMessageText] = useState("");
-  const [saveMessageOpen, setSaveMessageOpen] = useState(false);
+  const [deleteNoteTarget, setDeleteNoteTarget] = useState<string | null>(null);
+  const toast = useToast();
 
   const {
     data: student,
@@ -185,6 +188,10 @@ export default function TeacherStudentDetailsPage() {
       setNoteDialogOpen(false);
       setNoteText("");
       setEditingNote(null);
+      toast.success("Note saved");
+    },
+    onError: () => {
+      toast.error("Failed to save note");
     },
   });
 
@@ -198,6 +205,10 @@ export default function TeacherStudentDetailsPage() {
       setNoteDialogOpen(false);
       setNoteText("");
       setEditingNote(null);
+      toast.success("Note updated");
+    },
+    onError: () => {
+      toast.error("Failed to update note");
     },
   });
 
@@ -207,6 +218,11 @@ export default function TeacherStudentDetailsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["session-notes", id, "teacher-scope"] });
+      setDeleteNoteTarget(null);
+      toast.success("Note deleted");
+    },
+    onError: () => {
+      toast.error("Failed to delete note");
     },
   });
 
@@ -220,8 +236,10 @@ export default function TeacherStudentDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
       setGuardianSummaryEditOpen(false);
-      setSaveMessageText("Guardian summary updated");
-      setSaveMessageOpen(true);
+      toast.success("Guardian summary updated");
+    },
+    onError: () => {
+      toast.error("Failed to update guardian summary");
     },
   });
 
@@ -257,6 +275,10 @@ export default function TeacherStudentDetailsPage() {
       setAssessmentFocuses([{ goal: "", score: 0, max_score: 10 }]);
       setAssessmentScore("10");
       setAssessmentNotes("");
+      toast.success("Assessment saved");
+    },
+    onError: () => {
+      toast.error("Failed to save assessment");
     },
   });
 
@@ -278,8 +300,10 @@ export default function TeacherStudentDetailsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assessments", id, "teacher-scope"] });
-      setSaveMessageText("Assessment cloned");
-      setSaveMessageOpen(true);
+      toast.success("Assessment cloned");
+    },
+    onError: () => {
+      toast.error("Failed to clone assessment");
     },
   });
 
@@ -305,14 +329,12 @@ export default function TeacherStudentDetailsPage() {
 
   if (studentError || !student) {
     return (
-      <Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
-          Back
-        </Button>
-        <Alert severity="error">
-          {studentError instanceof Error ? studentError.message : "Student not found or access denied"}
-        </Alert>
-      </Box>
+      <PageContainer>
+        <PageHeader title="Student Details" back="/my-day" breadcrumbs={[{ label: "My Day", href: "/my-day" }, { label: "Student Details" }]} />
+        <ErrorAlert
+          message={studentError instanceof Error ? studentError.message : "Student not found or access denied"}
+        />
+      </PageContainer>
     );
   }
 
@@ -353,19 +375,13 @@ export default function TeacherStudentDetailsPage() {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Typography variant="h4" sx={{ flex: 1 }}>
-          Student Details
-        </Typography>
-      </Box>
+    <PageContainer>
+      <PageHeader title="Student Details" back="/my-day" breadcrumbs={[{ label: "My Day", href: "/my-day" }, { label: "Student Details" }]} />
 
       <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3 }}>
         <Box sx={{ flex: 1 }}>
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <Stack spacing={3}>
+          <SectionCard title="Profile" icon={<PersonIcon />}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <Avatar sx={{ width: 64, height: 64, bgcolor: "primary.main", fontSize: "1.4rem" }}>
                 {student.initials}
@@ -426,16 +442,12 @@ export default function TeacherStudentDetailsPage() {
             <Typography>
               {student.guardian_summary?.trim() ? student.guardian_summary : "No guardian summary recorded."}
             </Typography>
-          </Paper>
+          </SectionCard>
 
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box
-              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
-            >
-              <Typography variant="h6">
-                <DescriptionIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Documents
-              </Typography>
+          <SectionCard
+            title="Documents"
+            icon={<DescriptionIcon />}
+            actions={
               <Stack direction="row" spacing={1}>
                 <Button
                   size="small"
@@ -458,23 +470,23 @@ export default function TeacherStudentDetailsPage() {
                   Speech
                 </Button>
               </Stack>
-            </Box>
+            }
+          >
             <DocumentList studentId={id!} reviewStatusFilter="approved" />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
               Pre-reports and graduation speeches appear here after admin approval.
             </Typography>
-          </Paper>
+          </SectionCard>
 
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-              <Typography variant="h6">
-                <NotesIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Session Notes
-              </Typography>
+          <SectionCard
+            title="Session Notes"
+            icon={<NotesIcon />}
+            actions={
               <Button size="small" startIcon={<AddIcon />} onClick={openAddNoteDialog}>
                 Add Note
               </Button>
-            </Box>
+            }
+          >
 
             {isNotesLoading && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
@@ -482,7 +494,12 @@ export default function TeacherStudentDetailsPage() {
               </Box>
             )}
 
-            {notesError && <Alert severity="error">Failed to load notes.</Alert>}
+            {notesError && (
+              <ErrorAlert
+                message="Failed to load notes."
+                onRetry={() => queryClient.invalidateQueries({ queryKey: ["session-notes", id, "teacher-scope"] })}
+              />
+            )}
 
             {!isNotesLoading && notes.length === 0 && (
               <Typography color="text.secondary">No notes yet.</Typography>
@@ -497,13 +514,14 @@ export default function TeacherStudentDetailsPage() {
                       sx={{ px: 0 }}
                       secondaryAction={
                         <Stack direction="row" spacing={0.5}>
-                          <IconButton size="small" onClick={() => openEditNoteDialog(note)}>
+                          <IconButton size="small" onClick={() => openEditNoteDialog(note)} aria-label="Edit note">
                             <EditIcon fontSize="small" />
                           </IconButton>
                           <IconButton
                             size="small"
                             color="error"
-                            onClick={() => deleteNoteMutation.mutate(note.id)}
+                            onClick={() => setDeleteNoteTarget(note.id)}
+                            aria-label="Delete note"
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -517,25 +535,24 @@ export default function TeacherStudentDetailsPage() {
                       </ListItemAvatar>
                       <ListItemText
                         primary={note.note}
-                        secondary={new Date(note.created_at).toLocaleString()}
+                        secondary={formatDateTime(note.created_at)}
                       />
                     </ListItem>
                   </Box>
                 ))}
               </List>
             )}
-          </Paper>
+          </SectionCard>
 
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-              <Typography variant="h6">
-                <AssessmentIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Assessments
-              </Typography>
+          <SectionCard
+            title="Assessments"
+            icon={<AssessmentIcon />}
+            actions={
               <Button size="small" startIcon={<AddIcon />} onClick={() => setAssessmentDialogOpen(true)}>
                 Add Assessment
               </Button>
-            </Box>
+            }
+          >
 
             {isAssessmentsLoading && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
@@ -543,7 +560,12 @@ export default function TeacherStudentDetailsPage() {
               </Box>
             )}
 
-            {assessmentsError && <Alert severity="error">Failed to load assessments.</Alert>}
+            {assessmentsError && (
+              <ErrorAlert
+                message="Failed to load assessments."
+                onRetry={() => queryClient.invalidateQueries({ queryKey: ["assessments", id, "teacher-scope"] })}
+              />
+            )}
 
             {!isAssessmentsLoading && assessmentCycles.length === 0 && (
               <Typography color="text.secondary">No assessments yet.</Typography>
@@ -556,7 +578,7 @@ export default function TeacherStudentDetailsPage() {
                     {index > 0 && <Divider />}
                     <ListItem sx={{ px: 0 }}>
                       <ListItemText
-                        primary={`Cycle ${new Date(cycle.cycle_start_date).toLocaleDateString()}`}
+                        primary={`Cycle ${formatDate(cycle.cycle_start_date)}`}
                         secondary={
                           <>
                             <Typography component="span" variant="body2">
@@ -619,15 +641,12 @@ export default function TeacherStudentDetailsPage() {
                 ))}
               </List>
             )}
-          </Paper>
+          </SectionCard>
+          </Stack>
         </Box>
 
         <Box sx={{ width: { xs: "100%", lg: 360 } }}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              <EventAvailableIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-              Attendance Summary
-            </Typography>
+          <SectionCard title="Attendance Summary" icon={<EventAvailableIcon />}>
 
             {attendanceOverview ? (
               <Stack spacing={1}>
@@ -648,8 +667,8 @@ export default function TeacherStudentDetailsPage() {
                   <List dense sx={{ p: 0 }}>
                     {attendanceOverview.recent_entries.map((entry) => (
                       <ListItem key={entry.id} sx={{ px: 0 }}>
-                        <ListItemText
-                          primary={new Date(entry.session_date).toLocaleDateString()}
+                         <ListItemText
+                          primary={formatDate(entry.session_date)}
                           secondary={
                             <Chip
                               size="small"
@@ -673,7 +692,7 @@ export default function TeacherStudentDetailsPage() {
             ) : (
               <Typography color="text.secondary">Attendance data unavailable.</Typography>
             )}
-          </Paper>
+          </SectionCard>
         </Box>
       </Box>
 
@@ -692,7 +711,7 @@ export default function TeacherStudentDetailsPage() {
             sx={{ mt: 1 }}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setNoteDialogOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -720,7 +739,7 @@ export default function TeacherStudentDetailsPage() {
       >
         <DialogTitle>Add Assessment</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             <TextField
               select
               label="Assessment Type"
@@ -852,7 +871,7 @@ export default function TeacherStudentDetailsPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setAssessmentDialogOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -900,7 +919,7 @@ export default function TeacherStudentDetailsPage() {
             sx={{ mt: 1 }}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setGuardianSummaryEditOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -912,12 +931,18 @@ export default function TeacherStudentDetailsPage() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={saveMessageOpen}
-        autoHideDuration={3000}
-        onClose={() => setSaveMessageOpen(false)}
-        message={saveMessageText || "Saved"}
+      <ConfirmDialog
+        open={deleteNoteTarget !== null}
+        title="Delete Note"
+        message="Are you sure you want to delete this session note? This action cannot be undone."
+        confirmLabel="Delete"
+        confirmColor="error"
+        loading={deleteNoteMutation.isPending}
+        onConfirm={() => {
+          if (deleteNoteTarget) deleteNoteMutation.mutate(deleteNoteTarget);
+        }}
+        onCancel={() => setDeleteNoteTarget(null)}
       />
-    </Box>
+    </PageContainer>
   );
 }

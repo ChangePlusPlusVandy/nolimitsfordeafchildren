@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router";
+import { useParams } from "react-router";
 import {
   Box,
-  Typography,
-  Paper,
   TextField,
   Select,
   MenuItem,
@@ -12,7 +10,6 @@ import {
   InputLabel,
   Button,
   Chip,
-  Alert,
   Divider,
   Switch,
   FormControlLabel,
@@ -21,17 +18,24 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Skeleton,
   Avatar,
   List,
   ListItem,
   ListItemText,
   IconButton,
+  Stack,
+  Typography,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import ConfirmDialog from "../../global/components/ConfirmDialog";
+import { DetailPageSkeleton } from "../../global/components/skeletons";
+import { formatDateTime, formatDate } from "../../../utils/formatDate";
 import {
   useUserHttpService,
   type UserRole,
@@ -41,12 +45,10 @@ import { useToast } from "../../global/components/ToastProvider";
 
 export default function UserDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const userHttpService = useUserHttpService();
   const toast = useToast();
 
-  // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -54,22 +56,22 @@ export default function UserDetailsPage() {
   const [role, setRole] = useState<UserRole>("parent");
   const [isEditing, setIsEditing] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
+  const [showUnlinkDialog, setShowUnlinkDialog] = useState<string | null>(null);
   const [linkStudentDialogOpen, setLinkStudentDialogOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [linkRelationship, setLinkRelationship] = useState("");
 
-  // Fetch user
   const {
     data: user,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: [userHttpService.key, "show", id],
     queryFn: () => userHttpService.queries.show(id!),
     enabled: !!id,
   });
 
-  // Initialize form when user data loads
   useEffect(() => {
     if (user) {
       setName(user.name);
@@ -80,7 +82,6 @@ export default function UserDetailsPage() {
     }
   }, [user]);
 
-  // Update mutation
   const updateMutation = useMutation({
     mutationFn: (data: UpdateUserInput & { id: string }) => userHttpService.mutations.update(data),
     onSuccess: () => {
@@ -93,7 +94,6 @@ export default function UserDetailsPage() {
     },
   });
 
-  // Disable mutation
   const disableMutation = useMutation({
     mutationFn: () => userHttpService.mutations.disable(id!),
     onSuccess: () => {
@@ -106,7 +106,6 @@ export default function UserDetailsPage() {
     },
   });
 
-  // Enable mutation
   const enableMutation = useMutation({
     mutationFn: () => userHttpService.mutations.enable(id!),
     onSuccess: () => {
@@ -145,12 +144,10 @@ export default function UserDetailsPage() {
 
   const unlinkStudentMutation = useMutation({
     mutationFn: (studentId: string) =>
-      userHttpService.mutations.unlinkStudent({
-        userId: id!,
-        studentId,
-      }),
+      userHttpService.mutations.unlinkStudent({ userId: id!, studentId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [userHttpService.key, "show", id] });
+      setShowUnlinkDialog(null);
       toast.success("Student unlinked from parent");
     },
     onError: () => {
@@ -179,94 +176,65 @@ export default function UserDetailsPage() {
   };
 
   const roleLabel = (value: UserRole): string => {
-    if (value === "parent") {
-      return "Parent/Guardian";
-    }
-
-    if (value === "unassigned") {
-      return "Pending Approval";
-    }
-
+    if (value === "parent") return "Parent/Guardian";
+    if (value === "unassigned") return "Pending Approval";
     return value;
   };
 
+  const breadcrumbs = [
+    { label: "Users", href: "/users" },
+    { label: user?.name ?? "User Details" },
+  ];
+
   if (isLoading) {
     return (
-      <Box>
-        {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-          <Skeleton variant="rounded" width={80} height={36} />
-          <Skeleton variant="text" width={200} height={40} />
-        </Box>
-        {/* Status chips */}
-        <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
-          <Skeleton variant="rounded" width={100} height={32} />
-          <Skeleton variant="rounded" width={80} height={32} />
-        </Box>
-        {/* Form skeleton */}
-        <Paper sx={{ p: 3 }}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} variant="rounded" height={56} />
-            ))}
-            <Skeleton variant="rectangular" height={1} />
-            <Box>
-              <Skeleton variant="text" width={120} />
-              <Skeleton variant="rounded" width={100} height={38} />
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
+      <PageContainer>
+        <DetailPageSkeleton />
+      </PageContainer>
     );
   }
 
   if (error || !user) {
     return (
-      <Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/users")}>
-          Back to Users
-        </Button>
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error ? "Failed to load user" : "User not found"}
-        </Alert>
-      </Box>
+      <PageContainer>
+        <PageHeader title="User Details" back="/users" breadcrumbs={breadcrumbs} />
+        <ErrorAlert
+          message={error ? "Failed to load user." : "User not found."}
+          onRetry={error ? () => refetch() : undefined}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Avatar src={(isEditing ? photoUrl : user.photo_url) || undefined} sx={{ width: 56, height: 56 }}>
-          {user.name.charAt(0)}
-        </Avatar>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/users")}>
-          Back
-        </Button>
-        <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
-          User Details
-        </Typography>
-        {!isEditing ? (
-          <Button variant="outlined" onClick={() => setIsEditing(true)}>
-            Edit
-          </Button>
-        ) : (
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button
-              variant="contained"
-              startIcon={<SaveIcon />}
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-            >
-              Save
+    <PageContainer>
+      <PageHeader
+        title={user.name}
+        breadcrumbs={breadcrumbs}
+        back="/users"
+        actions={
+          !isEditing ? (
+            <Button variant="outlined" onClick={() => setIsEditing(true)}>
+              Edit
             </Button>
-          </Box>
-        )}
-      </Box>
+          ) : (
+            <Stack direction="row" spacing={1}>
+              <Button onClick={() => setIsEditing(false)}>Cancel</Button>
+              <Button
+                variant="contained"
+                startIcon={<SaveIcon />}
+                onClick={handleSave}
+                disabled={updateMutation.isPending}
+              >
+                Save
+              </Button>
+            </Stack>
+          )
+        }
+      />
 
       {/* Status chips */}
-      <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
         <Chip
           label={roleLabel(user.role)}
           variant="outlined"
@@ -277,166 +245,171 @@ export default function UserDetailsPage() {
           color={user.is_active ? "success" : "default"}
           variant={user.is_active ? "filled" : "outlined"}
         />
-      </Box>
+      </Stack>
 
-      {/* User form */}
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <TextField
-            label="Name"
-            value={isEditing ? name : user.name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={!isEditing}
-            fullWidth
-          />
+      <Stack spacing={3}>
+        {/* Profile section */}
+        <SectionCard title="Profile">
+          <Stack spacing={3}>
+            <Box sx={{ display: "flex", justifyContent: "center" }}>
+              <Avatar
+                src={(isEditing ? photoUrl : user.photo_url) || undefined}
+                sx={{ width: 72, height: 72 }}
+              >
+                {user.name.charAt(0)}
+              </Avatar>
+            </Box>
 
-          <TextField
-            label="Email"
-            type="email"
-            value={isEditing ? email : user.email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={!isEditing}
-            fullWidth
-          />
-
-          <TextField
-            label="Phone"
-            value={isEditing ? phone : user.phone || ""}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={!isEditing}
-            fullWidth
-          />
-
-          <TextField
-            label="Headshot URL"
-            value={isEditing ? photoUrl : user.photo_url || ""}
-            onChange={(e) => setPhotoUrl(e.target.value)}
-            disabled={!isEditing}
-            fullWidth
-            placeholder="https://..."
-          />
-
-          <FormControl fullWidth disabled={!isEditing}>
-            <InputLabel>Role</InputLabel>
-            <Select
-              value={isEditing ? role : user.role}
-              label="Role"
-              onChange={(e) => setRole(e.target.value as UserRole)}
-            >
-              <MenuItem value="administrator">Administrator</MenuItem>
-              <MenuItem value="teacher">Teacher</MenuItem>
-              <MenuItem value="parent">Parent/Guardian</MenuItem>
-              <MenuItem value="unassigned">Pending Approval</MenuItem>
-            </Select>
-          </FormControl>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Account Status
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={user.is_active}
-                  onChange={handleToggleActive}
-                  disabled={disableMutation.isPending || enableMutation.isPending}
-                />
-              }
-              label={user.is_active ? "Active" : "Disabled"}
+            <TextField
+              label="Name"
+              value={isEditing ? name : user.name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={!isEditing}
+              fullWidth
             />
-            <Typography variant="body2" color="text.secondary">
-              {user.is_active ? "User can log in and access the system" : "User cannot log in"}
-            </Typography>
-          </Box>
+            <TextField
+              label="Email"
+              type="email"
+              value={isEditing ? email : user.email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={!isEditing}
+              fullWidth
+            />
+            <TextField
+              label="Phone"
+              value={isEditing ? phone : user.phone || ""}
+              onChange={(e) => setPhone(e.target.value)}
+              disabled={!isEditing}
+              fullWidth
+            />
+            <TextField
+              label="Headshot URL"
+              value={isEditing ? photoUrl : user.photo_url || ""}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+              disabled={!isEditing}
+              fullWidth
+              placeholder="https://..."
+            />
+            <FormControl fullWidth disabled={!isEditing}>
+              <InputLabel>Role</InputLabel>
+              <Select
+                value={isEditing ? role : user.role}
+                label="Role"
+                onChange={(e) => setRole(e.target.value as UserRole)}
+              >
+                <MenuItem value="administrator">Administrator</MenuItem>
+                <MenuItem value="teacher">Teacher</MenuItem>
+                <MenuItem value="parent">Parent/Guardian</MenuItem>
+                <MenuItem value="unassigned">Pending Approval</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </SectionCard>
 
-          <Divider />
+        {/* Account status section */}
+        <SectionCard title="Account Status">
+          <FormControlLabel
+            control={
+              <Switch
+                checked={user.is_active}
+                onChange={handleToggleActive}
+                disabled={disableMutation.isPending || enableMutation.isPending}
+              />
+            }
+            label={user.is_active ? "Active" : "Disabled"}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {user.is_active ? "User can log in and access the system." : "User cannot log in."}
+          </Typography>
 
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary">
-              Created: {new Date(user.created_at).toLocaleString()}
-            </Typography>
-            <Typography variant="subtitle2" color="text.secondary">
-              Last updated: {new Date(user.updated_at).toLocaleString()}
-            </Typography>
-          </Box>
+          <Divider sx={{ my: 2 }} />
 
-          {user.role === "parent" && (
-            <>
-              <Divider />
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Linked Students
-                  </Typography>
-                  <Button
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={() => setLinkStudentDialogOpen(true)}
-                  >
-                    Link Student
-                  </Button>
-                </Box>
+          <Typography variant="body2" color="text.secondary">
+            Created: {formatDateTime(user.created_at)}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Last updated: {formatDateTime(user.updated_at)}
+          </Typography>
+        </SectionCard>
 
-                {(user.linked_students ?? []).length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No linked students.
-                  </Typography>
-                ) : (
-                  <List dense>
-                    {(user.linked_students ?? []).map((linkedStudent) => (
-                      <ListItem
-                        key={linkedStudent.link_id}
-                        secondaryAction={
-                          <IconButton
-                            edge="end"
-                            color="error"
-                            onClick={() => unlinkStudentMutation.mutate(linkedStudent.student_id)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        }
+        {/* Linked students section (parents only) */}
+        {user.role === "parent" && (
+          <SectionCard
+            title="Linked Students"
+            actions={
+              <Button
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={() => setLinkStudentDialogOpen(true)}
+              >
+                Link Student
+              </Button>
+            }
+          >
+            {(user.linked_students ?? []).length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No linked students.
+              </Typography>
+            ) : (
+              <List dense disablePadding>
+                {(user.linked_students ?? []).map((ls) => (
+                  <ListItem
+                    key={ls.link_id}
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        color="error"
+                        aria-label={`Unlink ${ls.first_name}`}
+                        onClick={() => setShowUnlinkDialog(ls.student_id)}
                       >
-                        <ListItemText
-                          primary={`${linkedStudent.first_name} ${linkedStudent.last_name} (${linkedStudent.initials})`}
-                          secondary={
-                            linkedStudent.relationship
-                              ? `${linkedStudent.relationship} • Linked ${new Date(linkedStudent.linked_at).toLocaleDateString()}`
-                              : `Linked ${new Date(linkedStudent.linked_at).toLocaleDateString()}`
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </Box>
-            </>
-          )}
-        </Box>
-      </Paper>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    }
+                  >
+                    <ListItemText
+                      primary={`${ls.first_name} ${ls.last_name} (${ls.initials})`}
+                      secondary={
+                        ls.relationship
+                          ? `${ls.relationship} \u2022 Linked ${formatDate(ls.linked_at)}`
+                          : `Linked ${formatDate(ls.linked_at)}`
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </SectionCard>
+        )}
+      </Stack>
 
       {/* Disable confirmation dialog */}
-      <Dialog open={showDisableDialog} onClose={() => setShowDisableDialog(false)}>
-        <DialogTitle>Disable User</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to disable this user? They will no longer be able to log in.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDisableDialog(false)}>Cancel</Button>
-          <Button
-            onClick={() => disableMutation.mutate()}
-            color="error"
-            disabled={disableMutation.isPending}
-          >
-            Disable
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={showDisableDialog}
+        title="Disable User"
+        message="Are you sure you want to disable this user? They will no longer be able to log in."
+        confirmLabel="Disable"
+        confirmColor="error"
+        loading={disableMutation.isPending}
+        onConfirm={() => disableMutation.mutate()}
+        onCancel={() => setShowDisableDialog(false)}
+      />
 
-      <Dialog open={linkStudentDialogOpen} onClose={() => setLinkStudentDialogOpen(false)} fullWidth>
+      {/* Unlink student confirmation */}
+      <ConfirmDialog
+        open={!!showUnlinkDialog}
+        title="Unlink Student"
+        message="Are you sure you want to unlink this student from the parent?"
+        confirmLabel="Unlink"
+        confirmColor="error"
+        loading={unlinkStudentMutation.isPending}
+        onConfirm={() => {
+          if (showUnlinkDialog) unlinkStudentMutation.mutate(showUnlinkDialog);
+        }}
+        onCancel={() => setShowUnlinkDialog(null)}
+      />
+
+      {/* Link student dialog */}
+      <Dialog open={linkStudentDialogOpen} onClose={() => setLinkStudentDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Link Student to Parent</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
@@ -458,7 +431,6 @@ export default function UserDetailsPage() {
               ))}
             </Select>
           </FormControl>
-
           <TextField
             label="Relationship (optional)"
             value={linkRelationship}
@@ -467,7 +439,7 @@ export default function UserDetailsPage() {
             placeholder="Mother, Father, Guardian..."
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setLinkStudentDialogOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -478,6 +450,6 @@ export default function UserDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

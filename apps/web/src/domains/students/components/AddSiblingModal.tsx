@@ -12,6 +12,7 @@ import {
   Button,
   Box,
   CircularProgress,
+  Stack,
 } from "@mui/material";
 import type { AddSiblingInput, Sibling } from "../services/StudentHttpService";
 
@@ -81,7 +82,7 @@ export default function AddSiblingModal({
       <form onSubmit={handleSubmit}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
               <TextField
                 label="Name"
                 value={name}
@@ -162,9 +163,9 @@ export default function AddSiblingModal({
               rows={2}
               placeholder="Any additional notes about this sibling"
             />
-          </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>

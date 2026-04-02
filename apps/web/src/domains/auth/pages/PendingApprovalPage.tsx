@@ -9,7 +9,7 @@ export default function PendingApprovalPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+      <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", bgcolor: "background.default" }}>
         <CircularProgress />
       </Box>
     );
@@ -24,9 +24,9 @@ export default function PendingApprovalPage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", px: 2, py: 5 }}>
+    <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", px: 2, py: 5, bgcolor: "background.default" }}>
       <Card sx={{ width: "100%", maxWidth: 560 }}>
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
           <Stack spacing={2.5} alignItems="flex-start">
             <HourglassTopIcon color="warning" sx={{ fontSize: 44 }} />
             <Typography variant="h5">Account pending approval</Typography>

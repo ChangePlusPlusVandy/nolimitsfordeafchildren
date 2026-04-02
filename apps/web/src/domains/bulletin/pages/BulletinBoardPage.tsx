@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
-  Paper,
   Button,
   TextField,
   Select,
@@ -29,6 +28,7 @@ import AddIcon from "@mui/icons-material/Add";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import HowToRegIcon from "@mui/icons-material/HowToReg";
+import CampaignIcon from "@mui/icons-material/Campaign";
 import { useAuth } from "../../../auth";
 import {
   useBulletinHttpService,
@@ -38,14 +38,22 @@ import {
   type BulletinRoleTarget,
 } from "../services/BulletinHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
+import { useToast } from "../../global/components/ToastProvider";
 import BulletinCard from "../components/BulletinCard";
 import CreateBulletinModal from "../components/CreateBulletinModal";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import { formatDateTime } from "../../../utils/formatDate";
 
 export default function BulletinBoardPage() {
   const { isAdmin, isTeacher, isParent } = useAuth();
   const bulletinHttpService = useBulletinHttpService();
   const locationHttpService = useLocationHttpService();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const [ackInitials, setAckInitials] = useState("");
 
@@ -80,6 +88,10 @@ export default function BulletinBoardPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [bulletinHttpService.key] });
+      toast.success("Acknowledgement recorded");
+    },
+    onError: () => {
+      toast.error("Failed to record acknowledgement");
     },
   });
 
@@ -89,7 +101,7 @@ export default function BulletinBoardPage() {
     }
 
     return viewStats.viewers.map((viewer) => {
-      const seenAt = new Date(viewer.last_viewed_at).toLocaleString();
+      const seenAt = formatDateTime(viewer.last_viewed_at);
       return `${viewer.user.name} (${viewer.user.role}) - ${seenAt}`;
     });
   }, [viewStats]);
@@ -105,7 +117,7 @@ export default function BulletinBoardPage() {
   };
 
   // Fetch bulletins
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: [bulletinHttpService.key, "index", queryParams],
     queryFn: () => bulletinHttpService.queries.index(queryParams),
   });
@@ -147,53 +159,37 @@ export default function BulletinBoardPage() {
     setSelectedBulletin(latest);
   };
 
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
-
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Bulletin Board
-        </Typography>
-        {(isAdmin || isTeacher) && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateModalOpen(true)}
-          >
-            Create Bulletin
-          </Button>
-        )}
-      </Box>
+    <PageContainer>
+      <PageHeader
+        title="Bulletin Board"
+        actions={
+          (isAdmin || isTeacher) ? (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateModalOpen(true)}
+            >
+              Create Bulletin
+            </Button>
+          ) : undefined
+        }
+      />
 
+      <Stack spacing={3}>
       {/* Admin Filters */}
       {isAdmin && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Filters (Admin View)
-          </Typography>
+        <SectionCard title="Filters (Admin View)">
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <InputLabel>Site</InputLabel>
-                <Select
-                  value={siteFilter}
-                  label="Site"
-                  onChange={(event) =>
-                    setSiteFilter((event.target as unknown as { value: string }).value)
-                  }
-                >
+              <Select
+                value={siteFilter}
+                label="Site"
+                onChange={(event) =>
+                  setSiteFilter((event.target as unknown as { value: string }).value)
+                }
+              >
                 <MenuItem value="">All Sites</MenuItem>
                 {(locations ?? []).map((location: any) => (
                   <MenuItem key={location.id} value={location.id}>
@@ -205,13 +201,15 @@ export default function BulletinBoardPage() {
 
             <FormControl size="small" sx={{ minWidth: 120 }}>
               <InputLabel>Scope</InputLabel>
-                <Select
-                  value={scopeFilter}
-                  label="Scope"
-                  onChange={(event) =>
-                    setScopeFilter((event.target as unknown as { value: BulletinScope | "" }).value)
-                  }
-                >
+              <Select
+                value={scopeFilter}
+                label="Scope"
+                onChange={(event) =>
+                  setScopeFilter(
+                    (event.target as unknown as { value: BulletinScope | "" }).value,
+                  )
+                }
+              >
                 <MenuItem value="">All</MenuItem>
                 <MenuItem value="global">Global</MenuItem>
                 <MenuItem value="site">Site-specific</MenuItem>
@@ -220,15 +218,15 @@ export default function BulletinBoardPage() {
 
             <FormControl size="small" sx={{ minWidth: 120 }}>
               <InputLabel>Audience</InputLabel>
-                <Select
-                  value={roleTargetFilter}
-                  label="Audience"
-                  onChange={(event) =>
-                    setRoleTargetFilter(
-                      (event.target as unknown as { value: BulletinRoleTarget | "" }).value,
-                    )
-                  }
-                >
+              <Select
+                value={roleTargetFilter}
+                label="Audience"
+                onChange={(event) =>
+                  setRoleTargetFilter(
+                    (event.target as unknown as { value: BulletinRoleTarget | "" }).value,
+                  )
+                }
+              >
                 <MenuItem value="">All</MenuItem>
                 <MenuItem value="all">All Users</MenuItem>
                 <MenuItem value="administrator">Admins</MenuItem>
@@ -237,54 +235,49 @@ export default function BulletinBoardPage() {
               </Select>
             </FormControl>
 
-            <FormControl size="small">
-              <Button
-                variant={includeExpired ? "contained" : "outlined"}
-                size="small"
-                onClick={() => setIncludeExpired(!includeExpired)}
-              >
-                {includeExpired ? "Showing Expired" : "Hide Expired"}
-              </Button>
-            </FormControl>
+            <Button
+              variant={includeExpired ? "contained" : "outlined"}
+              size="small"
+              onClick={() => setIncludeExpired(!includeExpired)}
+            >
+              {includeExpired ? "Showing Expired" : "Hide Expired"}
+            </Button>
 
-            <FormControl size="small">
-              <Button
-                variant={includeScheduled ? "contained" : "outlined"}
-                size="small"
-                onClick={() => setIncludeScheduled(!includeScheduled)}
-              >
-                {includeScheduled ? "Showing Scheduled" : "Hide Scheduled"}
-              </Button>
-            </FormControl>
+            <Button
+              variant={includeScheduled ? "contained" : "outlined"}
+              size="small"
+              onClick={() => setIncludeScheduled(!includeScheduled)}
+            >
+              {includeScheduled ? "Showing Scheduled" : "Hide Scheduled"}
+            </Button>
           </Box>
-        </Paper>
+        </SectionCard>
       )}
 
-      {/* Error state */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load bulletins. Please try again.
-        </Alert>
-      )}
-
-      {/* Loading state */}
-      {isLoading && <CardGridSkeleton count={6} showAvatar={false} />}
-
-      {/* Empty state */}
-      {data && data.items.length === 0 && (
-        <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography color="text.secondary">No bulletins to display.</Typography>
-        </Paper>
-      )}
-
-      {/* Bulletin Feed */}
-      {data && data.items.length > 0 && (
+      {/* Content */}
+      {error ? (
+        <ErrorAlert
+          message="Failed to load bulletins. Please try again."
+          onRetry={() => refetch()}
+        />
+      ) : isLoading ? (
+        <CardGridSkeleton count={6} showAvatar={false} />
+      ) : data && data.items.length === 0 ? (
+        <SectionCard>
+          <EmptyState
+            icon={<CampaignIcon sx={{ fontSize: 48 }} />}
+            title="No Bulletins"
+            description="No bulletins to display."
+          />
+        </SectionCard>
+      ) : data && data.items.length > 0 ? (
         <Box>
           {data.items.map((bulletin) => (
             <BulletinCard key={bulletin.id} bulletin={bulletin} onClick={handleBulletinClick} />
           ))}
         </Box>
-      )}
+      ) : null}
+      </Stack>
 
       {/* Create Bulletin Modal */}
       <CreateBulletinModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
@@ -295,7 +288,7 @@ export default function BulletinBoardPage() {
           <>
             <DialogTitle>{selectedBulletin.title}</DialogTitle>
             <DialogContent>
-              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
                 <Chip
                   label={
                     selectedBulletin.scope === "global"
@@ -330,13 +323,15 @@ export default function BulletinBoardPage() {
               </Stack>
 
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Published: {formatDate(selectedBulletin.publish_at || selectedBulletin.created_at)}
-                {selectedBulletin.created_by_name && ` by ${selectedBulletin.created_by_name}`}
+                Published:{" "}
+                {formatDateTime(selectedBulletin.publish_at || selectedBulletin.created_at)}
+                {selectedBulletin.created_by_name &&
+                  ` by ${selectedBulletin.created_by_name}`}
               </Typography>
 
               {selectedBulletin.expire_at && (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Expires: {formatDate(selectedBulletin.expire_at)}
+                  Expires: {formatDateTime(selectedBulletin.expire_at)}
                 </Typography>
               )}
 
@@ -356,7 +351,9 @@ export default function BulletinBoardPage() {
                 <Box sx={{ mt: 3 }}>
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="subtitle2" gutterBottom>
-                    <AttachFileIcon sx={{ fontSize: 16, verticalAlign: "middle", mr: 0.5 }} />
+                    <AttachFileIcon
+                      sx={{ fontSize: 16, verticalAlign: "middle", mr: 0.5 }}
+                    />
                     Attachments ({selectedBulletin.attachments.length})
                   </Typography>
                   <Stack spacing={1}>
@@ -378,7 +375,9 @@ export default function BulletinBoardPage() {
                 <Box sx={{ mt: 3 }}>
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="subtitle2" gutterBottom>
-                    <VisibilityIcon sx={{ fontSize: 16, verticalAlign: "middle", mr: 0.5 }} />
+                    <VisibilityIcon
+                      sx={{ fontSize: 16, verticalAlign: "middle", mr: 0.5 }}
+                    />
                     Views ({viewStats?.count ?? selectedBulletin.view_count ?? 0})
                   </Typography>
 
@@ -402,7 +401,11 @@ export default function BulletinBoardPage() {
                 <Box sx={{ mt: 3 }}>
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="subtitle2" gutterBottom>
-                    Acknowledgements ({acknowledgementStats?.count ?? selectedBulletin.acknowledgement_count ?? 0})
+                    Acknowledgements (
+                    {acknowledgementStats?.count ??
+                      selectedBulletin.acknowledgement_count ??
+                      0}
+                    )
                   </Typography>
 
                   {(acknowledgementStats?.acknowledgements ?? []).length === 0 ? (
@@ -415,7 +418,7 @@ export default function BulletinBoardPage() {
                         <ListItem key={ack.id} sx={{ px: 0 }}>
                           <ListItemText
                             primary={`${ack.user.name} (${ack.initials})`}
-                            secondary={new Date(ack.acknowledged_at).toLocaleString()}
+                            secondary={formatDateTime(ack.acknowledged_at)}
                           />
                         </ListItem>
                       ))}
@@ -434,7 +437,7 @@ export default function BulletinBoardPage() {
                     <Alert severity="success" sx={{ mb: 2 }}>
                       Acknowledged as {selectedBulletin.acknowledged_initials} on{" "}
                       {selectedBulletin.acknowledged_at
-                        ? new Date(selectedBulletin.acknowledged_at).toLocaleString()
+                        ? formatDateTime(selectedBulletin.acknowledged_at)
                         : ""}
                     </Alert>
                   ) : (
@@ -449,7 +452,11 @@ export default function BulletinBoardPage() {
                       label="Initials"
                       value={ackInitials}
                       onChange={(event) =>
-                        setAckInitials((event.target as unknown as { value: string }).value.toUpperCase())
+                        setAckInitials(
+                          (
+                            event.target as unknown as { value: string }
+                          ).value.toUpperCase(),
+                        )
                       }
                       inputProps={{ maxLength: 8 }}
                       sx={{ width: 140 }}
@@ -468,12 +475,12 @@ export default function BulletinBoardPage() {
                 </Box>
               )}
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
               <Button onClick={handleCloseDetail}>Close</Button>
             </DialogActions>
           </>
         )}
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

@@ -8,11 +8,11 @@ import {
   Box,
   Divider,
   Typography,
+  Avatar,
 } from "@mui/material";
 import PeopleIcon from "@mui/icons-material/People";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ArticleIcon from "@mui/icons-material/Article";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import TodayIcon from "@mui/icons-material/Today";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
@@ -172,20 +172,15 @@ const navItems: NavItem[] = [
     icon: <ArticleIcon />,
     section: "General",
   },
-  {
-    text: "Profile",
-    to: "/my-profile",
-    icon: <AccountCircleIcon />,
-  },
 ];
 
 interface SidebarProps {
-  isMobile?: boolean;
-  mobileOpen?: boolean;
-  onMobileClose?: () => void;
+  open: boolean;
+  onClose: () => void;
+  variant?: "temporary" | "persistent";
 }
 
-export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }: SidebarProps) => {
+export const Sidebar = ({ open, onClose, variant = "temporary" }: SidebarProps) => {
   const { user, logout, hasRole } = useAuth();
   const location = useLocation();
 
@@ -194,129 +189,132 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
   };
 
   const handleNavClick = () => {
-    if (isMobile && onMobileClose) {
-      onMobileClose();
-    }
+    if (variant === "temporary") onClose();
   };
 
   const visibleItems = navItems.filter((item) => {
     if (user?.role === "unassigned") {
-      return item.to === "/my-profile";
+      return false; // Unassigned users only see profile (via bottom avatar) and logout
     }
     if (!item.roles) return true;
     return hasRole(...item.roles);
   });
 
-  const drawerContent = (
-    <Box sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }} role="presentation">
-      {/* User info */}
-      {user && (
-        <Box sx={{ px: 2, py: 2 }}>
-          <Typography variant="subtitle2" noWrap>
-            {user.name}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {user.role === "unassigned" ? "Pending approval" : user.role}
-          </Typography>
-        </Box>
-      )}
-
-      <Divider />
-
-      {/* Navigation items */}
-      <List sx={{ flexGrow: 1, px: 1 }} component="nav" aria-label="Main navigation">
-        {visibleItems.map((item, index) => {
-          const isActive =
-            location.pathname === item.to ||
-            (item.to !== "/" && location.pathname.startsWith(item.to));
-
-          // Show section header if this item starts a new section
-          const showSection = item.section && (index === 0 || visibleItems[index - 1]?.section !== item.section);
-
-          return (
-            <Box key={item.text}>
-              {showSection && (
-                <Typography
-                  variant="overline"
-                  color="text.secondary"
-                  sx={{ px: 2, pt: index === 0 ? 1 : 2, pb: 0.5, display: "block" }}
-                >
-                  {item.section}
-                </Typography>
-              )}
-              <ListItem disablePadding>
-                <ListItemButton
-                  component={Link}
-                  to={item.to}
-                  selected={isActive}
-                  onClick={handleNavClick}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </ListItemButton>
-              </ListItem>
-            </Box>
-          );
-        })}
-      </List>
-
-      {/* Logout button at bottom */}
-      <Divider />
-      <List sx={{ px: 1 }} disablePadding>
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => {
-              handleNavClick();
-              handleLogout();
-            }}
-            aria-label="Logout from application"
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <LogoutIcon />
-            </ListItemIcon>
-            <ListItemText primary="Logout" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-    </Box>
-  );
-
-  if (isMobile) {
-    return (
-      <Drawer
-        variant="temporary"
-        anchor="left"
-        open={mobileOpen}
-        onClose={onMobileClose}
-        ModalProps={{ keepMounted: true }}
-        sx={{
-          "& .MuiDrawer-paper": {
-            width: DRAWER_WIDTH,
-            boxSizing: "border-box",
-          },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
-    );
-  }
-
   return (
     <Drawer
-      variant="permanent"
+      variant={variant}
       anchor="left"
+      open={open}
+      onClose={onClose}
+      {...(variant === "temporary" && { ModalProps: { keepMounted: true } })}
       sx={{
-        width: DRAWER_WIDTH,
-        flexShrink: 0,
         "& .MuiDrawer-paper": {
           width: DRAWER_WIDTH,
           boxSizing: "border-box",
         },
       }}
     >
-      {drawerContent}
+      <Box sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }} role="presentation">
+        {/* Navigation items */}
+        <List sx={{ flexGrow: 1, px: 1, pt: 1, overflow: "auto" }} component="nav" aria-label="Main navigation">
+          {visibleItems.map((item, index) => {
+            const isActive =
+              location.pathname === item.to ||
+              (item.to !== "/" && location.pathname.startsWith(item.to));
+
+            // Show section header if this item starts a new section
+            const showSection = item.section && (index === 0 || visibleItems[index - 1]?.section !== item.section);
+
+            return (
+              <Box key={item.text}>
+                {showSection && (
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ px: 2, pt: index === 0 ? 1 : 2, pb: 0.5, display: "block" }}
+                  >
+                    {item.section}
+                  </Typography>
+                )}
+                <ListItem disablePadding>
+                  <ListItemButton
+                    component={Link}
+                    to={item.to}
+                    selected={isActive}
+                    onClick={handleNavClick}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              </Box>
+            );
+          })}
+        </List>
+
+        {/* Bottom section: user info + logout */}
+        <Divider />
+        {user && (
+          <Box
+            component={Link}
+            to="/my-profile"
+            onClick={handleNavClick}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              px: 2,
+              py: 1.5,
+              textDecoration: "none",
+              color: "inherit",
+              cursor: "pointer",
+              transition: "background-color 0.15s",
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+            aria-label="Go to my profile"
+          >
+            <Avatar
+              sx={{
+                width: 34,
+                height: 34,
+                bgcolor: "primary.main",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+              }}
+            >
+              {user.name?.charAt(0)?.toUpperCase() || "?"}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="subtitle2" noWrap>
+                {user.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ textTransform: "capitalize" }}>
+                {user.role === "unassigned" ? "Pending approval" : user.role}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        <List sx={{ px: 1, pt: 0 }} disablePadding>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => {
+                handleNavClick();
+                handleLogout();
+              }}
+              aria-label="Logout from application"
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <LogoutIcon />
+              </ListItemIcon>
+              <ListItemText primary="Logout" />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
     </Drawer>
   );
 };

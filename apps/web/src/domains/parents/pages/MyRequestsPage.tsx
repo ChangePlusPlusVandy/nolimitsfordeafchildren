@@ -20,7 +20,14 @@ import {
   CalendarToday as CalendarIcon,
 } from "@mui/icons-material";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { useHttpClient } from "../../../plugins/axios";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import { formatDate, formatTime } from "../../../utils/formatDate";
 
 interface MakeupRequest {
   id: string;
@@ -97,24 +104,6 @@ interface ScheduleChangeRequest {
 function getDaysFromMask(mask: number): string {
   const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   return dayLabels.filter((_, index) => (mask & (1 << index)) !== 0).join("/");
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
 }
 
 function getStatusColor(status: string): "warning" | "success" | "error" | "info" {
@@ -376,6 +365,7 @@ function LoadingSkeleton() {
 
 export default function MyRequestsPage() {
   const httpClient = useHttpClient();
+  const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [makeupPage, setMakeupPage] = useState(1);
   const [schedulePage, setSchedulePage] = useState(1);
@@ -386,6 +376,7 @@ export default function MyRequestsPage() {
     data: makeupData,
     isLoading: makeupLoading,
     error: makeupError,
+    refetch: refetchMakeup,
   } = useQuery({
     queryKey: ["parents", "me", "makeup-requests", makeupPage, rowsPerPage],
     queryFn: async () => {
@@ -404,6 +395,7 @@ export default function MyRequestsPage() {
     data: scheduleChangeData,
     isLoading: scheduleChangeLoading,
     error: scheduleChangeError,
+    refetch: refetchSchedule,
   } = useQuery({
     queryKey: ["parents", "me", "schedule-change-requests", schedulePage, rowsPerPage],
     queryFn: async () => {
@@ -426,109 +418,121 @@ export default function MyRequestsPage() {
   ).length;
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        My Requests
-      </Typography>
+    <PageContainer>
+      <PageHeader title="My Requests" />
 
-      <Tabs
-        value={tabValue}
-        onChange={(_, newValue) => setTabValue(newValue)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
-      >
-        <Tab
-          icon={<MakeupIcon />}
-          iconPosition="start"
-          label={
-            <Stack direction="row" spacing={1} alignItems="center">
-              <span>Make-Up Requests</span>
-              {pendingMakeupCount > 0 && (
-                <Chip label={pendingMakeupCount} size="small" color="warning" />
-              )}
-            </Stack>
-          }
-        />
-        <Tab
-          icon={<ScheduleChangeIcon />}
-          iconPosition="start"
-          label={
-            <Stack direction="row" spacing={1} alignItems="center">
-              <span>Schedule Changes</span>
-              {pendingScheduleChangeCount > 0 && (
-                <Chip label={pendingScheduleChangeCount} size="small" color="warning" />
-              )}
-            </Stack>
-          }
-        />
-      </Tabs>
+      <SectionCard noPadding>
+        <Tabs
+          value={tabValue}
+          onChange={(_, newValue) => setTabValue(newValue)}
+          sx={{ px: 2.5, borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab
+            icon={<MakeupIcon />}
+            iconPosition="start"
+            label={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <span>Make-Up Requests</span>
+                {pendingMakeupCount > 0 && (
+                  <Chip label={pendingMakeupCount} size="small" color="warning" />
+                )}
+              </Stack>
+            }
+          />
+          <Tab
+            icon={<ScheduleChangeIcon />}
+            iconPosition="start"
+            label={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <span>Schedule Changes</span>
+                {pendingScheduleChangeCount > 0 && (
+                  <Chip label={pendingScheduleChangeCount} size="small" color="warning" />
+                )}
+              </Stack>
+            }
+          />
+        </Tabs>
 
-      {tabValue === 0 && (
-        <>
-          {makeupLoading ? (
-            <LoadingSkeleton />
-          ) : makeupError ? (
-            <Alert severity="error">Failed to load make-up requests</Alert>
-          ) : makeupRequests.length === 0 ? (
-            <Alert severity="info" icon={<MakeupIcon />}>
-              You haven't submitted any make-up requests yet. You can request a make-up session from
-              your child's details page when they miss a session.
-            </Alert>
-          ) : (
+        <Box sx={{ p: 2.5 }}>
+          {tabValue === 0 && (
             <>
-              {makeupRequests.map((request) => (
-                <MakeupRequestCard key={request.id} request={request} />
-              ))}
-              <TablePagination
-                rowsPerPageOptions={[5, 10, 20]}
-                component="div"
-                count={makeupData?.total ?? 0}
-                rowsPerPage={rowsPerPage}
-                page={Math.max(makeupPage - 1, 0)}
-                onPageChange={(_event, nextPage) => setMakeupPage(nextPage + 1)}
-                onRowsPerPageChange={(event) => {
-                  setRowsPerPage(Number(event.target.value));
-                  setMakeupPage(1);
-                  setSchedulePage(1);
-                }}
-              />
+              {makeupLoading ? (
+                <LoadingSkeleton />
+              ) : makeupError ? (
+                <ErrorAlert
+                  message="Failed to load make-up requests."
+                  onRetry={() => refetchMakeup()}
+                />
+              ) : makeupRequests.length === 0 ? (
+                <EmptyState
+                  icon={<MakeupIcon sx={{ fontSize: 48 }} />}
+                  title="No Make-Up Requests"
+                  description="You haven't submitted any make-up requests yet. You can request a make-up session from your child's details page when they miss a session."
+                />
+              ) : (
+                <>
+                  {makeupRequests.map((request) => (
+                    <MakeupRequestCard key={request.id} request={request} />
+                  ))}
+                  <TablePagination
+                    rowsPerPageOptions={[5, 10, 20]}
+                    component="div"
+                    count={makeupData?.total ?? 0}
+                    rowsPerPage={rowsPerPage}
+                    page={Math.max(makeupPage - 1, 0)}
+                    onPageChange={(_event, nextPage) => setMakeupPage(nextPage + 1)}
+                    onRowsPerPageChange={(event) => {
+                      setRowsPerPage(Number(event.target.value));
+                      setMakeupPage(1);
+                      setSchedulePage(1);
+                    }}
+                  />
+                </>
+              )}
             </>
           )}
-        </>
-      )}
 
-      {tabValue === 1 && (
-        <>
-          {scheduleChangeLoading ? (
-            <LoadingSkeleton />
-          ) : scheduleChangeError ? (
-            <Alert severity="error">Failed to load schedule change requests</Alert>
-          ) : scheduleChangeRequests.length === 0 ? (
-            <Alert severity="info" icon={<ScheduleChangeIcon />}>
-              You haven't submitted any schedule change requests yet. You can browse available
-              schedules and request a change from the Schedule Change page.
-            </Alert>
-          ) : (
+          {tabValue === 1 && (
             <>
-              {scheduleChangeRequests.map((request) => (
-                <ScheduleChangeRequestCard key={request.id} request={request} />
-              ))}
-              <TablePagination
-                rowsPerPageOptions={[5, 10, 20]}
-                component="div"
-                count={scheduleChangeData?.total ?? 0}
-                rowsPerPage={rowsPerPage}
-                page={Math.max(schedulePage - 1, 0)}
-                onPageChange={(_event, nextPage) => setSchedulePage(nextPage + 1)}
-                onRowsPerPageChange={(event) => {
-                  setRowsPerPage(Number(event.target.value));
-                  setMakeupPage(1);
-                  setSchedulePage(1);
-                }}
-              />
+              {scheduleChangeLoading ? (
+                <LoadingSkeleton />
+              ) : scheduleChangeError ? (
+                <ErrorAlert
+                  message="Failed to load schedule change requests."
+                  onRetry={() => refetchSchedule()}
+                />
+              ) : scheduleChangeRequests.length === 0 ? (
+                <EmptyState
+                  icon={<ScheduleChangeIcon sx={{ fontSize: 48 }} />}
+                  title="No Schedule Change Requests"
+                  description="You haven't submitted any schedule change requests yet. You can browse available schedules and request a change."
+                  actionLabel="Browse Schedules"
+                  onAction={() => navigate("/parents/browse-schedules")}
+                />
+              ) : (
+                <>
+                  {scheduleChangeRequests.map((request) => (
+                    <ScheduleChangeRequestCard key={request.id} request={request} />
+                  ))}
+                  <TablePagination
+                    rowsPerPageOptions={[5, 10, 20]}
+                    component="div"
+                    count={scheduleChangeData?.total ?? 0}
+                    rowsPerPage={rowsPerPage}
+                    page={Math.max(schedulePage - 1, 0)}
+                    onPageChange={(_event, nextPage) => setSchedulePage(nextPage + 1)}
+                    onRowsPerPageChange={(event) => {
+                      setRowsPerPage(Number(event.target.value));
+                      setMakeupPage(1);
+                      setSchedulePage(1);
+                    }}
+                  />
+                </>
+              )}
             </>
           )}
-        </>
-      )}
-    </Box>
+        </Box>
+      </SectionCard>
+    </PageContainer>
   );
 }

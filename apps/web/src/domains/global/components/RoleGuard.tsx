@@ -1,5 +1,5 @@
 import { Navigate } from "react-router";
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { useAuth, type UserRole } from "../../../auth";
 
 interface RoleGuardProps {
@@ -19,18 +19,22 @@ export default function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
       <Box
         sx={{
           display: "flex",
-          justifyContent: "center",
+          flexDirection: "column",
           alignItems: "center",
-          height: "100vh",
+          justifyContent: "center",
+          height: "60vh",
+          gap: 2,
         }}
       >
-        <CircularProgress />
+        <CircularProgress size={36} />
+        <Typography variant="body2" color="text.secondary">
+          Verifying access...
+        </Typography>
       </Box>
     );
   }
 
   if (!hasRole(...allowedRoles)) {
-    // Redirect to role-appropriate home page
     switch (user?.role) {
       case "administrator":
         return <Navigate to="/users" replace />;

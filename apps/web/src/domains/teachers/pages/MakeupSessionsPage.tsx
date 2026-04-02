@@ -28,6 +28,11 @@ import { useState } from "react";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
 import { useServerTable } from "../../global/hooks/useServerTable";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import { formatDate, formatTime } from "../../../utils/formatDate";
 
 interface MakeupSession {
   id: string;
@@ -52,23 +57,6 @@ interface MakeupSession {
   } | null;
 }
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-}
 
 function formatReason(reason: string): string {
   return reason.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
@@ -244,7 +232,7 @@ function LoadingSkeleton() {
 export default function MakeupSessionsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
-  const { showToast } = useToast();
+  const toast = useToast();
   const [selectedDate, setSelectedDate] = useState<string>("");
   const table = useServerTable({ defaultLimit: 20 });
 
@@ -257,6 +245,7 @@ export default function MakeupSessionsPage() {
     data: sessionsData,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["teachers", teacherId, "makeup-sessions", selectedDate || "all", table.page, table.limit],
     queryFn: async () => {
@@ -303,14 +292,11 @@ export default function MakeupSessionsPage() {
       return response.data;
     },
     onSuccess: () => {
-      showToast({ message: "Attendance marked successfully!", severity: "success" });
+      toast.success("Attendance marked successfully!");
       queryClient.invalidateQueries({ queryKey: ["teachers", teacherId, "makeup-sessions"] });
     },
     onError: (error: any) => {
-      showToast({
-        message: error.response?.data?.message || "Failed to mark attendance",
-        severity: "error",
-      });
+      toast.error(error.response?.data?.message || "Failed to mark attendance");
     },
   });
 
@@ -321,15 +307,12 @@ export default function MakeupSessionsPage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={2} alignItems="center" mb={3}>
-        <MakeupIcon sx={{ fontSize: 32 }} color="action" />
-        <Typography variant="h4">Make-Up Sessions</Typography>
-      </Stack>
+    <PageContainer>
+      <PageHeader title="Make-Up Sessions" breadcrumbs={[{ label: "Make-Up Sessions" }]} />
 
+      <Stack spacing={3}>
       {/* Date Filter */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
+      <SectionCard>
           <FormControl fullWidth>
             <InputLabel>Filter by Date</InputLabel>
             <OutlinedInput
@@ -354,24 +337,20 @@ export default function MakeupSessionsPage() {
               Show All Dates
             </Button>
           </Box>
-        </CardContent>
-      </Card>
+      </SectionCard>
 
       {isLoading ? (
         <LoadingSkeleton />
       ) : error ? (
-        <Alert severity="error">Failed to load make-up sessions. Please try again.</Alert>
+        <ErrorAlert message="Failed to load make-up sessions." onRetry={() => refetch()} />
       ) : sessions.length === 0 ? (
         <Alert severity="info" icon={<MakeupIcon />}>
           You don't have any make-up sessions assigned. Make-up sessions will appear here when an
           administrator schedules them for you.
         </Alert>
       ) : (
-        <Stack spacing={3}>
-          <Box>
-            <Typography variant="h6" gutterBottom color="primary">
-              {selectedDate ? `Sessions on ${formatDate(selectedDate)}` : "All Assigned Sessions"}
-            </Typography>
+        <>
+          <SectionCard title={selectedDate ? `Sessions on ${formatDate(selectedDate)}` : "All Assigned Sessions"}>
             {sessions.map((session) => (
               <MakeupSessionCard
                 key={session.id}
@@ -380,7 +359,7 @@ export default function MakeupSessionsPage() {
                 isLoading={markAttendanceMutation.isPending}
               />
             ))}
-          </Box>
+          </SectionCard>
 
           <TablePagination
             rowsPerPageOptions={[10, 20, 50]}
@@ -393,42 +372,41 @@ export default function MakeupSessionsPage() {
           />
 
           {/* Summary */}
-          <Card variant="outlined" sx={{ bgcolor: "grey.50" }}>
-            <CardContent>
-              <Stack direction="row" spacing={3} justifyContent="center">
-                <Box textAlign="center">
-                  <Typography variant="h4" color="primary">
-                    {sessionsData?.total ?? sessions.length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Sessions
-                  </Typography>
-                </Box>
-                <Box textAlign="center">
-                  <Typography variant="h4" color="success.main">
-                    {sessions.filter((s) => s.attendance_status === "present").length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Completed
-                  </Typography>
-                </Box>
-                <Box textAlign="center">
-                  <Typography variant="h4" color="warning.main">
-                    {
-                      sessions.filter(
-                        (s) => !s.attendance_status || s.attendance_status === "pending",
-                      ).length
-                    }
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Pending
-                  </Typography>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Stack>
+          <SectionCard sx={{ bgcolor: "grey.50" }}>
+            <Stack direction="row" spacing={3} justifyContent="center">
+              <Box textAlign="center">
+                <Typography variant="h4" color="primary">
+                  {sessionsData?.total ?? sessions.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total Sessions
+                </Typography>
+              </Box>
+              <Box textAlign="center">
+                <Typography variant="h4" color="success.main">
+                  {sessions.filter((s) => s.attendance_status === "present").length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Completed
+                </Typography>
+              </Box>
+              <Box textAlign="center">
+                <Typography variant="h4" color="warning.main">
+                  {
+                    sessions.filter(
+                      (s) => !s.attendance_status || s.attendance_status === "pending",
+                    ).length
+                  }
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Pending
+                </Typography>
+              </Box>
+            </Stack>
+          </SectionCard>
+        </>
       )}
-    </Box>
+      </Stack>
+    </PageContainer>
   );
 }

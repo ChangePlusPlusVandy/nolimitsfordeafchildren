@@ -46,6 +46,11 @@ import {
 } from "../services/TeacherHttpService";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
+import { formatTime } from "../../../utils/formatDate";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
 
 const ABSENCE_REASONS: { value: AbsenceReason; label: string }[] = [
   { value: "sick", label: "Sick" },
@@ -55,14 +60,6 @@ const ABSENCE_REASONS: { value: AbsenceReason; label: string }[] = [
   { value: "no_show_unknown", label: "No Show (Unknown)" },
   { value: "other", label: "Other" },
 ];
-
-function formatTime(time: string): string {
-  const [hours, minutes] = time.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-  return `${displayHour}:${minutes} ${ampm}`;
-}
 
 function getStatusColor(
   status: AttendanceStatus | undefined,
@@ -137,7 +134,7 @@ export default function MyDayPage() {
   const teacherHttpService = useTeacherHttpService();
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
-  const { showToast } = useToast();
+  const toast = useToast();
 
   const [selectedDate] = useState(() => new Date().toISOString().split("T")[0]!);
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
@@ -226,7 +223,7 @@ export default function MyDayPage() {
   const weekStartDate = weekDates[0] ?? selectedDate;
   const weekEndDate = weekDates[6] ?? selectedDate;
 
-  const { data, isLoading, error } = useQuery<MyDayResponse>({
+  const { data, isLoading, error, refetch } = useQuery<MyDayResponse>({
     queryKey: [teacherHttpService.key, "myDay", view, selectedDate],
     queryFn: async () => {
       if (view === "day") {
@@ -351,13 +348,10 @@ export default function MyDayPage() {
       setPhotoCaption("");
       setPhotoFile(null);
       queryClient.invalidateQueries({ queryKey: ["teacher-session-photos"] });
-      showToast({ message: "Photo uploaded", severity: "success" });
+      toast.success("Photo uploaded");
     },
     onError: (error: any) => {
-      showToast({
-        message: error.message || "Failed to upload photo",
-        severity: "error",
-      });
+      toast.error(error.message || "Failed to upload photo");
     },
   });
 
@@ -390,13 +384,10 @@ export default function MyDayPage() {
       setSickDayDialogOpen(false);
       setSickDayNote("");
       setSickDaySiteId("");
-      showToast({ message: "Sick-day notice posted to parents", severity: "success" });
+      toast.success("Sick-day notice posted to parents");
     },
     onError: (error: any) => {
-      showToast({
-        message: error.response?.data?.message || error.message || "Failed to post sick-day notice",
-        severity: "error",
-      });
+      toast.error(error.response?.data?.message || error.message || "Failed to post sick-day notice");
     },
   });
 
@@ -544,7 +535,7 @@ export default function MyDayPage() {
       setSiblingDialogSelection(getSiblingIdsForSession(session));
       setSiblingDialogOpen(true);
     } catch {
-      showToast({ message: "Failed to load sibling list", severity: "error" });
+      toast.error("Failed to load sibling list");
     }
   };
 
@@ -561,7 +552,7 @@ export default function MyDayPage() {
 
     if (!siblingSession.attendance) {
       setSiblingDialogOpen(false);
-      showToast({ message: "Sibling participants will save with attendance", severity: "info" });
+      toast.info("Sibling participants will save with attendance");
       return;
     }
 
@@ -574,7 +565,7 @@ export default function MyDayPage() {
       sibling_participant_ids: siblingDialogSelection,
     });
     setSiblingDialogOpen(false);
-    showToast({ message: "Sibling participation saved", severity: "success" });
+    toast.success("Sibling participation saved");
   };
 
   const handleReasonTextChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -628,7 +619,7 @@ export default function MyDayPage() {
   }
 
   if (error) {
-    return <Alert severity="error">Failed to load today's sessions. Please try again.</Alert>;
+    return <ErrorAlert message="Failed to load today's sessions." onRetry={() => refetch()} />;
   }
 
   const sessions = data?.sessions || [];
@@ -724,74 +715,71 @@ export default function MyDayPage() {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          {view === "day" ? "My Day" : "My Week"}
-        </Typography>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <Typography variant="subtitle1" color="text.secondary">
-            {view === "day"
-              ? new Date(selectedDate).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })
-              : `${startOfWeek} - ${endOfWeek}`}
-          </Typography>
-          <ToggleButtonGroup
-            value={view}
-            exclusive
-            onChange={(_, newView) => {
-              if (newView !== null) {
-                setView(newView);
-              }
-            }}
-            sx={{
-              height: 32,
-              borderRadius: "999px",
-              bgcolor: "grey.100",
-              p: 0.5,
-              "& .MuiToggleButton-root": {
-                border: "none",
+    <PageContainer>
+      <PageHeader
+        title={view === "day" ? "My Day" : "My Week"}
+        breadcrumbs={[{ label: view === "day" ? "My Day" : "My Week" }]}
+        actions={
+          <>
+            <Typography variant="subtitle1" color="text.secondary" sx={{ display: "flex", alignItems: "center" }}>
+              {view === "day"
+                ? new Date(selectedDate).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : `${startOfWeek} - ${endOfWeek}`}
+            </Typography>
+            <ToggleButtonGroup
+              value={view}
+              exclusive
+              onChange={(_, newView) => {
+                if (newView !== null) {
+                  setView(newView);
+                }
+              }}
+              sx={{
+                height: 32,
                 borderRadius: "999px",
-                px: 2,
-                py: 0.5,
-                textTransform: "none",
-                fontSize: "0.85rem",
-                color: "text.secondary",
-              },
-              "& .MuiToggleButton-root.Mui-selected": {
-                backgroundColor: "primary.main",
-                color: "white",
-                fontWeight: 500,
-              },
-              "& .MuiToggleButton-root.Mui-selected:hover": {
-                backgroundColor: "primary.light",
-              },
-            }}
-          >
-            <ToggleButton value="day">Day</ToggleButton>
-            <ToggleButton value="week">Week</ToggleButton>
-          </ToggleButtonGroup>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={openSickDayDialog}
-            disabled={view !== "day"}
-          >
-            Report Sick Day
-          </Button>
-        </Box>
-      </Box>
+                bgcolor: "grey.100",
+                p: 0.5,
+                "& .MuiToggleButton-root": {
+                  border: "none",
+                  borderRadius: "999px",
+                  px: 2,
+                  py: 0.5,
+                  textTransform: "none",
+                  fontSize: "0.85rem",
+                  color: "text.secondary",
+                },
+                "& .MuiToggleButton-root.Mui-selected": {
+                  backgroundColor: "primary.main",
+                  color: "white",
+                  fontWeight: 500,
+                },
+                "& .MuiToggleButton-root.Mui-selected:hover": {
+                  backgroundColor: "primary.light",
+                },
+              }}
+            >
+              <ToggleButton value="day">Day</ToggleButton>
+              <ToggleButton value="week">Week</ToggleButton>
+            </ToggleButtonGroup>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={openSickDayDialog}
+              disabled={view !== "day"}
+            >
+              Report Sick Day
+            </Button>
+          </>
+        }
+      />
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          <PhotoCameraIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-          Session Photos
-        </Typography>
-
+      <Stack spacing={3}>
+      <SectionCard title="Session Photos" icon={<PhotoCameraIcon />}>
         {view === "week" && (
           <Alert severity="info" sx={{ mb: 2 }}>
             Photo uploads are available in Day view only.
@@ -900,18 +888,18 @@ export default function MyDayPage() {
         ) : (
           <Typography color="text.secondary">No photos uploaded for this date yet.</Typography>
         )}
-      </Paper>
+      </SectionCard>
 
       {sessions.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography color="text.secondary">
+        <SectionCard>
+          <Typography color="text.secondary" sx={{ textAlign: "center" }}>
             {view === "day" ? "No sessions scheduled for today." : "No sessions scheduled for this week."}
           </Typography>
-        </Paper>
+        </SectionCard>
       ) : (
         <>
           {view === "week" && sortedSessionDates.length > 0 && (
-            <Paper sx={{ p: 2, mb: 3 }}>
+            <SectionCard>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>
                 Week At A Glance
               </Typography>
@@ -934,11 +922,11 @@ export default function MyDayPage() {
                   );
                 })}
               </Stack>
-            </Paper>
+            </SectionCard>
           )}
 
           {groupedSiteEntries.map(([groupKey, { session_date, site_name, sessions: siteSessions }]) => (
-            <Paper key={groupKey} sx={{ mb: 3, overflow: "hidden" }}>
+            <SectionCard key={groupKey} noPadding>
               <Box sx={{ px: 3, py: 2, bgcolor: "grey.100" }}>
                 <Typography variant="subtitle2" color="text.secondary">
                   {new Date(`${session_date}T00:00:00`).toLocaleDateString("en-US", {
@@ -1077,7 +1065,7 @@ export default function MyDayPage() {
                   ))}
                 </Stack>
               </Box>
-            </Paper>
+            </SectionCard>
           ))}
 
           {/* Sticky footer showing progress */}
@@ -1109,6 +1097,7 @@ export default function MyDayPage() {
           <Box sx={{ height: 80 }} />
         </>
       )}
+      </Stack>
 
       {/* Reason Dialog */}
       <Dialog
@@ -1156,7 +1145,7 @@ export default function MyDayPage() {
             )}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setReasonDialogOpen(false)}>Cancel</Button>
           <Button
             onClick={handleConfirmAbsence}
@@ -1172,7 +1161,7 @@ export default function MyDayPage() {
       <Dialog open={lateDialogOpen} onClose={() => setLateDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Mark as Late</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
               Student: {selectedSession?.student_first_name} {selectedSession?.student_last_name}
             </Typography>
@@ -1192,7 +1181,7 @@ export default function MyDayPage() {
             </FormControl>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setLateDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" color="warning" onClick={handleConfirmLate}>
             Confirm Late
@@ -1229,7 +1218,7 @@ export default function MyDayPage() {
       <Dialog open={sickDayDialogOpen} onClose={() => setSickDayDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Report Sick Day</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
               This creates a parent-facing location announcement for {selectedDate}.
             </Typography>
@@ -1258,7 +1247,7 @@ export default function MyDayPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setSickDayDialogOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -1274,7 +1263,7 @@ export default function MyDayPage() {
       <Dialog open={siblingDialogOpen} onClose={() => setSiblingDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Sibling Participants</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             {siblingOptions.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 No participant siblings available for this student.
@@ -1305,13 +1294,13 @@ export default function MyDayPage() {
             )}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setSiblingDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={saveSiblingParticipants}>
             Save
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }
