@@ -12,7 +12,8 @@
     "db:migrate": "NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit migrate",
     "db:studio": "NODE_TLS_REJECT_UNAUTHORIZED=0 drizzle-kit studio",
     "db:migrate:run": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx src/db/migrate.ts",
-    "db:seed-demo": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx src/db/seed-demo.ts"
+    "db:seed-demo": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx src/db/seed-demo.ts",
+    "db:seed-users": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx src/db/seed-users.ts"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

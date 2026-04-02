@@ -30,11 +30,11 @@ import {
   ScheduleChangeRequestTable,
 } from "./schema";
 
-// ==================== REAL USER EMAILS ====================
-const REAL_USERS = {
-  ADMIN: "ryanmcly@gmail.com",
-  TEACHER: "ryan.e.mccauley21@gmail.com",
-  PARENT: "ryanmccauley024@gmail.com",
+// ==================== TEST USER EMAILS ====================
+const TEST_USERS = {
+  ADMIN: "admin@nolimitsfordeafchildren.org",
+  TEACHER: "teacher@nolimitsfordeafchildren.org",
+  PARENT: "parent@nolimitsfordeafchildren.org",
 };
 
 // ==================== HELPER FUNCTIONS ====================
@@ -738,26 +738,26 @@ async function seedDemo() {
   const [adminUser] = await db
     .select()
     .from(UserTable)
-    .where(eq(UserTable.email, REAL_USERS.ADMIN));
+    .where(eq(UserTable.email, TEST_USERS.ADMIN));
   const [teacherUser] = await db
     .select()
     .from(UserTable)
-    .where(eq(UserTable.email, REAL_USERS.TEACHER));
+    .where(eq(UserTable.email, TEST_USERS.TEACHER));
   const [parentUser] = await db
     .select()
     .from(UserTable)
-    .where(eq(UserTable.email, REAL_USERS.PARENT));
+    .where(eq(UserTable.email, TEST_USERS.PARENT));
 
   if (!adminUser) {
-    console.error(`❌ Admin user not found: ${REAL_USERS.ADMIN}`);
+    console.error(`❌ Admin user not found: ${TEST_USERS.ADMIN}`);
     process.exit(1);
   }
   if (!teacherUser) {
-    console.error(`❌ Teacher user not found: ${REAL_USERS.TEACHER}`);
+    console.error(`❌ Teacher user not found: ${TEST_USERS.TEACHER}`);
     process.exit(1);
   }
   if (!parentUser) {
-    console.error(`❌ Parent user not found: ${REAL_USERS.PARENT}`);
+    console.error(`❌ Parent user not found: ${TEST_USERS.PARENT}`);
     process.exit(1);
   }
 
@@ -1267,9 +1267,9 @@ async function seedDemo() {
   );
 
   console.log("\n🔑 Real Users for Testing:");
-  console.log(`  - Admin: ${REAL_USERS.ADMIN}`);
-  console.log(`  - Teacher: ${REAL_USERS.TEACHER}`);
-  console.log(`  - Parent: ${REAL_USERS.PARENT}`);
+  console.log(`  - Admin: ${TEST_USERS.ADMIN}`);
+  console.log(`  - Teacher: ${TEST_USERS.TEACHER}`);
+  console.log(`  - Parent: ${TEST_USERS.PARENT}`);
 
   process.exit(0);
 }
