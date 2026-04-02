@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
-  Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
   Dialog,
@@ -18,9 +14,23 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Add as AddIcon, Archive as ArchiveIcon, Edit as EditIcon } from "@mui/icons-material";
+import {
+  Add as AddIcon,
+  Archive as ArchiveIcon,
+  Edit as EditIcon,
+  CalendarMonth as CalendarIcon,
+} from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
 import { useServerTable } from "../../global/hooks/useServerTable";
+import { useToast } from "../../global/components/ToastProvider";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import ConfirmDialog from "../../global/components/ConfirmDialog";
+import CardGridSkeleton from "../../global/components/skeletons/CardGridSkeleton";
+import { formatDate } from "../../../utils/formatDate";
 
 interface SessionItem {
   id: string;
@@ -42,6 +52,7 @@ interface SessionFormState {
 export default function SessionsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const table = useServerTable({ defaultLimit: 20 });
 
   const [open, setOpen] = useState(false);
@@ -52,7 +63,12 @@ export default function SessionsPage() {
     is_active: true,
   });
 
-  const { data, isLoading, error } = useQuery({
+  const [archiveConfirm, setArchiveConfirm] = useState<{
+    session: SessionItem;
+    isArchiving: boolean;
+  } | null>(null);
+
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin-sessions", table.page, table.limit],
     queryFn: async () => {
       const response = await httpClient.get("/v1/sessions", {
@@ -83,10 +99,14 @@ export default function SessionsPage() {
       const response = await httpClient.post("/v1/sessions", payload);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setOpen(false);
       setForm({ name: "", start_date: "", end_date: "", is_active: true });
       queryClient.invalidateQueries({ queryKey: ["admin-sessions"] });
+      toast.success(variables.id ? "Session updated successfully" : "Session created successfully");
+    },
+    onError: (_error, variables) => {
+      toast.error(variables.id ? "Failed to update session" : "Failed to create session");
     },
   });
 
@@ -97,65 +117,92 @@ export default function SessionsPage() {
       });
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin-sessions"] });
+      toast.success(variables.isArchived ? "Session archived" : "Session unarchived");
+      setArchiveConfirm(null);
+    },
+    onError: () => {
+      toast.error("Failed to update session");
+      setArchiveConfirm(null);
     },
   });
 
   const sessions = data?.items ?? [];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Sessions</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setForm({ name: "", start_date: "", end_date: "", is_active: true });
-            setOpen(true);
-          }}
-        >
-          New Session
-        </Button>
-      </Stack>
+    <PageContainer>
+      <PageHeader
+        title="Sessions"
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setForm({ name: "", start_date: "", end_date: "", is_active: true });
+              setOpen(true);
+            }}
+          >
+            New Session
+          </Button>
+        }
+      />
 
-      {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
-
-      {error && <Alert severity="error">Failed to load sessions.</Alert>}
-
-      {!isLoading && !error && sessions.length === 0 && (
-        <Alert severity="info">No sessions yet. Create your first semester session.</Alert>
-      )}
-
-      <Stack spacing={2}>
-        {sessions.map((session) => (
-          <Card key={session.id} variant="outlined">
-            <CardContent>
+      {isLoading ? (
+        <CardGridSkeleton />
+      ) : error ? (
+        <ErrorAlert
+          message="Failed to load sessions."
+          onRetry={() => refetch()}
+        />
+      ) : sessions.length === 0 ? (
+        <SectionCard>
+          <EmptyState
+            icon={<CalendarIcon sx={{ fontSize: 48 }} />}
+            title="No Sessions Yet"
+            description="Create your first semester session to get started."
+            actionLabel="New Session"
+            onAction={() => {
+              setForm({ name: "", start_date: "", end_date: "", is_active: true });
+              setOpen(true);
+            }}
+          />
+        </SectionCard>
+      ) : (
+        <Stack spacing={2}>
+          {sessions.map((session) => (
+            <SectionCard key={session.id}>
               <Stack spacing={1.5}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="h6">{session.name}</Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Chip
-                      label={session.is_archived ? "Archived" : session.is_active ? "Active" : "Inactive"}
-                      color={session.is_archived ? "default" : session.is_active ? "success" : "warning"}
-                      size="small"
-                    />
-                  </Stack>
+                  <Chip
+                    label={
+                      session.is_archived
+                        ? "Archived"
+                        : session.is_active
+                          ? "Active"
+                          : "Inactive"
+                    }
+                    color={
+                      session.is_archived
+                        ? "default"
+                        : session.is_active
+                          ? "success"
+                          : "warning"
+                    }
+                    size="small"
+                  />
                 </Stack>
 
                 <Typography variant="body2" color="text.secondary">
-                  {session.start_date} to {session.end_date}
+                  {formatDate(session.start_date)} to {formatDate(session.end_date)}
                 </Typography>
 
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Button
                     size="small"
                     startIcon={<EditIcon />}
+                    aria-label={`Edit ${session.name}`}
                     onClick={() => {
                       setForm({
                         id: session.id,
@@ -173,34 +220,63 @@ export default function SessionsPage() {
                     size="small"
                     color={session.is_archived ? "success" : "warning"}
                     startIcon={<ArchiveIcon />}
+                    aria-label={session.is_archived ? `Unarchive ${session.name}` : `Archive ${session.name}`}
                     onClick={() =>
-                      archiveMutation.mutate({ id: session.id, isArchived: !session.is_archived })
+                      setArchiveConfirm({
+                        session,
+                        isArchiving: !session.is_archived,
+                      })
                     }
-                    disabled={archiveMutation.isPending}
                   >
                     {session.is_archived ? "Unarchive" : "Archive"}
                   </Button>
                 </Stack>
               </Stack>
-            </CardContent>
-          </Card>
-        ))}
-      </Stack>
+            </SectionCard>
+          ))}
+        </Stack>
+      )}
 
-      <TablePagination
-        rowsPerPageOptions={[10, 20, 50]}
-        component="div"
-        count={data?.total ?? 0}
-        rowsPerPage={table.limit}
-        page={Math.max(table.page - 1, 0)}
-        onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
-        onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+      {sessions.length > 0 && (
+        <TablePagination
+          rowsPerPageOptions={[10, 20, 50]}
+          component="div"
+          count={data?.total ?? 0}
+          rowsPerPage={table.limit}
+          page={Math.max(table.page - 1, 0)}
+          onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+          onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+        />
+      )}
+
+      {/* Archive Confirm Dialog */}
+      <ConfirmDialog
+        open={!!archiveConfirm}
+        title={archiveConfirm?.isArchiving ? "Archive Session?" : "Unarchive Session?"}
+        message={
+          archiveConfirm?.isArchiving
+            ? `Are you sure you want to archive "${archiveConfirm.session.name}"? Archived sessions are hidden from regular views.`
+            : `Are you sure you want to unarchive "${archiveConfirm?.session.name}"?`
+        }
+        confirmLabel={archiveConfirm?.isArchiving ? "Archive" : "Unarchive"}
+        confirmColor={archiveConfirm?.isArchiving ? "warning" : "primary"}
+        loading={archiveMutation.isPending}
+        onConfirm={() => {
+          if (archiveConfirm) {
+            archiveMutation.mutate({
+              id: archiveConfirm.session.id,
+              isArchived: archiveConfirm.isArchiving,
+            });
+          }
+        }}
+        onCancel={() => setArchiveConfirm(null)}
       />
 
+      {/* Create/Edit Session Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{form.id ? "Edit Session" : "Create Session"}</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             <TextField
               label="Session name"
               value={form.name}
@@ -253,17 +329,19 @@ export default function SessionsPage() {
             </Stack>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
             onClick={() => saveMutation.mutate(form)}
-            disabled={!form.name.trim() || !form.start_date || !form.end_date || saveMutation.isPending}
+            disabled={
+              !form.name.trim() || !form.start_date || !form.end_date || saveMutation.isPending
+            }
           >
-            {saveMutation.isPending ? "Saving..." : "Save"}
+            {saveMutation.isPending ? <CircularProgress size={20} /> : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

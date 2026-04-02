@@ -8,7 +8,6 @@ import {
   CardContent,
   CardActionArea,
   Button,
-  Alert,
   Skeleton,
   Stack,
   FormControl,
@@ -22,6 +21,7 @@ import {
   DialogActions,
   TextField,
   TablePagination,
+  Alert,
 } from "@mui/material";
 import {
   Schedule as ScheduleIcon,
@@ -29,20 +29,27 @@ import {
   Person as PersonIcon,
   CalendarMonth as CalendarIcon,
   Send as SendIcon,
-  ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 import type { ChangeEvent } from "react";
 import type { SelectChangeEvent } from "@mui/material/Select";
 import { useParentHttpService } from "../services/ParentHttpService";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import EmptyState from "../../global/components/EmptyState";
+import { formatTime } from "../../../utils/formatDate";
 
 interface AvailableSchedule {
   id: string;
   teacher: {
     id: string;
-    name: string;
-    age_group_specialty: string | null;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
   };
   site: {
     id: string;
@@ -53,15 +60,6 @@ interface AvailableSchedule {
   end_time: string;
   cycle_start_date: string;
   cycle_end_date: string;
-  enrollment_count?: number;
-}
-
-function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
 }
 
 function getDaysFromMask(mask: number): string[] {
@@ -81,11 +79,6 @@ function getDayPattern(mask: number): string {
   return days.join("/");
 }
 
-function formatAgeGroup(specialty: string | null): string {
-  if (!specialty) return "All Ages";
-  return specialty.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
-}
-
 function ScheduleCard({
   schedule,
   selected,
@@ -99,12 +92,12 @@ function ScheduleCard({
     <Card
       sx={{
         height: "100%",
-        border: selected ? 2 : 1,
-        borderColor: selected ? "primary.main" : "divider",
+        border: 2,
+        borderColor: selected ? "primary.main" : "transparent",
         transition: "all 0.2s",
         "&:hover": {
           boxShadow: 3,
-          borderColor: "primary.light",
+          borderColor: selected ? "primary.main" : "primary.light",
         },
       }}
     >
@@ -114,16 +107,9 @@ function ScheduleCard({
             <Stack direction="row" spacing={1} alignItems="center">
               <PersonIcon color="action" fontSize="small" />
               <Typography variant="subtitle1" fontWeight={600}>
-                {schedule.teacher.name}
+                {schedule.teacher.user.name}
               </Typography>
             </Stack>
-
-            <Chip
-              label={formatAgeGroup(schedule.teacher.age_group_specialty)}
-              size="small"
-              variant="outlined"
-              color="primary"
-            />
 
             <Stack direction="row" spacing={1} alignItems="center">
               <LocationIcon color="action" fontSize="small" />
@@ -154,27 +140,28 @@ function ScheduleCard({
 
 function LoadingSkeleton() {
   return (
-    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-      {[1, 2, 3, 4].map((i) => (
-        <Box
-          key={i}
-          sx={{
-            flex: "1 1 280px",
-            maxWidth: { xs: "100%", sm: "calc(50% - 8px)", md: "calc(33.33% - 10px)" },
-          }}
-        >
-          <Card>
-            <CardContent>
-              <Stack spacing={1}>
-                <Skeleton variant="text" width="60%" />
-                <Skeleton variant="rounded" width={100} height={24} />
-                <Skeleton variant="text" width="80%" />
-                <Skeleton variant="text" width="50%" />
-                <Skeleton variant="text" width="70%" />
-              </Stack>
-            </CardContent>
-          </Card>
-        </Box>
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, 1fr)",
+          md: "repeat(3, 1fr)",
+        },
+        gap: 2,
+      }}
+    >
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <Card key={i}>
+          <CardContent>
+            <Stack spacing={1}>
+              <Skeleton variant="text" width="60%" />
+              <Skeleton variant="text" width="80%" />
+              <Skeleton variant="text" width="50%" />
+              <Skeleton variant="text" width="70%" />
+            </Stack>
+          </CardContent>
+        </Card>
       ))}
     </Box>
   );
@@ -185,7 +172,7 @@ export default function BrowseSchedulesPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
   const parentHttpService = useParentHttpService();
-  const { showToast } = useToast();
+  const toast = useToast();
 
   // State
   const [selectedChild, setSelectedChild] = useState<string>("");
@@ -204,6 +191,10 @@ export default function BrowseSchedulesPage() {
     queryKey: [parentHttpService.key, "myChildren"],
     queryFn: () => parentHttpService.queries.myChildren({ page: 1, limit: 100 }),
   });
+
+  // Get the selected child's current schedule (for excluding from available)
+  const children = childrenData?.items ?? [];
+  const selectedChildData = children.find((c) => c.id === selectedChild);
 
   // Fetch available schedules
   const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
@@ -239,22 +230,15 @@ export default function BrowseSchedulesPage() {
       return response.data;
     },
     onSuccess: () => {
-      showToast({
-        message: "Schedule change request submitted successfully!",
-        severity: "success",
-      });
+      toast.success("Schedule change request submitted successfully!");
       queryClient.invalidateQueries({ queryKey: [parentHttpService.key] });
       navigate("/parents/my-requests");
     },
     onError: (error: any) => {
-      showToast({
-        message: error.response?.data?.message || "Failed to submit request",
-        severity: "error",
-      });
+      toast.error(error.response?.data?.message || "Failed to submit request");
     },
   });
 
-  const children = childrenData?.items ?? [];
   const schedules: AvailableSchedule[] = schedulesData?.items ?? [];
 
   // Get unique sites from schedules for filtering
@@ -264,9 +248,6 @@ export default function BrowseSchedulesPage() {
     }
     return acc;
   }, []);
-
-  // Get the selected child's current schedule (for excluding from available)
-  const selectedChildData = children.find((c) => c.id === selectedChild);
 
   const handleChildChange = (event: SelectChangeEvent) => {
     const value = (event.target as unknown as { value: string }).value;
@@ -296,20 +277,13 @@ export default function BrowseSchedulesPage() {
 
     const currentScheduleId = selectedChildData?.current_schedule_id;
     if (!currentScheduleId) {
-      showToast({
-        message:
-          "We could not determine your child's current schedule. Please contact support.",
-        severity: "error",
-      });
+      toast.error("We could not determine your child's current schedule. Please contact support.");
       return;
     }
 
     const hasSpecificSchedule = Boolean(selectedSchedule);
     if (!hasSpecificSchedule && !preferredTimes.trim()) {
-      showToast({
-        message: "Please add preferred times when requesting a flexible schedule change.",
-        severity: "error",
-      });
+      toast.error("Please add preferred times when requesting a flexible schedule change.");
       return;
     }
 
@@ -325,200 +299,194 @@ export default function BrowseSchedulesPage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={2} alignItems="center" mb={3}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} color="inherit">
-          Back
-        </Button>
-        <Typography variant="h4">Browse Available Schedules</Typography>
-      </Stack>
+    <PageContainer>
+      <PageHeader
+        title="Browse Available Schedules"
+        back
+        breadcrumbs={[
+          { label: "My Requests", href: "/parents/my-requests" },
+          { label: "Browse Schedules" },
+        ]}
+      />
 
+      <Stack spacing={3}>
       {/* Step 1: Select Child */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Step 1: Select Child
-          </Typography>
-          {childrenLoading ? (
-            <Skeleton variant="rounded" height={56} />
-          ) : children.length === 0 ? (
-            <Alert severity="info">No children are linked to your account.</Alert>
-          ) : (
-            <FormControl fullWidth>
-              <InputLabel>Select a child</InputLabel>
-              <Select
-                value={selectedChild}
-                onChange={handleChildChange}
-                label="Select a child"
-              >
-                {children.map((child) => (
-                  <MenuItem key={child.id} value={child.id}>
-                    {child.first_name} {child.last_name} - {child.site.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-        </CardContent>
-      </Card>
+      <SectionCard title="Step 1: Select Child">
+        {childrenLoading ? (
+          <Skeleton variant="rounded" height={56} />
+        ) : children.length === 0 ? (
+          <EmptyState
+            title="No Children Linked"
+            description="No children are linked to your account."
+          />
+        ) : (
+          <FormControl fullWidth>
+            <InputLabel>Select a child</InputLabel>
+            <Select
+              value={selectedChild}
+              onChange={handleChildChange}
+              label="Select a child"
+            >
+              {children.map((child) => (
+                <MenuItem key={child.id} value={child.id}>
+                  {child.first_name} {child.last_name} - {child.site.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+      </SectionCard>
 
       {selectedChild && (
         <>
           {/* Step 2: Filter & Browse */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Step 2: Browse Available Schedules
-              </Typography>
+          <SectionCard title="Step 2: Browse Available Schedules">
+            {/* Filters */}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={3}>
+              <FormControl sx={{ minWidth: 200 }}>
+                <InputLabel>Filter by Location</InputLabel>
+                <Select
+                  value={siteFilter}
+                  onChange={handleSiteFilterChange}
+                  label="Filter by Location"
+                >
+                  <MenuItem value="">All Locations</MenuItem>
+                  {sites.map((site) => (
+                    <MenuItem key={site.id} value={site.id}>
+                      {site.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-              {/* Filters */}
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={3}>
-                <FormControl sx={{ minWidth: 200 }}>
-                  <InputLabel>Filter by Location</InputLabel>
-                  <Select
-                    value={siteFilter}
-                    onChange={handleSiteFilterChange}
-                    label="Filter by Location"
-                  >
-                    <MenuItem value="">All Locations</MenuItem>
-                    {sites.map((site) => (
-                      <MenuItem key={site.id} value={site.id}>
-                        {site.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              <FormControl sx={{ minWidth: 200 }}>
+                <InputLabel>Filter by Days</InputLabel>
+                <Select
+                  value={dayPatternFilter}
+                  onChange={handleDayPatternFilterChange}
+                  label="Filter by Days"
+                >
+                  <MenuItem value="">All Days</MenuItem>
+                  <MenuItem value="mws">Mon/Wed/Sat</MenuItem>
+                  <MenuItem value="tths">Tue/Thu/Sat</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
 
-                <FormControl sx={{ minWidth: 200 }}>
-                  <InputLabel>Filter by Days</InputLabel>
-                  <Select
-                    value={dayPatternFilter}
-                    onChange={handleDayPatternFilterChange}
-                    label="Filter by Days"
-                  >
-                    <MenuItem value="">All Days</MenuItem>
-                    <MenuItem value="mws">Mon/Wed/Sat</MenuItem>
-                    <MenuItem value="tths">Tue/Thu/Sat</MenuItem>
-                  </Select>
-                </FormControl>
+            {/* Schedule Grid */}
+            {schedulesLoading ? (
+              <LoadingSkeleton />
+            ) : schedules.length === 0 ? (
+              <EmptyState
+                icon={<ScheduleIcon sx={{ fontSize: 48 }} />}
+                title="No Available Schedules"
+                description="No available schedules match your filters. Try adjusting or removing filters."
+              />
+            ) : (
+              <>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "repeat(2, 1fr)",
+                      md: "repeat(3, 1fr)",
+                    },
+                    gap: 2,
+                  }}
+                >
+                  {schedules.map((schedule) => (
+                    <ScheduleCard
+                      key={schedule.id}
+                      schedule={schedule}
+                      selected={selectedSchedule?.id === schedule.id}
+                      onSelect={setSelectedSchedule}
+                    />
+                  ))}
+                </Box>
+                <TablePagination
+                  rowsPerPageOptions={[6, 9, 18]}
+                  component="div"
+                  count={schedulesData?.total ?? 0}
+                  rowsPerPage={rowsPerPage}
+                  page={Math.max(page - 1, 0)}
+                  onPageChange={(_event, nextPage) => setPage(nextPage + 1)}
+                  onRowsPerPageChange={(event) => {
+                    setRowsPerPage(Number(event.target.value));
+                    setPage(1);
+                  }}
+                />
+              </>
+            )}
+
+            {selectedSchedule && (
+              <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
+                <Button size="small" onClick={() => setSelectedSchedule(null)}>
+                  Use flexible request instead
+                </Button>
               </Stack>
+            )}
+          </SectionCard>
 
-              {/* Schedule Grid */}
-              {schedulesLoading ? (
-                <LoadingSkeleton />
-              ) : schedules.length === 0 ? (
-                <Alert severity="info">No available schedules match your filters.</Alert>
-              ) : (
-                <>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                    {schedules.map((schedule) => (
-                      <Box
-                        key={schedule.id}
-                        sx={{
-                          flex: "1 1 280px",
-                          maxWidth: { xs: "100%", sm: "calc(50% - 8px)", md: "calc(33.33% - 10px)" },
-                        }}
-                      >
-                        <ScheduleCard
-                          schedule={schedule}
-                          selected={selectedSchedule?.id === schedule.id}
-                          onSelect={setSelectedSchedule}
-                        />
-                      </Box>
-                    ))}
-                  </Box>
-                  <TablePagination
-                    rowsPerPageOptions={[6, 9, 18]}
-                    component="div"
-                    count={schedulesData?.total ?? 0}
-                    rowsPerPage={rowsPerPage}
-                    page={Math.max(page - 1, 0)}
-                    onPageChange={(_event, nextPage) => setPage(nextPage + 1)}
-                    onRowsPerPageChange={(event) => {
-                      setRowsPerPage(Number(event.target.value));
-                      setPage(1);
-                    }}
-                  />
-                </>
-              )}
-
-              {selectedSchedule && (
-                <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
-                  <Button size="small" onClick={() => setSelectedSchedule(null)}>
-                    Use flexible request instead
-                  </Button>
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Step 3: Submit Request */}
+          {/* Flexible Request (when no schedule selected) */}
           {!selectedSchedule && (
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Flexible Request (Optional Instead of Selecting a Schedule)
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  If none of the listed schedules work, share your preferred times and any flexibility
-                  details so admins can coordinate with teachers.
-                </Typography>
-                <Stack spacing={2}>
-                  <TextField
-                    fullWidth
-                    label="Preferred times"
-                    placeholder="Example: Weekdays after 4:30 PM, Saturday mornings"
-                    value={preferredTimes}
-                    onChange={(event) =>
-                      setPreferredTimes((event.target as unknown as { value: string }).value)
-                    }
-                    required
-                  />
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={2}
-                    label="Flexibility notes (optional)"
-                    placeholder="Example: Can do either M/W/S or T/Th/S, but cannot start before 4 PM"
-                    value={flexibilityNotes}
-                    onChange={(event) =>
-                      setFlexibilityNotes((event.target as unknown as { value: string }).value)
-                    }
-                  />
-                </Stack>
-              </CardContent>
-            </Card>
+            <SectionCard title="Flexible Request (Optional Instead of Selecting a Schedule)">
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                If none of the listed schedules work, share your preferred times and any flexibility
+                details so admins can coordinate with teachers.
+              </Typography>
+              <Stack spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Preferred times"
+                  placeholder="Example: Weekdays after 4:30 PM, Saturday mornings"
+                  value={preferredTimes}
+                  onChange={(event) =>
+                    setPreferredTimes((event.target as unknown as { value: string }).value)
+                  }
+                  required
+                />
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Flexibility notes (optional)"
+                  placeholder="Example: Can do either M/W/S or T/Th/S, but cannot start before 4 PM"
+                  value={flexibilityNotes}
+                  onChange={(event) =>
+                    setFlexibilityNotes((event.target as unknown as { value: string }).value)
+                  }
+                />
+              </Stack>
+            </SectionCard>
           )}
 
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Step 3: Provide Reason & Submit
-              </Typography>
-              <TextField
-                fullWidth
-                multiline
-                rows={3}
-                label="Reason for schedule change"
-                placeholder="Please explain why you're requesting this schedule change (e.g., new work schedule, transportation issues, etc.)"
-                value={reason}
-                onChange={handleReasonChange}
-                sx={{ mb: 2 }}
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<SendIcon />}
-                onClick={() => setConfirmDialogOpen(true)}
-                disabled={!reason.trim() || (!selectedSchedule && !preferredTimes.trim())}
-                size="large"
-              >
-                Submit Schedule Change Request
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Step 3: Submit */}
+          <SectionCard title="Step 3: Provide Reason & Submit">
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Reason for schedule change"
+              placeholder="Please explain why you're requesting this schedule change (e.g., new work schedule, transportation issues, etc.)"
+              value={reason}
+              onChange={handleReasonChange}
+              sx={{ mb: 2 }}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<SendIcon />}
+              onClick={() => setConfirmDialogOpen(true)}
+              disabled={!reason.trim() || (!selectedSchedule && !preferredTimes.trim())}
+              size="large"
+            >
+              Submit Schedule Change Request
+            </Button>
+          </SectionCard>
         </>
       )}
+      </Stack>
 
       {/* Confirmation Dialog */}
       <Dialog
@@ -539,7 +507,7 @@ export default function BrowseSchedulesPage() {
                 <CardContent>
                   <Stack spacing={1}>
                     <Typography variant="subtitle1" fontWeight={600}>
-                      {selectedSchedule.teacher.name}
+                      {selectedSchedule.teacher.user.name}
                     </Typography>
                     <Typography variant="body2">{selectedSchedule.site.name}</Typography>
                     <Typography variant="body2">
@@ -577,7 +545,7 @@ export default function BrowseSchedulesPage() {
             </Alert>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -588,6 +556,6 @@ export default function BrowseSchedulesPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

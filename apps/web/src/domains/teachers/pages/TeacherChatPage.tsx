@@ -8,6 +8,7 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  IconButton,
   Stack,
   Tab,
   TablePagination,
@@ -25,6 +26,11 @@ import { useHttpClient } from "../../../plugins/axios";
 import { useAuth } from "../../../auth";
 import { useToast } from "../../global/components/ToastProvider";
 import { useServerTable } from "../../global/hooks/useServerTable";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import ConfirmDialog from "../../global/components/ConfirmDialog";
 
 type ChatChannel = "community" | "teacher";
 
@@ -54,11 +60,12 @@ export default function TeacherChatPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const toast = useToast();
 
   const [channel, setChannel] = useState<ChatChannel>("community");
   const [message, setMessage] = useState("");
   const [markAsAnnouncement, setMarkAsAnnouncement] = useState(false);
+  const [deleteMessageTarget, setDeleteMessageTarget] = useState<string | null>(null);
   const table = useServerTable({ defaultLimit: 50 });
 
   const { data, isLoading, error } = useQuery({
@@ -91,12 +98,10 @@ export default function TeacherChatPage() {
       setMessage("");
       setMarkAsAnnouncement(false);
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
+      toast.success("Message posted");
     },
     onError: (err: any) => {
-      showToast({
-        message: err.response?.data?.message || "Failed to send message",
-        severity: "error",
-      });
+      toast.error(err.response?.data?.message || "Failed to send message");
     },
   });
 
@@ -111,10 +116,7 @@ export default function TeacherChatPage() {
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
     },
     onError: (err: any) => {
-      showToast({
-        message: err.response?.data?.message || "Failed to update announcement",
-        severity: "error",
-      });
+      toast.error(err.response?.data?.message || "Failed to update announcement");
     },
   });
 
@@ -125,6 +127,11 @@ export default function TeacherChatPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
+      setDeleteMessageTarget(null);
+      toast.success("Message deleted");
+    },
+    onError: () => {
+      toast.error("Failed to delete message");
     },
   });
 
@@ -132,58 +139,53 @@ export default function TeacherChatPage() {
   const isAdmin = user?.role === "administrator";
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={1} alignItems="center" mb={2}>
-        <ChatIcon color="action" />
-        <Typography variant="h4">Staff Chat</Typography>
-      </Stack>
+    <PageContainer>
+      <PageHeader title="Staff Chat" breadcrumbs={[{ label: "Staff Chat" }]} />
 
+      <Stack spacing={3}>
       <Tabs
         value={channel}
         onChange={(_, next) => {
           setChannel(next);
           table.setPage(1);
         }}
-        sx={{ mb: 2 }}
       >
         <Tab value="community" label="Community" />
         <Tab value="teacher" label="Teacher Channel" />
       </Tabs>
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Stack spacing={1.5}>
-            <TextField
-              multiline
-              rows={3}
-              label="Share update"
-              value={message}
-              onChange={(event) =>
-                setMessage((event.target as unknown as { value: string }).value)
-              }
-              placeholder="Share announcements, reminders, or coordination notes..."
-            />
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Button
-                variant={markAsAnnouncement ? "contained" : "outlined"}
-                color="info"
-                startIcon={<AnnouncementIcon />}
-                onClick={() => setMarkAsAnnouncement((prev) => !prev)}
-              >
-                {markAsAnnouncement ? "Announcement" : "Mark as Announcement"}
-              </Button>
+      <SectionCard title="Compose" icon={<ChatIcon />}>
+        <Stack spacing={1.5}>
+          <TextField
+            multiline
+            rows={3}
+            label="Share update"
+            value={message}
+            onChange={(event) =>
+              setMessage((event.target as unknown as { value: string }).value)
+            }
+            placeholder="Share announcements, reminders, or coordination notes..."
+          />
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Button
+              variant={markAsAnnouncement ? "contained" : "outlined"}
+              color="info"
+              startIcon={<AnnouncementIcon />}
+              onClick={() => setMarkAsAnnouncement((prev) => !prev)}
+            >
+              {markAsAnnouncement ? "Announcement" : "Mark as Announcement"}
+            </Button>
 
-              <Button
-                variant="contained"
-                onClick={() => postMutation.mutate()}
-                disabled={!message.trim() || postMutation.isPending}
-              >
-                {postMutation.isPending ? "Posting..." : "Post"}
-              </Button>
-            </Stack>
+            <Button
+              variant="contained"
+              onClick={() => postMutation.mutate()}
+              disabled={!message.trim() || postMutation.isPending}
+            >
+              {postMutation.isPending ? "Posting..." : "Post"}
+            </Button>
           </Stack>
-        </CardContent>
-      </Card>
+        </Stack>
+      </SectionCard>
 
       {isLoading && (
         <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -192,9 +194,10 @@ export default function TeacherChatPage() {
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to load chat messages.
-        </Alert>
+        <ErrorAlert
+          message="Failed to load chat messages."
+          onRetry={() => queryClient.invalidateQueries({ queryKey: ["chat-messages", channel, table.page, table.limit] })}
+        />
       )}
 
       {!isLoading && !error && items.length === 0 && (
@@ -243,15 +246,15 @@ export default function TeacherChatPage() {
                     )}
 
                     {isAdmin && (
-                      <Button
+                      <IconButton
                         size="small"
                         color="error"
-                        startIcon={<DeleteIcon />}
-                        onClick={() => deleteMutation.mutate(item.id)}
+                        onClick={() => setDeleteMessageTarget(item.id)}
                         disabled={deleteMutation.isPending}
+                        aria-label="Delete message"
                       >
-                        Delete
-                      </Button>
+                        <DeleteIcon />
+                      </IconButton>
                     )}
                   </Stack>
                 </Stack>
@@ -270,6 +273,21 @@ export default function TeacherChatPage() {
         onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
         onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
       />
-    </Box>
+
+      </Stack>
+
+      <ConfirmDialog
+        open={deleteMessageTarget !== null}
+        title="Delete Message"
+        message="Are you sure you want to delete this message? This action cannot be undone."
+        confirmLabel="Delete"
+        confirmColor="error"
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteMessageTarget) deleteMutation.mutate(deleteMessageTarget);
+        }}
+        onCancel={() => setDeleteMessageTarget(null)}
+      />
+    </PageContainer>
   );
 }

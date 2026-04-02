@@ -174,6 +174,9 @@ export class PostBulletinsController {
       if (error?.message?.includes("assigned site")) {
         throw new BadRequestError(error.message);
       }
+      if (error?.message?.includes("requires_initials")) {
+        throw new BadRequestError(error.message);
+      }
       throw error;
     }
   }
@@ -210,11 +213,18 @@ export class PatchBulletinController {
       );
     }
 
-    const bulletin = await this.bulletinsService.update(id, body);
-    if (!bulletin) {
-      throw new NotFoundError("Bulletin not found");
+    try {
+      const bulletin = await this.bulletinsService.update(id, body);
+      if (!bulletin) {
+        throw new NotFoundError("Bulletin not found");
+      }
+      return bulletin;
+    } catch (error: any) {
+      if (error?.message?.includes("requires_initials")) {
+        throw new BadRequestError(error.message);
+      }
+      throw error;
     }
-    return bulletin;
   }
 }
 
@@ -349,6 +359,9 @@ export class PostBulletinAcknowledgeController {
         throw new NotFoundError("Bulletin not found");
       }
       if (error instanceof Error && error.message.includes("Initials")) {
+        throw new BadRequestError(error.message);
+      }
+      if (error instanceof Error && error.message.includes("does not require initials")) {
         throw new BadRequestError(error.message);
       }
       throw error;

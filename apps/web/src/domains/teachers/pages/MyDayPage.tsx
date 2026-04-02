@@ -46,6 +46,11 @@ import {
 } from "../services/TeacherHttpService";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
+import { formatTime } from "../../../utils/formatDate";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
 
 const ABSENCE_REASONS: { value: AbsenceReason; label: string }[] = [
   { value: "sick", label: "Sick" },
@@ -55,14 +60,6 @@ const ABSENCE_REASONS: { value: AbsenceReason; label: string }[] = [
   { value: "no_show_unknown", label: "No Show (Unknown)" },
   { value: "other", label: "Other" },
 ];
-
-function formatTime(time: string): string {
-  const [hours, minutes] = time.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-  return `${displayHour}:${minutes} ${ampm}`;
-}
 
 function getStatusColor(
   status: AttendanceStatus | undefined,
@@ -137,7 +134,7 @@ export default function MyDayPage() {
   const teacherHttpService = useTeacherHttpService();
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
-  const { showToast } = useToast();
+  const toast = useToast();
 
   const [selectedDate] = useState(() => new Date().toISOString().split("T")[0]!);
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
@@ -153,11 +150,39 @@ export default function MyDayPage() {
     session: SessionForDay | null;
     previousStatus: AttendanceStatus | null;
     previousLateMinutes: number | null;
-  }>({ open: false, session: null, previousStatus: null, previousLateMinutes: null });
+    previousSiblingIds: string[];
+  }>({
+    open: false,
+    session: null,
+    previousStatus: null,
+    previousLateMinutes: null,
+    previousSiblingIds: [],
+  });
   const [photoLocationId, setPhotoLocationId] = useState("");
   const [photoStudentId, setPhotoStudentId] = useState("");
   const [photoCaption, setPhotoCaption] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [sickDayDialogOpen, setSickDayDialogOpen] = useState(false);
+  const [sickDayNote, setSickDayNote] = useState("");
+  const [sickDaySiteId, setSickDaySiteId] = useState("");
+  const [siblingDialogOpen, setSiblingDialogOpen] = useState(false);
+  const [siblingSession, setSiblingSession] = useState<SessionForDay | null>(null);
+  const [siblingOptions, setSiblingOptions] = useState<Array<{ id: string; name: string; relationship: string }>>([]);
+  const [siblingDialogSelection, setSiblingDialogSelection] = useState<string[]>([]);
+  const [pendingSiblingSelections, setPendingSiblingSelections] = useState<Record<string, string[]>>({});
+
+  function getSessionKey(session: Pick<SessionForDay, "session_date" | "schedule_id" | "student_id">): string {
+    return `${session.session_date}::${session.schedule_id}::${session.student_id}`;
+  }
+
+  function getSiblingIdsForSession(session: SessionForDay): string[] {
+    const sessionKey = getSessionKey(session);
+    if (pendingSiblingSelections[sessionKey] !== undefined) {
+      return pendingSiblingSelections[sessionKey] ?? [];
+    }
+
+    return session.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
+  }
 
   function getWeekDates(date: Date): string[] {
     const start = new Date(date);
@@ -195,21 +220,20 @@ export default function MyDayPage() {
 
   const weekDates = getWeekDates(new Date(selectedDate));
   const { startOfWeek, endOfWeek } = getWeekRange(new Date(selectedDate));
+  const weekStartDate = weekDates[0] ?? selectedDate;
+  const weekEndDate = weekDates[6] ?? selectedDate;
 
-  const { data, isLoading, error } = useQuery<MyDayResponse>({
+  const { data, isLoading, error, refetch } = useQuery<MyDayResponse>({
     queryKey: [teacherHttpService.key, "myDay", view, selectedDate],
     queryFn: async () => {
       if (view === "day") {
         return teacherHttpService.queries.myDay({ date: selectedDate });
       }
 
-      const results = await Promise.all(
-        weekDates.map((date) => teacherHttpService.queries.myDay({ date })),
-      );
-
-      return {
-        sessions: results.flatMap((r) => r.sessions),
-      };
+      return teacherHttpService.queries.myDay({
+        start_date: weekStartDate,
+        end_date: weekEndDate,
+      });
     },
   });
 
@@ -221,6 +245,28 @@ export default function MyDayPage() {
       });
       return response.data;
     },
+    enabled: view === "day",
+  });
+
+  const { data: meData } = useQuery<{ teacherProfileId?: string | null }>({
+    queryKey: ["me", "my-day"],
+    queryFn: async () => {
+      const response = await httpClient.get("/v1/me");
+      return response.data;
+    },
+  });
+
+  const { data: teacherProfileData } = useQuery<{
+    primary_site_id?: string | null;
+    primarySite?: { id: string; name: string } | null;
+    locations?: Array<{ id: string; name: string }>;
+  }>({
+    queryKey: ["teachers", meData?.teacherProfileId, "my-day-sites"],
+    queryFn: async () => {
+      const response = await httpClient.get(`/v1/teachers/${meData!.teacherProfileId}`);
+      return response.data;
+    },
+    enabled: Boolean(meData?.teacherProfileId),
   });
 
   const markAttendanceMutation = useMutation({
@@ -232,6 +278,7 @@ export default function MyDayPage() {
       late_minutes,
       reason,
       reason_text,
+      sibling_participant_ids,
     }: {
       student_id: string;
       schedule_id: string;
@@ -240,6 +287,7 @@ export default function MyDayPage() {
       late_minutes?: number;
       reason?: AbsenceReason;
       reason_text?: string;
+      sibling_participant_ids?: string[];
     }) => {
       const response = await httpClient.post("/v1/attendance", {
         student_id,
@@ -249,6 +297,7 @@ export default function MyDayPage() {
         late_minutes,
         reason,
         reason_text,
+        sibling_participant_ids,
       });
       return response.data;
     },
@@ -299,13 +348,46 @@ export default function MyDayPage() {
       setPhotoCaption("");
       setPhotoFile(null);
       queryClient.invalidateQueries({ queryKey: ["teacher-session-photos"] });
-      showToast({ message: "Photo uploaded", severity: "success" });
+      toast.success("Photo uploaded");
     },
     onError: (error: any) => {
-      showToast({
-        message: error.message || "Failed to upload photo",
-        severity: "error",
+      toast.error(error.message || "Failed to upload photo");
+    },
+  });
+
+  const reportSickDayMutation = useMutation({
+    mutationFn: async () => {
+      let siteIdToUse = sickDaySiteId || siteOptions[0]?.id;
+
+      if (!siteIdToUse) {
+        const meResponse = await httpClient.get("/v1/me");
+        const teacherProfileId = meResponse.data?.teacherProfileId;
+
+        if (teacherProfileId) {
+          const teacherResponse = await httpClient.get(`/v1/teachers/${teacherProfileId}`);
+          siteIdToUse =
+            teacherResponse.data?.primary_site_id ||
+            teacherResponse.data?.primarySite?.id ||
+            teacherResponse.data?.locations?.[0]?.id ||
+            undefined;
+        }
+      }
+
+      const response = await httpClient.post("/v1/teachers/me/sick-day", {
+        notice_date: selectedDate,
+        note: sickDayNote || undefined,
+        site_id: siteIdToUse,
       });
+      return response.data;
+    },
+    onSuccess: () => {
+      setSickDayDialogOpen(false);
+      setSickDayNote("");
+      setSickDaySiteId("");
+      toast.success("Sick-day notice posted to parents");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || error.message || "Failed to post sick-day notice");
     },
   });
 
@@ -313,14 +395,17 @@ export default function MyDayPage() {
     // Store previous state for undo
     const previousStatus = session.attendance?.status || null;
     const previousLateMinutes = session.attendance?.late_minutes || null;
+    const previousSiblingIds = session.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
+    const siblingParticipantIds = getSiblingIdsForSession(session);
 
     if (status === "present") {
       // Mark as present directly
       markAttendanceMutation.mutate({
         student_id: session.student_id,
         schedule_id: session.schedule_id,
-        session_date: selectedDate,
+        session_date: session.session_date,
         status: "present",
+        sibling_participant_ids: siblingParticipantIds,
       });
 
       // Show undo snackbar
@@ -329,6 +414,7 @@ export default function MyDayPage() {
         session,
         previousStatus,
         previousLateMinutes,
+        previousSiblingIds,
       });
     } else if (status === "late") {
       setSelectedSession(session);
@@ -350,14 +436,17 @@ export default function MyDayPage() {
 
     const previousStatus = selectedSession.attendance?.status || null;
     const previousLateMinutes = selectedSession.attendance?.late_minutes || null;
+    const previousSiblingIds = selectedSession.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
+    const siblingParticipantIds = getSiblingIdsForSession(selectedSession);
 
     markAttendanceMutation.mutate({
       student_id: selectedSession.student_id,
       schedule_id: selectedSession.schedule_id,
-      session_date: selectedDate,
+      session_date: selectedSession.session_date,
       status: selectedStatus,
       reason: selectedReason,
       reason_text: selectedReason === "other" ? reasonText : undefined,
+      sibling_participant_ids: siblingParticipantIds,
     });
 
     setReasonDialogOpen(false);
@@ -366,6 +455,7 @@ export default function MyDayPage() {
       session: selectedSession,
       previousStatus,
       previousLateMinutes,
+      previousSiblingIds,
     });
   };
 
@@ -374,13 +464,16 @@ export default function MyDayPage() {
 
     const previousStatus = selectedSession.attendance?.status || null;
     const previousLateMinutes = selectedSession.attendance?.late_minutes || null;
+    const previousSiblingIds = selectedSession.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
+    const siblingParticipantIds = getSiblingIdsForSession(selectedSession);
 
     markAttendanceMutation.mutate({
       student_id: selectedSession.student_id,
       schedule_id: selectedSession.schedule_id,
-      session_date: selectedDate,
+      session_date: selectedSession.session_date,
       status: "late",
       late_minutes: selectedLateMinutes,
+      sibling_participant_ids: siblingParticipantIds,
     });
 
     setLateDialogOpen(false);
@@ -389,33 +482,90 @@ export default function MyDayPage() {
       session: selectedSession,
       previousStatus,
       previousLateMinutes,
+      previousSiblingIds,
     });
   };
 
   const handleUndo = () => {
     if (!undoSnackbar.session) return;
 
-    const { session, previousStatus, previousLateMinutes } = undoSnackbar;
+    const { session, previousStatus, previousLateMinutes, previousSiblingIds } = undoSnackbar;
 
     if (previousStatus) {
       // Restore previous status
       markAttendanceMutation.mutate({
         student_id: session.student_id,
         schedule_id: session.schedule_id,
-        session_date: selectedDate,
+        session_date: session.session_date,
         status: previousStatus,
         late_minutes: previousStatus === "late" ? previousLateMinutes || 10 : undefined,
+        sibling_participant_ids: previousSiblingIds,
       });
     }
     // Note: If there was no previous attendance, we can't truly "undo" - just close the snackbar
     // In a production app, you might want a DELETE endpoint for this case
 
-    setUndoSnackbar({ open: false, session: null, previousStatus: null, previousLateMinutes: null });
+    setUndoSnackbar({
+      open: false,
+      session: null,
+      previousStatus: null,
+      previousLateMinutes: null,
+      previousSiblingIds: [],
+    });
   };
 
   const handleReasonChange = (event: SelectChangeEvent<string>) => {
     const value = (event.target as { value: string }).value;
     setSelectedReason(value as AbsenceReason);
+  };
+
+  const openSiblingDialog = async (session: SessionForDay) => {
+    try {
+      const studentResponse = await httpClient.get(`/v1/students/${session.student_id}`);
+      const siblings = (studentResponse.data?.siblings || [])
+        .filter((sibling: any) => sibling.is_participant)
+        .map((sibling: any) => ({
+          id: sibling.id,
+          name: sibling.name,
+          relationship: sibling.relationship,
+        }));
+
+      setSiblingSession(session);
+      setSiblingOptions(siblings);
+      setSiblingDialogSelection(getSiblingIdsForSession(session));
+      setSiblingDialogOpen(true);
+    } catch {
+      toast.error("Failed to load sibling list");
+    }
+  };
+
+  const saveSiblingParticipants = () => {
+    if (!siblingSession) {
+      return;
+    }
+
+    const sessionKey = getSessionKey(siblingSession);
+    setPendingSiblingSelections((prev) => ({
+      ...prev,
+      [sessionKey]: siblingDialogSelection,
+    }));
+
+    if (!siblingSession.attendance) {
+      setSiblingDialogOpen(false);
+      toast.info("Sibling participants will save with attendance");
+      return;
+    }
+
+    const statusToUse = siblingSession.attendance?.status || "present";
+    markAttendanceMutation.mutate({
+      student_id: siblingSession.student_id,
+      schedule_id: siblingSession.schedule_id,
+      session_date: siblingSession.session_date,
+      status: statusToUse,
+      sibling_participant_ids: siblingDialogSelection,
+    });
+    setSiblingDialogOpen(false);
+    toast.success("Sibling participation saved");
   };
 
   const handleReasonTextChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -469,7 +619,7 @@ export default function MyDayPage() {
   }
 
   if (error) {
-    return <Alert severity="error">Failed to load today's sessions. Please try again.</Alert>;
+    return <ErrorAlert message="Failed to load today's sessions." onRetry={() => refetch()} />;
   }
 
   const sessions = data?.sessions || [];
@@ -479,22 +629,76 @@ export default function MyDayPage() {
   // Group sessions by site
   const sessionsBySite = sessions.reduce(
     (acc, session) => {
-      if (!acc[session.site_id]) {
-        acc[session.site_id] = {
+      const key = `${session.session_date}::${session.site_id}`;
+      if (!acc[key]) {
+        acc[key] = {
+          session_date: session.session_date,
+          site_id: session.site_id,
           site_name: session.site_name,
           sessions: [],
         };
       }
-      acc[session.site_id]!.sessions.push(session);
+      acc[key]!.sessions.push(session);
       return acc;
     },
-    {} as Record<string, { site_name: string; sessions: SessionForDay[] }>,
+    {} as Record<
+      string,
+      { session_date: string; site_id: string; site_name: string; sessions: SessionForDay[] }
+    >,
+  );
+
+  const groupedSiteEntries = Object.entries(sessionsBySite).sort(([, a], [, b]) => {
+    if (a.session_date !== b.session_date) {
+      return a.session_date.localeCompare(b.session_date);
+    }
+
+    if (a.site_name !== b.site_name) {
+      return a.site_name.localeCompare(b.site_name);
+    }
+
+    return a.site_id.localeCompare(b.site_id);
+  });
+
+  const sessionsByDay = sessions.reduce(
+    (acc, session) => {
+      if (!acc[session.session_date]) {
+        acc[session.session_date] = 0;
+      }
+      acc[session.session_date] += 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const markedByDay = sessions.reduce(
+    (acc, session) => {
+      if (!session.attendance) {
+        return acc;
+      }
+
+      if (!acc[session.session_date]) {
+        acc[session.session_date] = 0;
+      }
+
+      acc[session.session_date] += 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const sortedSessionDates = Array.from(new Set(sessions.map((session) => session.session_date))).sort(
+    (a, b) => a.localeCompare(b),
   );
   const photoItems = photosData?.items || [];
-  const siteOptions = Object.entries(sessionsBySite).map(([siteId, value]) => ({
-    id: siteId,
-    name: value.site_name,
-  }));
+  const siteEntries = [
+    ...groupedSiteEntries.map(([, value]) => [value.site_id, value.site_name] as const),
+    ...((teacherProfileData?.locations || []).map((location) => [location.id, location.name] as const)),
+    ...(teacherProfileData?.primarySite
+      ? ([[teacherProfileData.primarySite.id, teacherProfileData.primarySite.name] as const] as const)
+      : []),
+  ];
+
+  const siteOptions = Array.from(new Map(siteEntries).entries()).map(([id, name]) => ({ id, name }));
   const studentOptions = sessions
     .filter((session) => !photoLocationId || session.site_id === photoLocationId)
     .map((session) => ({
@@ -503,66 +707,84 @@ export default function MyDayPage() {
     }))
     .filter((student, index, arr) => arr.findIndex((item) => item.id === student.id) === index);
 
-  return (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          {view === "day" ? "My Day" : "My Week"}
-        </Typography>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <Typography variant="subtitle1" color="text.secondary">
-            {view === "day"
-              ? new Date(selectedDate).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })
-              : `${startOfWeek} - ${endOfWeek}`}
-          </Typography>
-          <ToggleButtonGroup
-            value={view}
-            exclusive
-            onChange={(_, newView) => {
-              if (newView !== null) {
-                setView(newView);
-              }
-            }}
-            sx={{
-              height: 32,
-              borderRadius: "999px",
-              bgcolor: "grey.100",
-              p: 0.5,
-              "& .MuiToggleButton-root": {
-                border: "none",
-                borderRadius: "999px",
-                px: 2,
-                py: 0.5,
-                textTransform: "none",
-                fontSize: "0.85rem",
-                color: "text.secondary",
-              },
-              "& .MuiToggleButton-root.Mui-selected": {
-                backgroundColor: "primary.main",
-                color: "white",
-                fontWeight: 500,
-              },
-              "& .MuiToggleButton-root.Mui-selected:hover": {
-                backgroundColor: "primary.light",
-              },
-            }}
-          >
-            <ToggleButton value="day">Day</ToggleButton>
-            <ToggleButton value="week">Week</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-      </Box>
+  const openSickDayDialog = () => {
+    if (!sickDaySiteId && siteOptions[0]?.id) {
+      setSickDaySiteId(siteOptions[0].id);
+    }
+    setSickDayDialogOpen(true);
+  };
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          <PhotoCameraIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-          Session Photos
-        </Typography>
+  return (
+    <PageContainer>
+      <PageHeader
+        title={view === "day" ? "My Day" : "My Week"}
+        breadcrumbs={[{ label: view === "day" ? "My Day" : "My Week" }]}
+        actions={
+          <>
+            <Typography variant="subtitle1" color="text.secondary" sx={{ display: "flex", alignItems: "center" }}>
+              {view === "day"
+                ? new Date(selectedDate).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : `${startOfWeek} - ${endOfWeek}`}
+            </Typography>
+            <ToggleButtonGroup
+              value={view}
+              exclusive
+              onChange={(_, newView) => {
+                if (newView !== null) {
+                  setView(newView);
+                }
+              }}
+              sx={{
+                height: 32,
+                borderRadius: "999px",
+                bgcolor: "grey.100",
+                p: 0.5,
+                "& .MuiToggleButton-root": {
+                  border: "none",
+                  borderRadius: "999px",
+                  px: 2,
+                  py: 0.5,
+                  textTransform: "none",
+                  fontSize: "0.85rem",
+                  color: "text.secondary",
+                },
+                "& .MuiToggleButton-root.Mui-selected": {
+                  backgroundColor: "primary.main",
+                  color: "white",
+                  fontWeight: 500,
+                },
+                "& .MuiToggleButton-root.Mui-selected:hover": {
+                  backgroundColor: "primary.light",
+                },
+              }}
+            >
+              <ToggleButton value="day">Day</ToggleButton>
+              <ToggleButton value="week">Week</ToggleButton>
+            </ToggleButtonGroup>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={openSickDayDialog}
+              disabled={view !== "day"}
+            >
+              Report Sick Day
+            </Button>
+          </>
+        }
+      />
+
+      <Stack spacing={3}>
+      <SectionCard title="Session Photos" icon={<PhotoCameraIcon />}>
+        {view === "week" && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Photo uploads are available in Day view only.
+          </Alert>
+        )}
 
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2, mb: 2 }}>
           <FormControl fullWidth>
@@ -631,7 +853,7 @@ export default function MyDayPage() {
           <Button
             variant="contained"
             onClick={() => uploadPhotoMutation.mutate()}
-            disabled={!photoLocationId || !photoFile || uploadPhotoMutation.isPending}
+            disabled={view !== "day" || !photoLocationId || !photoFile || uploadPhotoMutation.isPending}
           >
             {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photo"}
           </Button>
@@ -666,19 +888,53 @@ export default function MyDayPage() {
         ) : (
           <Typography color="text.secondary">No photos uploaded for this date yet.</Typography>
         )}
-      </Paper>
+      </SectionCard>
 
       {sessions.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography color="text.secondary">
+        <SectionCard>
+          <Typography color="text.secondary" sx={{ textAlign: "center" }}>
             {view === "day" ? "No sessions scheduled for today." : "No sessions scheduled for this week."}
           </Typography>
-        </Paper>
+        </SectionCard>
       ) : (
         <>
-          {Object.entries(sessionsBySite).map(([siteId, { site_name, sessions: siteSessions }]) => (
-            <Paper key={siteId} sx={{ mb: 3, overflow: "hidden" }}>
+          {view === "week" && sortedSessionDates.length > 0 && (
+            <SectionCard>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                Week At A Glance
+              </Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap flexWrap="wrap">
+                {sortedSessionDates.map((date) => {
+                  const totalForDay = sessionsByDay[date] ?? 0;
+                  const markedForDay = markedByDay[date] ?? 0;
+
+                  return (
+                    <Chip
+                      key={date}
+                      label={`${new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}: ${markedForDay}/${totalForDay} marked`}
+                      color={markedForDay === totalForDay ? "success" : "default"}
+                      variant={markedForDay === totalForDay ? "filled" : "outlined"}
+                    />
+                  );
+                })}
+              </Stack>
+            </SectionCard>
+          )}
+
+          {groupedSiteEntries.map(([groupKey, { session_date, site_name, sessions: siteSessions }]) => (
+            <SectionCard key={groupKey} noPadding>
               <Box sx={{ px: 3, py: 2, bgcolor: "grey.100" }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  {new Date(`${session_date}T00:00:00`).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </Typography>
                 <Typography variant="h6">{site_name}</Typography>
               </Box>
               <Divider />
@@ -751,6 +1007,15 @@ export default function MyDayPage() {
                                   ({session.attendance.late_minutes} min late)
                                 </Typography>
                               )}
+                              {session.attendance.sibling_participants &&
+                                session.attendance.sibling_participants.length > 0 && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Siblings: {session.attendance.sibling_participants.map((sp) => sp.name).join(", ")}
+                                  </Typography>
+                                )}
+                              <Button size="small" onClick={() => openSiblingDialog(session)}>
+                                Siblings
+                              </Button>
                             </Box>
                           ) : (
                             <ButtonGroup variant="outlined" size="small">
@@ -761,6 +1026,13 @@ export default function MyDayPage() {
                                 disabled={markAttendanceMutation.isPending}
                               >
                                 Present
+                              </Button>
+                              <Button
+                                color="inherit"
+                                onClick={() => openSiblingDialog(session)}
+                                disabled={markAttendanceMutation.isPending}
+                              >
+                                Siblings
                               </Button>
                               <Button
                                 color="warning"
@@ -793,7 +1065,7 @@ export default function MyDayPage() {
                   ))}
                 </Stack>
               </Box>
-            </Paper>
+            </SectionCard>
           ))}
 
           {/* Sticky footer showing progress */}
@@ -825,6 +1097,7 @@ export default function MyDayPage() {
           <Box sx={{ height: 80 }} />
         </>
       )}
+      </Stack>
 
       {/* Reason Dialog */}
       <Dialog
@@ -872,7 +1145,7 @@ export default function MyDayPage() {
             )}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setReasonDialogOpen(false)}>Cancel</Button>
           <Button
             onClick={handleConfirmAbsence}
@@ -888,7 +1161,7 @@ export default function MyDayPage() {
       <Dialog open={lateDialogOpen} onClose={() => setLateDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Mark as Late</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
               Student: {selectedSession?.student_first_name} {selectedSession?.student_last_name}
             </Typography>
@@ -908,7 +1181,7 @@ export default function MyDayPage() {
             </FormControl>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setLateDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" color="warning" onClick={handleConfirmLate}>
             Confirm Late
@@ -926,6 +1199,7 @@ export default function MyDayPage() {
             session: null,
             previousStatus: null,
             previousLateMinutes: null,
+            previousSiblingIds: [],
           })
         }
         message={`Marked ${undoSnackbar.session?.student_first_name} ${undoSnackbar.session?.student_last_name}`}
@@ -940,6 +1214,93 @@ export default function MyDayPage() {
           </IconButton>
         }
       />
-    </Box>
+
+      <Dialog open={sickDayDialogOpen} onClose={() => setSickDayDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Report Sick Day</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              This creates a parent-facing location announcement for {selectedDate}.
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Location (optional)</InputLabel>
+              <Select
+                value={sickDaySiteId}
+                label="Location (optional)"
+                onChange={(event) => setSickDaySiteId(event.target.value)}
+              >
+                <MenuItem value="">Use teacher default site</MenuItem>
+                {siteOptions.map((site) => (
+                  <MenuItem key={`sick-day-${site.id}`} value={site.id}>
+                    {site.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Optional note for families"
+              value={sickDayNote}
+              onChange={(event) => setSickDayNote((event.target as any).value)}
+              multiline
+              minRows={3}
+              placeholder="Today's sessions are impacted due to illness..."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setSickDayDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => reportSickDayMutation.mutate()}
+            disabled={reportSickDayMutation.isPending}
+          >
+            {reportSickDayMutation.isPending ? "Submitting..." : "Submit Notice"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={siblingDialogOpen} onClose={() => setSiblingDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Sibling Participants</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            {siblingOptions.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No participant siblings available for this student.
+              </Typography>
+            ) : (
+              siblingOptions.map((sibling) => {
+                const selected = siblingDialogSelection.includes(sibling.id);
+                return (
+                  <Button
+                    key={sibling.id}
+                    variant={selected ? "contained" : "outlined"}
+                    onClick={() => {
+                      setSiblingDialogSelection((prev) =>
+                        prev.includes(sibling.id)
+                          ? prev.filter((id) => id !== sibling.id)
+                          : [...prev, sibling.id],
+                      );
+                    }}
+                    sx={{ justifyContent: "space-between" }}
+                  >
+                    {sibling.name}
+                    <Typography variant="caption" sx={{ ml: 1 }}>
+                      {sibling.relationship}
+                    </Typography>
+                  </Button>
+                );
+              })
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setSiblingDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={saveSiblingParticipants}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </PageContainer>
   );
 }

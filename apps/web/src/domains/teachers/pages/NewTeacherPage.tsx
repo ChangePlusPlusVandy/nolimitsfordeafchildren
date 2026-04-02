@@ -2,9 +2,6 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import {
-  Box,
-  Typography,
-  Paper,
   TextField,
   Button,
   FormControl,
@@ -14,8 +11,8 @@ import {
   Alert,
   CircularProgress,
   Autocomplete,
+  Stack,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import {
   useTeacherHttpService,
@@ -29,6 +26,10 @@ import {
   type Location,
 } from "../../locations/services/LocationHttpService";
 import { useToast } from "../../global/components/ToastProvider";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
 
 export default function NewTeacherPage() {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export default function NewTeacherPage() {
   const [qualifications, setQualifications] = useState("");
   const [credentials, setCredentials] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [userTouched, setUserTouched] = useState(false);
 
   // Fetch available teacher users (users with teacher role without a profile)
   const {
@@ -86,6 +88,7 @@ export default function NewTeacherPage() {
 
     if (!selectedUser) {
       setError("Please select a user");
+      setUserTouched(true);
       return;
     }
 
@@ -114,16 +117,12 @@ export default function NewTeacherPage() {
   const locations = (locationsData || []) as Location[];
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Typography variant="h4" component="h1">
-          Create Teacher Profile
-        </Typography>
-      </Box>
+    <PageContainer>
+      <PageHeader
+        title="Create Teacher Profile"
+        back="/teachers"
+        breadcrumbs={[{ label: "Teachers", href: "/teachers" }, { label: "New Teacher" }]}
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
@@ -132,26 +131,33 @@ export default function NewTeacherPage() {
       )}
 
       {(usersError || locationsError) && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load required data. Please refresh the page.
-        </Alert>
+        <ErrorAlert message="Failed to load required data. Please refresh the page." />
       )}
 
-      <Paper sx={{ p: 3, maxWidth: 600 }}>
+      <SectionCard sx={{ maxWidth: 600 }}>
         <form onSubmit={handleSubmit}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Stack spacing={3}>
             {/* User Selection */}
             <Autocomplete
               options={availableUsers}
               getOptionLabel={(user) => `${user.name} (${user.email})`}
               value={selectedUser}
-              onChange={(_, newValue) => setSelectedUser(newValue)}
+              onChange={(_, newValue) => {
+                setSelectedUser(newValue);
+                if (newValue) setUserTouched(false);
+                setError(null);
+              }}
+              onBlur={() => {
+                if (!selectedUser) setUserTouched(true);
+              }}
               loading={usersLoading}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Select User *"
                   placeholder="Search for a user with teacher role..."
+                  error={userTouched && !selectedUser}
+                  helperText={userTouched && !selectedUser ? "Please select a user" : undefined}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -231,7 +237,7 @@ export default function NewTeacherPage() {
             />
 
             {/* Submit */}
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end", mt: 2 }}>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button variant="outlined" onClick={() => navigate(-1)} disabled={isPending}>
                 Cancel
               </Button>
@@ -243,10 +249,10 @@ export default function NewTeacherPage() {
               >
                 {isPending ? "Creating..." : "Create Teacher"}
               </Button>
-            </Box>
-          </Box>
+            </Stack>
+          </Stack>
         </form>
-      </Paper>
-    </Box>
+      </SectionCard>
+    </PageContainer>
   );
 }

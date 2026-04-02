@@ -2,17 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import {
   Box,
-  Typography,
   Card,
   CardContent,
   CardActionArea,
   Avatar,
   Chip,
   Skeleton,
-  Alert,
   Stack,
   Badge,
   TablePagination,
+  Typography,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -23,23 +22,11 @@ import {
 } from "@mui/icons-material";
 import { useParentHttpService, type LinkedChild } from "../services/ParentHttpService";
 import { useServerTable } from "../../global/hooks/useServerTable";
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-}
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
+import { formatDate, formatTime } from "../../../utils/formatDate";
 
 function getAttendanceColor(rate: number): "success" | "warning" | "error" {
   if (rate >= 90) return "success";
@@ -193,46 +180,30 @@ export default function MyStudentsPage() {
   const parentHttpService = useParentHttpService();
   const table = useServerTable({ defaultLimit: 12 });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: [parentHttpService.key, "myChildren", table.page, table.limit],
     queryFn: () => parentHttpService.queries.myChildren({ page: table.page, limit: table.limit }),
   });
 
-  if (isLoading) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          My Students
-        </Typography>
-        <LoadingSkeleton />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          My Students
-        </Typography>
-        <Alert severity="error">Failed to load your children. Please try again later.</Alert>
-      </Box>
-    );
-  }
-
   const children = data?.items ?? [];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        My Students
-      </Typography>
+    <PageContainer>
+      <PageHeader title="My Students" />
 
-      {children.length === 0 ? (
-        <Alert severity="info" icon={<PersonIcon />}>
-          No children are linked to your account yet. Please contact an administrator if you believe
-          this is an error.
-        </Alert>
+      {isLoading ? (
+        <LoadingSkeleton />
+      ) : error ? (
+        <ErrorAlert
+          message="Failed to load your children. Please try again."
+          onRetry={() => refetch()}
+        />
+      ) : children.length === 0 ? (
+        <EmptyState
+          icon={<PersonIcon sx={{ fontSize: 48 }} />}
+          title="No Children Linked"
+          description="No children are linked to your account yet. Please contact an administrator if you believe this is an error."
+        />
       ) : (
         <>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
@@ -259,6 +230,6 @@ export default function MyStudentsPage() {
           />
         </>
       )}
-    </Box>
+    </PageContainer>
   );
 }

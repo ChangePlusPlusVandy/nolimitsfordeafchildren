@@ -330,6 +330,11 @@ export class DocumentsService {
       return null;
     }
 
+    const current = existing[0]!;
+    if (current.review_status !== "pending") {
+      throw new Error("Document has already been reviewed");
+    }
+
     const result = await db
       .update(DocumentTable)
       .set({

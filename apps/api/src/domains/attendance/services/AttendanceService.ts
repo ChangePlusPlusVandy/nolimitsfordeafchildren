@@ -1,14 +1,16 @@
 import { Service } from "typedi";
-import { eq, and, sql, desc, gte, lte, isNull } from "drizzle-orm";
+import { eq, and, sql, desc, gte, lte, isNull, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   AttendanceTable,
+  AttendanceSiblingParticipantTable,
   StudentTable,
   ScheduleTable,
   EnrollmentTable,
   TeacherProfileTable,
   UserTable,
   LocationTable,
+  SiblingTable,
   type AttendanceEntity,
   type AttendanceInsert,
 } from "@/db/schema";
@@ -31,6 +33,7 @@ export interface MarkAttendanceInput {
   late_minutes?: number;
   reason?: AbsenceReason;
   reason_text?: string;
+  sibling_participant_ids?: string[];
   marked_by: string;
 }
 
@@ -39,6 +42,7 @@ export interface UpdateAttendanceInput {
   late_minutes?: number | null;
   reason?: AbsenceReason | null;
   reason_text?: string | null;
+  sibling_participant_ids?: string[];
 }
 
 export interface ListAttendanceQuery {
@@ -89,6 +93,7 @@ export interface StudentAttendanceOverview {
 }
 
 export interface SessionForDay {
+  session_date: string;
   schedule_id: string;
   student_id: string;
   student_initials: string;
@@ -105,11 +110,71 @@ export interface SessionForDay {
     reason: AbsenceReason | null;
     reason_text: string | null;
     marked_at: Date;
+    sibling_participants?: Array<{
+      sibling_id: string;
+      name: string;
+      relationship: string;
+    }>;
   } | null;
+}
+
+export interface SiblingParticipationReportItem {
+  sibling_id: string;
+  sibling_name: string;
+  student_id: string;
+  student_initials: string;
+  site_id: string;
+  site_name: string;
+  total_sessions: number;
+  present_sessions: number;
 }
 
 @Service()
 export class AttendanceService {
+  private normalizeSiblingParticipantIds(ids?: string[]): string[] {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        ids
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+      ),
+    );
+  }
+
+  private async replaceSiblingParticipants(
+    attendanceId: string,
+    studentId: string,
+    siblingIds: string[],
+  ): Promise<void> {
+    await db
+      .delete(AttendanceSiblingParticipantTable)
+      .where(eq(AttendanceSiblingParticipantTable.attendance_id, attendanceId));
+
+    if (siblingIds.length === 0) {
+      return;
+    }
+
+    const validSiblings = await db
+      .select({ id: SiblingTable.id })
+      .from(SiblingTable)
+      .where(and(eq(SiblingTable.student_id, studentId), inArray(SiblingTable.id, siblingIds)));
+
+    const validSiblingIds = validSiblings.map((s) => s.id);
+    if (validSiblingIds.length === 0) {
+      return;
+    }
+
+    await db.insert(AttendanceSiblingParticipantTable).values(
+      validSiblingIds.map((siblingId) => ({
+        attendance_id: attendanceId,
+        sibling_id: siblingId,
+      })),
+    );
+  }
   private async sendNoShowAlerts(params: {
     student_id: string;
     schedule_id: string;
@@ -165,6 +230,8 @@ export class AttendanceService {
    * Mark attendance for a student
    */
   async mark(input: MarkAttendanceInput): Promise<AttendanceEntity> {
+    const siblingParticipantIds = this.normalizeSiblingParticipantIds(input.sibling_participant_ids);
+
     if (input.status === "late") {
       if (![10, 15, 30].includes(input.late_minutes || 0)) {
         throw new Error("Late minutes must be one of: 10, 15, or 30");
@@ -202,6 +269,8 @@ export class AttendanceService {
         .where(eq(AttendanceTable.id, existing[0]!.id))
         .returning();
 
+      await this.replaceSiblingParticipants(result[0]!.id, input.student_id, siblingParticipantIds);
+
       if (shouldSendNoShowAlert) {
         await this.sendNoShowAlerts({
           student_id: input.student_id,
@@ -228,6 +297,8 @@ export class AttendanceService {
     };
 
     const result = await db.insert(AttendanceTable).values(newAttendance).returning();
+
+    await this.replaceSiblingParticipants(result[0]!.id, input.student_id, siblingParticipantIds);
 
     if (input.status === "no_show") {
       await this.sendNoShowAlerts({
@@ -287,6 +358,11 @@ export class AttendanceService {
       .set(updateData)
       .where(eq(AttendanceTable.id, id))
       .returning();
+
+    if (input.sibling_participant_ids !== undefined) {
+      const siblingParticipantIds = this.normalizeSiblingParticipantIds(input.sibling_participant_ids);
+      await this.replaceSiblingParticipants(id, existing[0]!.student_id, siblingParticipantIds);
+    }
 
     if (shouldSendNoShowAlert) {
       await this.sendNoShowAlerts({
@@ -607,6 +683,39 @@ export class AttendanceService {
         ),
       );
 
+    const existingAttendanceIds = existingAttendance.map((attendance) => attendance.id);
+    const siblingParticipantsByAttendance = new Map<
+      string,
+      Array<{
+        sibling_id: string;
+        name: string;
+        relationship: string;
+      }>
+    >();
+
+    if (existingAttendanceIds.length > 0) {
+      const siblingParticipants = await db
+        .select({
+          attendance_id: AttendanceSiblingParticipantTable.attendance_id,
+          sibling_id: SiblingTable.id,
+          name: SiblingTable.name,
+          relationship: SiblingTable.relationship,
+        })
+        .from(AttendanceSiblingParticipantTable)
+        .innerJoin(SiblingTable, eq(AttendanceSiblingParticipantTable.sibling_id, SiblingTable.id))
+        .where(inArray(AttendanceSiblingParticipantTable.attendance_id, existingAttendanceIds));
+
+      for (const siblingParticipant of siblingParticipants) {
+        const list = siblingParticipantsByAttendance.get(siblingParticipant.attendance_id) ?? [];
+        list.push({
+          sibling_id: siblingParticipant.sibling_id,
+          name: siblingParticipant.name,
+          relationship: siblingParticipant.relationship,
+        });
+        siblingParticipantsByAttendance.set(siblingParticipant.attendance_id, list);
+      }
+    }
+
     // Build session list
     const sessions: SessionForDay[] = [];
 
@@ -617,6 +726,7 @@ export class AttendanceService {
       );
 
       sessions.push({
+        session_date: date,
         schedule_id: enrollment.schedule_id,
         student_id: enrollment.student_id,
         student_initials: enrollment.student_initials,
@@ -634,6 +744,7 @@ export class AttendanceService {
               reason: attendance.reason,
               reason_text: attendance.reason_text,
               marked_at: attendance.marked_at,
+              sibling_participants: siblingParticipantsByAttendance.get(attendance.id) ?? [],
             }
           : null,
       });
@@ -644,6 +755,120 @@ export class AttendanceService {
       if (a.start_time !== b.start_time) {
         return a.start_time.localeCompare(b.start_time);
       }
+      return a.student_last_name.localeCompare(b.student_last_name);
+    });
+
+    return sessions;
+  }
+
+  async getSiblingParticipationReport(query: {
+    date_from?: string;
+    date_to?: string;
+    site_id?: string;
+  }): Promise<{ items: SiblingParticipationReportItem[]; total: number }> {
+    const conditions = [];
+    if (query.date_from) {
+      conditions.push(gte(AttendanceTable.session_date, query.date_from));
+    }
+    if (query.date_to) {
+      conditions.push(lte(AttendanceTable.session_date, query.date_to));
+    }
+    if (query.site_id) {
+      conditions.push(eq(ScheduleTable.site_id, query.site_id));
+    }
+
+    const rows = await db
+      .select({
+        sibling_id: SiblingTable.id,
+        sibling_name: SiblingTable.name,
+        student_id: StudentTable.id,
+        student_initials: StudentTable.initials,
+        site_id: LocationTable.id,
+        site_name: LocationTable.name,
+        status: AttendanceTable.status,
+      })
+      .from(AttendanceSiblingParticipantTable)
+      .innerJoin(AttendanceTable, eq(AttendanceSiblingParticipantTable.attendance_id, AttendanceTable.id))
+      .innerJoin(StudentTable, eq(AttendanceTable.student_id, StudentTable.id))
+      .innerJoin(SiblingTable, eq(AttendanceSiblingParticipantTable.sibling_id, SiblingTable.id))
+      .innerJoin(ScheduleTable, eq(AttendanceTable.schedule_id, ScheduleTable.id))
+      .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(AttendanceTable.session_date));
+
+    const grouped = new Map<string, SiblingParticipationReportItem>();
+    for (const row of rows) {
+      const key = `${row.sibling_id}:${row.student_id}:${row.site_id}`;
+      const current = grouped.get(key) ?? {
+        sibling_id: row.sibling_id,
+        sibling_name: row.sibling_name,
+        student_id: row.student_id,
+        student_initials: row.student_initials,
+        site_id: row.site_id,
+        site_name: row.site_name,
+        total_sessions: 0,
+        present_sessions: 0,
+      };
+
+      current.total_sessions += 1;
+      if (row.status === "present" || row.status === "late") {
+        current.present_sessions += 1;
+      }
+
+      grouped.set(key, current);
+    }
+
+    const items = Array.from(grouped.values()).sort((a, b) => {
+      if (a.site_name !== b.site_name) {
+        return a.site_name.localeCompare(b.site_name);
+      }
+      if (a.student_initials !== b.student_initials) {
+        return a.student_initials.localeCompare(b.student_initials);
+      }
+      return a.sibling_name.localeCompare(b.sibling_name);
+    });
+
+    return {
+      items,
+      total: items.length,
+    };
+  }
+
+  async getTeacherSessionsInRange(
+    teacherProfileId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<SessionForDay[]> {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new Error("Invalid date range");
+    }
+
+    if (start > end) {
+      throw new Error("Start date must be before or equal to end date");
+    }
+
+    const sessions: SessionForDay[] = [];
+    const cursor = new Date(start);
+
+    while (cursor <= end) {
+      const currentDate = cursor.toISOString().split("T")[0]!;
+      const daySessions = await this.getTeacherDaySessions(teacherProfileId, currentDate);
+      sessions.push(...daySessions);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    sessions.sort((a, b) => {
+      if (a.session_date !== b.session_date) {
+        return a.session_date.localeCompare(b.session_date);
+      }
+
+      if (a.start_time !== b.start_time) {
+        return a.start_time.localeCompare(b.start_time);
+      }
+
       return a.student_last_name.localeCompare(b.student_last_name);
     });
 

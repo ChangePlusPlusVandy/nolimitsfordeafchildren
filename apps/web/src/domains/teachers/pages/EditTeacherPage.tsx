@@ -2,11 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
 import {
-  Box,
-  Typography,
   Button,
-  Card,
-  CardContent,
   TextField,
   FormControl,
   InputLabel,
@@ -14,12 +10,9 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
-  Skeleton,
-  Avatar,
+  Stack,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import PersonIcon from "@mui/icons-material/Person";
 import {
   useTeacherHttpService,
   AGE_GROUP_LABELS,
@@ -28,6 +21,11 @@ import {
 } from "../services/TeacherHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
 import { useToast } from "../../global/components/ToastProvider";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import { FormSkeleton } from "../../global/components/skeletons";
 
 type FormData = {
   primary_site_id: string;
@@ -130,81 +128,38 @@ export default function EditTeacherPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-        <Box mb={3}>
-          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
-          <Skeleton variant="text" width={200} height={40} />
-        </Box>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={120} />
-          <Skeleton variant="rectangular" height={120} />
-          <Skeleton variant="rectangular" height={120} />
-        </Box>
-      </Box>
+      <PageContainer maxWidth="md">
+        <FormSkeleton fields={6} maxWidth={800} />
+      </PageContainer>
     );
   }
 
   if (teacherError || !teacher) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">
-          {teacherError ? "Failed to load teacher." : "Teacher not found."}
-        </Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mt: 2 }}>
-          Go Back
-        </Button>
-      </Box>
+      <PageContainer maxWidth="md">
+        <ErrorAlert message={teacherError ? "Failed to load teacher." : "Teacher not found."} />
+      </PageContainer>
     );
   }
 
   if (!formData) {
     return (
-      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-        <Box mb={3}>
-          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
-          <Skeleton variant="text" width={200} height={40} />
-        </Box>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-        </Box>
-      </Box>
+      <PageContainer maxWidth="md">
+        <FormSkeleton fields={4} maxWidth={800} />
+      </PageContainer>
     );
   }
 
   const activeLocations = locations?.filter((loc) => loc.is_active) || [];
 
   return (
-    <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-      {/* Header */}
-      <Box mb={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(`/teachers/${id}`)}
-          sx={{ mb: 1 }}
-        >
-          Back to Teacher
-        </Button>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Avatar
-            src={teacher.photo_url || undefined}
-            sx={{ width: 60, height: 60, bgcolor: "primary.main" }}
-          >
-            <PersonIcon sx={{ fontSize: 36 }} />
-          </Avatar>
-          <Box>
-            <Typography variant="h4" component="h1">
-              Edit Teacher
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              {teacher.user.name} - {teacher.user.email}
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+    <PageContainer maxWidth="md">
+      <PageHeader
+        title="Edit Teacher"
+        subtitle={teacher.user.name + " - " + teacher.user.email}
+        back={"/teachers/" + id}
+        breadcrumbs={[{ label: "Teachers", href: "/teachers" }, { label: teacher.user.name, href: "/teachers/" + id }, { label: "Edit" }]}
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
@@ -213,26 +168,22 @@ export default function EditTeacherPage() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <Card>
-          <CardContent>
-            <Box display="flex" flexDirection="column" gap={3}>
-              {/* Read-only user info */}
-              <Alert severity="info" sx={{ mb: 1 }}>
-                To change the teacher's name, email, or phone, go to{" "}
-                <Button
-                  size="small"
-                  onClick={() => navigate(`/users/${teacher.user_id}`)}
-                  sx={{ textTransform: "none", p: 0, minWidth: "auto" }}
-                >
-                  User Management
-                </Button>
-              </Alert>
+        <Stack spacing={3}>
+          <SectionCard>
+            <Alert severity="info">
+              To change the teacher's name, email, or phone, go to{" "}
+              <Button
+                size="small"
+                onClick={() => navigate(`/users/${teacher.user_id}`)}
+                sx={{ textTransform: "none", p: 0, minWidth: "auto" }}
+              >
+                User Management
+              </Button>
+            </Alert>
+          </SectionCard>
 
-              {/* Primary Site */}
-              <Typography variant="h6" color="primary">
-                Assignment
-              </Typography>
-
+          <SectionCard title="Assignment">
+            <Stack spacing={3}>
               <FormControl fullWidth>
                 <InputLabel>Primary Site</InputLabel>
                 <Select
@@ -269,12 +220,11 @@ export default function EditTeacherPage() {
                   ))}
                 </Select>
               </FormControl>
+            </Stack>
+          </SectionCard>
 
-              {/* Profile Information */}
-              <Typography variant="h6" color="primary" sx={{ mt: 2 }}>
-                Profile Information
-              </Typography>
-
+          <SectionCard title="Profile Information">
+            <Stack spacing={3}>
               <TextField
                 label="Bio"
                 value={formData.bio}
@@ -304,12 +254,11 @@ export default function EditTeacherPage() {
                 rows={3}
                 placeholder="Professional credentials and licenses..."
               />
-            </Box>
-          </CardContent>
-        </Card>
+            </Stack>
+          </SectionCard>
 
         {/* Submit Button */}
-        <Box display="flex" justifyContent="flex-end" gap={2} mt={3}>
+        <Stack direction="row" spacing={2} justifyContent="flex-end">
           <Button variant="outlined" onClick={() => navigate(`/teachers/${id}`)}>
             Cancel
           </Button>
@@ -321,8 +270,9 @@ export default function EditTeacherPage() {
           >
             {isPending ? "Saving..." : "Save Changes"}
           </Button>
-        </Box>
+        </Stack>
+        </Stack>
       </form>
-    </Box>
+    </PageContainer>
   );
 }

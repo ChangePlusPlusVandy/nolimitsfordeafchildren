@@ -20,6 +20,9 @@ import {
   ListItemSecondaryAction,
   IconButton,
   LinearProgress,
+  FormControlLabel,
+  Checkbox,
+  Stack,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -64,6 +67,7 @@ export default function CreateBulletinModal({
   const [siteId, setSiteId] = useState<string>("");
   const [roleTarget, setRoleTarget] = useState<BulletinRoleTarget>("all");
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [requiresInitials, setRequiresInitials] = useState(false);
   const [publishAt, setPublishAt] = useState<string>("");
   const [expireAt, setExpireAt] = useState<string>("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -93,7 +97,9 @@ export default function CreateBulletinModal({
           mime_type: attachment.mime_type,
         });
         completed += 1;
-        setAttachmentUploadProgress(Math.floor((completed / pendingAttachments.length) * 100));
+        setAttachmentUploadProgress(
+          Math.floor((completed / pendingAttachments.length) * 100),
+        );
       }
 
       return bulletin;
@@ -123,6 +129,7 @@ export default function CreateBulletinModal({
     setSiteId("");
     setRoleTarget("all");
     setRequiresApproval(false);
+    setRequiresInitials(false);
     setPublishAt("");
     setExpireAt("");
     setPendingAttachments([]);
@@ -206,6 +213,7 @@ export default function CreateBulletinModal({
       site_id: scope === "site" ? siteId : null,
       role_target: roleTarget,
       requires_approval: requiresApproval,
+      requires_initials: requiresInitials,
       publish_at: publishAt || null,
       expire_at: expireAt || null,
     };
@@ -220,11 +228,11 @@ export default function CreateBulletinModal({
       <form onSubmit={handleSubmit}>
         <DialogTitle>Create Bulletin</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             <TextField
               label="Title"
               value={title}
-                onChange={(e) => setTitle((e.target as unknown as { value: string }).value)}
+              onChange={(e) => setTitle((e.target as unknown as { value: string }).value)}
               required
               fullWidth
               autoFocus
@@ -234,7 +242,7 @@ export default function CreateBulletinModal({
             <TextField
               label="Body"
               value={body}
-                onChange={(e) => setBody((e.target as unknown as { value: string }).value)}
+              onChange={(e) => setBody((e.target as unknown as { value: string }).value)}
               multiline
               rows={4}
               fullWidth
@@ -306,12 +314,24 @@ export default function CreateBulletinModal({
               </Select>
             </FormControl>
 
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={requiresInitials}
+                  onChange={(event) => setRequiresInitials(event.target.checked)}
+                />
+              }
+              label="Require parent initials acknowledgement"
+            />
+
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <TextField
                 label="Publish Date (optional)"
                 type="datetime-local"
                 value={publishAt}
-                onChange={(e) => setPublishAt((e.target as unknown as { value: string }).value)}
+                onChange={(e) =>
+                  setPublishAt((e.target as unknown as { value: string }).value)
+                }
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 220 }}
                 helperText="Leave empty to publish immediately"
@@ -321,7 +341,9 @@ export default function CreateBulletinModal({
                 label="Expire Date (optional)"
                 type="datetime-local"
                 value={expireAt}
-                onChange={(e) => setExpireAt((e.target as unknown as { value: string }).value)}
+                onChange={(e) =>
+                  setExpireAt((e.target as unknown as { value: string }).value)
+                }
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 220 }}
                 helperText="Leave empty for no expiration"
@@ -334,19 +356,20 @@ export default function CreateBulletinModal({
                 Attachments
               </Typography>
 
-               {pendingAttachments.length > 0 && (
-                 <List dense sx={{ mb: 2 }}>
-                   {pendingAttachments.map((attachment, index) => (
-                     <ListItem key={attachment.localId}>
-                       <ListItemText
-                         primary={attachment.file_name}
-                         secondary={attachment.mime_type || attachment.file_url}
-                       />
+              {pendingAttachments.length > 0 && (
+                <List dense sx={{ mb: 2 }}>
+                  {pendingAttachments.map((attachment, index) => (
+                    <ListItem key={attachment.localId}>
+                      <ListItemText
+                        primary={attachment.file_name}
+                        secondary={attachment.mime_type || attachment.file_url}
+                      />
                       <ListItemSecondaryAction>
                         <IconButton
                           edge="end"
                           onClick={() => handleRemoveAttachment(index)}
                           size="small"
+                          aria-label={`Remove ${attachment.file_name}`}
                         >
                           <DeleteIcon />
                         </IconButton>
@@ -354,7 +377,7 @@ export default function CreateBulletinModal({
                     </ListItem>
                   ))}
                 </List>
-               )}
+              )}
 
               <input
                 id={fileInputId}
@@ -364,7 +387,11 @@ export default function CreateBulletinModal({
                 onChange={handleFilesSelected}
               />
               <label htmlFor={fileInputId}>
-                <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />}>
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<CloudUploadIcon />}
+                >
                   Upload Attachment Files
                 </Button>
               </label>
@@ -381,9 +408,9 @@ export default function CreateBulletinModal({
                 Upload one or more files. They will be attached when bulletin is created.
               </Typography>
             </Box>
-          </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleClose} disabled={createMutation.isPending}>
             Cancel
           </Button>
@@ -391,7 +418,9 @@ export default function CreateBulletinModal({
             type="submit"
             variant="contained"
             disabled={!isValid || createMutation.isPending}
-            startIcon={createMutation.isPending ? <CircularProgress size={20} /> : undefined}
+            startIcon={
+              createMutation.isPending ? <CircularProgress size={20} /> : undefined
+            }
           >
             Create Bulletin
           </Button>

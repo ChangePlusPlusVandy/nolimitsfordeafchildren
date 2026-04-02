@@ -11,9 +11,11 @@ import {
   Box,
   Typography,
   CircularProgress,
+  Stack,
 } from "@mui/material";
 import { useHttpClient } from "../../../plugins/axios";
 import { useToast } from "../../global/components/ToastProvider";
+import { formatDateLong } from "../../../utils/formatDate";
 
 type AbsenceReason =
   | "sick"
@@ -95,26 +97,17 @@ export default function RequestMakeupModal({
     createMutation.mutate();
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>Request Make-Up Class</DialogTitle>
       <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+        <Stack spacing={2.5} sx={{ mt: 1 }}>
           {missedSession && (
             <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
               <Typography variant="subtitle2" color="text.secondary">
                 Missed Session
               </Typography>
-              <Typography variant="body1">{formatDate(missedSession.date)}</Typography>
+              <Typography variant="body1">{formatDateLong(missedSession.date)}</Typography>
             </Box>
           )}
 
@@ -155,9 +148,9 @@ export default function RequestMakeupModal({
             placeholder="e.g., Any Saturday in March, or weekday afternoons"
             helperText="Let us know when you're available for a make-up session"
           />
-        </Box>
+        </Stack>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={handleClose} disabled={createMutation.isPending}>
           Cancel
         </Button>

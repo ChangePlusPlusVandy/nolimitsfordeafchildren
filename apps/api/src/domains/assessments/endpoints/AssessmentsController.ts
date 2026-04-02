@@ -45,6 +45,20 @@ interface UpdateAssessmentBody {
   notes?: string;
 }
 
+interface CloneAssessmentBody {
+  cycle_start_date?: string;
+  assessment_type?: "pre" | "post";
+  teaching_focus?: string;
+  summary?: string | null;
+  focuses?: Array<{
+    goal: string;
+    score: number;
+    max_score: number;
+  }>;
+  score?: number;
+  notes?: string | null;
+}
+
 /**
  * List assessments for a student, grouped by cycle
  * GET /v1/students/:studentId/assessments
@@ -235,5 +249,55 @@ export class DeleteAssessmentController {
       throw new HttpError(404, "Assessment not found or you don't have permission to delete it");
     }
     return { success: true };
+  }
+}
+
+/**
+ * Clone an assessment
+ * POST /v1/assessments/:id/clone
+ */
+@Service()
+@JsonController("/v1")
+export class PostAssessmentCloneController {
+  private assessmentsService: AssessmentsService;
+  constructor() {
+    this.assessmentsService = Container.get(AssessmentsService);
+  }
+
+  @Post("/assessments/:id/clone")
+  @Authorized(["teacher"])
+  async handle(
+    @Param("id") id: string,
+    @Body() body: CloneAssessmentBody,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+  ) {
+    const teacherProfile = await db
+      .select()
+      .from(TeacherProfileTable)
+      .where(eq(TeacherProfileTable.user_id, currentUser.id))
+      .limit(1);
+
+    if (teacherProfile.length === 0) {
+      throw new HttpError(403, "Only teachers can clone assessments");
+    }
+
+    try {
+      const assessment = await this.assessmentsService.clone(id, teacherProfile[0]!.id, body);
+      return assessment;
+    } catch (error: any) {
+      if (error.message.includes("already exists")) {
+        throw new HttpError(409, error.message);
+      }
+      if (error.message.includes("Score must be")) {
+        throw new HttpError(400, error.message);
+      }
+      if (error.message.includes("teaching focus") || error.message.includes("max score")) {
+        throw new HttpError(400, error.message);
+      }
+      if (error.message.includes("permission") || error.message.includes("not found")) {
+        throw new HttpError(404, error.message);
+      }
+      throw error;
+    }
   }
 }

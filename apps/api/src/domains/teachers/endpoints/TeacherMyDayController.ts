@@ -23,6 +23,8 @@ export class GetTeachersMeDayController {
   @Authorized(["teacher"])
   async handle(
     @QueryParam("date") date: string | undefined,
+    @QueryParam("start_date") startDate: string | undefined,
+    @QueryParam("end_date") endDate: string | undefined,
     @CurrentUser({ required: true }) currentUser: UserEntity,
   ) {
     // Get teacher profile for current user
@@ -38,6 +40,8 @@ export class GetTeachersMeDayController {
 
     return await this.teachersService.myDay({
       date: date,
+      start_date: startDate,
+      end_date: endDate,
       teacher_id: teacherProfile[0]!.id,
     });
   }

@@ -66,11 +66,50 @@ export class GetUserController {
   @Get("/users/:id")
   @Authorized(["administrator"])
   async handle(@Param("id") id: string) {
-    const user = await this.usersService.show(id);
+    const user = await this.usersService.showWithLinkedStudents(id);
     if (!user) {
       throw new NotFoundError("User not found");
     }
     return user;
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class PostUserLinkStudentController {
+  private usersService: UsersService;
+  constructor() {
+    this.usersService = Container.get(UsersService);
+  }
+
+  @Post("/users/:id/students/:studentId")
+  @Authorized(["administrator"])
+  async handle(
+    @Param("id") parentUserId: string,
+    @Param("studentId") studentId: string,
+    @Body() body: { relationship?: string; is_primary?: boolean },
+  ) {
+    return await this.usersService.linkStudentToParentUser(
+      parentUserId,
+      studentId,
+      body.relationship,
+      body.is_primary,
+    );
+  }
+}
+
+@Service()
+@JsonController("/v1")
+export class DeleteUserLinkStudentController {
+  private usersService: UsersService;
+  constructor() {
+    this.usersService = Container.get(UsersService);
+  }
+
+  @Delete("/users/:id/students/:studentId")
+  @Authorized(["administrator"])
+  async handle(@Param("id") parentUserId: string, @Param("studentId") studentId: string) {
+    return await this.usersService.unlinkStudentFromParentUser(parentUserId, studentId);
   }
 }
 

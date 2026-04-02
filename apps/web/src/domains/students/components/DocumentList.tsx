@@ -10,11 +10,6 @@ import {
   IconButton,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Button,
   Tooltip,
   Paper,
@@ -37,6 +32,8 @@ import {
   type DocumentType,
 } from "../../documents/services/DocumentHttpService";
 import { useToast } from "../../global/components/ToastProvider";
+import ConfirmDialog from "../../global/components/ConfirmDialog";
+import { formatDate } from "../../../utils/formatDate";
 
 interface DocumentListProps {
   studentId: string;
@@ -65,14 +62,6 @@ function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function getDaysOverdue(nextDueDate: string | null): number | null {
   if (!nextDueDate) return null;
   const dueDate = new Date(nextDueDate);
@@ -94,8 +83,7 @@ export default function DocumentList({
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const documentsPerPage = 10;
@@ -122,8 +110,7 @@ export default function DocumentList({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [documentService.key, "student", studentId] });
       toast.success("Document deleted successfully");
-      setDeleteDialogOpen(false);
-      setDocumentToDelete(null);
+      setDeleteTarget(null);
 
       if (documents.length === 1 && page > 1) {
         setPage((prev) => prev - 1);
@@ -159,22 +146,6 @@ export default function DocumentList({
     } finally {
       setDownloadingId(null);
     }
-  };
-
-  const handleDeleteClick = (doc: Document) => {
-    setDocumentToDelete(doc);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (documentToDelete) {
-      deleteMutation.mutate(documentToDelete.id);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
-    setDocumentToDelete(null);
   };
 
   if (isLoading) {
@@ -249,6 +220,7 @@ export default function DocumentList({
                         size="small"
                         onClick={() => handleDownload(doc)}
                         disabled={downloadingId === doc.id}
+                        aria-label={`Download ${doc.file_name}`}
                       >
                         {downloadingId === doc.id ? (
                           <CircularProgress size={18} />
@@ -262,7 +234,8 @@ export default function DocumentList({
                         <IconButton
                           size="small"
                           color="error"
-                          onClick={() => handleDeleteClick(doc)}
+                          onClick={() => setDeleteTarget(doc)}
+                          aria-label={`Delete ${doc.file_name}`}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -339,28 +312,18 @@ export default function DocumentList({
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
-        <DialogTitle>Delete Document</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete "{documentToDelete?.file_name}"? This action cannot be
-            undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} disabled={deleteMutation.isPending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            color="error"
-            variant="contained"
-            disabled={deleteMutation.isPending}
-          >
-            {deleteMutation.isPending ? "Deleting..." : "Delete"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete document?"
+        message={`Are you sure you want to delete "${deleteTarget?.file_name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmColor="error"
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   );
 }

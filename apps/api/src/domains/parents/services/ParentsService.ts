@@ -12,6 +12,7 @@ import {
   AttendanceTable,
   LocationTable,
   TeacherProfileTable,
+  TeacherLocationTable,
   UserTable,
   BulletinTable,
   DocumentTable,
@@ -76,6 +77,15 @@ export interface ChildDetails {
   photo_url: string | null;
   dob: string;
   preferred_language: string;
+  hearing_devices: string[];
+  hearing_loss_type:
+    | "mild"
+    | "moderate"
+    | "moderately_severe"
+    | "severe"
+    | "profound"
+    | "unknown"
+    | null;
   current_school: string | null;
   site: {
     id: string;
@@ -215,11 +225,18 @@ export class ParentsService {
       })
       .from(TeacherProfileTable)
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .leftJoin(
+        TeacherLocationTable,
+        eq(TeacherLocationTable.teacher_profile_id, TeacherProfileTable.id),
+      )
       .where(
         and(
           eq(UserTable.role, "teacher"),
           eq(UserTable.is_active, true),
-          sql`${TeacherProfileTable.primary_site_id} = ANY(${linkedSiteIds}::uuid[])`,
+          sql`(
+            ${TeacherLocationTable.location_id} = ANY(${linkedSiteIds}::uuid[])
+            OR ${TeacherProfileTable.primary_site_id} = ANY(${linkedSiteIds}::uuid[])
+          )`,
         ),
       );
 
@@ -510,6 +527,8 @@ export class ParentsService {
         photo_url: StudentTable.photo_url,
         dob: StudentTable.dob,
         preferred_language: StudentTable.preferred_language,
+        hearing_devices: StudentTable.hearing_devices,
+        hearing_loss_type: StudentTable.hearing_loss_type,
         current_school: StudentTable.current_school,
         site_id: LocationTable.id,
         site_name: LocationTable.name,
@@ -617,6 +636,8 @@ export class ParentsService {
       photo_url: s.photo_url,
       dob: s.dob,
       preferred_language: s.preferred_language,
+      hearing_devices: s.hearing_devices,
+      hearing_loss_type: s.hearing_loss_type,
       current_school: s.current_school,
       site: {
         id: s.site_id,

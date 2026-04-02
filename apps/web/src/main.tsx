@@ -12,6 +12,7 @@ import PhotoGalleryPage from "./domains/admin/pages/PhotoGalleryPage.tsx";
 import ScheduleChangeRequestsPage from "./domains/admin/pages/ScheduleChangeRequestsPage.tsx";
 import DocumentReviewPage from "./domains/admin/pages/DocumentReviewPage.tsx";
 import ParentZipReportPage from "./domains/admin/pages/ParentZipReportPage.tsx";
+import SiblingParticipationReportPage from "./domains/admin/pages/SiblingParticipationReportPage.tsx";
 import SessionsPage from "./domains/admin/pages/SessionsPage.tsx";
 import BulletinModerationPage from "./domains/admin/pages/BulletinModerationPage.tsx";
 import BulletinBoardPage from "./domains/bulletin/pages/BulletinBoardPage.tsx";
@@ -137,6 +138,7 @@ function AppRoutes() {
             />
             <Route path="/admin/document-reviews" element={<DocumentReviewPage />} />
             <Route path="/admin/parent-zip-report" element={<ParentZipReportPage />} />
+            <Route path="/admin/sibling-participation-report" element={<SiblingParticipationReportPage />} />
             <Route path="/admin/photo-gallery" element={<PhotoGalleryPage />} />
             <Route path="/admin/bulletin-moderation" element={<BulletinModerationPage />} />
           </Route>

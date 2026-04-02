@@ -4,10 +4,8 @@ import { useParams, useNavigate, Link } from "react-router";
 import {
   Box,
   Typography,
-  Paper,
   Button,
   Chip,
-  Alert,
   Divider,
   List,
   ListItem,
@@ -15,9 +13,6 @@ import {
   ListItemSecondaryAction,
   IconButton,
   Avatar,
-  Card,
-  CardContent,
-  CardHeader,
   Dialog,
   DialogActions,
   DialogContent,
@@ -27,16 +22,23 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  Stack,
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material/Select";
 import { DetailPageSkeleton } from "../../global/components/skeletons";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import ConfirmDialog from "../../global/components/ConfirmDialog";
+import { useToast } from "../../global/components/ToastProvider";
+import { formatDate, formatTime } from "../../../utils/formatDate";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import PersonIcon from "@mui/icons-material/Person";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SchoolIcon from "@mui/icons-material/School";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
 import {
@@ -55,13 +57,16 @@ export default function TeacherDetailsPage() {
   const teacherHttpService = useTeacherHttpService();
   const locationHttpService = useLocationHttpService();
   const { isAdmin } = useAuth();
+  const toast = useToast();
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [unassignTarget, setUnassignTarget] = useState<string | null>(null);
 
   const {
     data: teacher,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: [teacherHttpService.key, "show", id],
     queryFn: () => teacherHttpService.queries.show(id!),
@@ -87,6 +92,10 @@ export default function TeacherDetailsPage() {
       await queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "show", id] });
       setIsAssignDialogOpen(false);
       setSelectedLocationId("");
+      toast.success("Location assigned");
+    },
+    onError: () => {
+      toast.error("Failed to assign location");
     },
   });
 
@@ -95,6 +104,12 @@ export default function TeacherDetailsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "locations", id] });
       await queryClient.invalidateQueries({ queryKey: [teacherHttpService.key, "show", id] });
+      setUnassignTarget(null);
+      toast.success("Location unassigned");
+    },
+    onError: () => {
+      toast.error("Failed to unassign location");
+      setUnassignTarget(null);
     },
   });
 
@@ -118,14 +133,14 @@ export default function TeacherDetailsPage() {
     setSelectedLocationId((event.target as { value: string }).value);
   };
 
-  const handleUnassignLocation = (locationId: string) => {
-    if (!id || unassignLocationMutation.isPending) {
+  const handleConfirmUnassign = () => {
+    if (!id || !unassignTarget || unassignLocationMutation.isPending) {
       return;
     }
 
     unassignLocationMutation.mutate({
       teacherId: id,
-      locationId,
+      locationId: unassignTarget,
     });
   };
 
@@ -135,66 +150,47 @@ export default function TeacherDetailsPage() {
 
   if (error || !teacher) {
     return (
-      <Box>
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load teacher details. Please try again.
-        </Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-          Go Back
-        </Button>
-      </Box>
+      <PageContainer>
+        <ErrorAlert message="Failed to load teacher details." onRetry={() => refetch()} />
+      </PageContainer>
     );
   }
 
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(":");
-    const h = parseInt(hours!, 10);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${minutes} ${ampm}`;
-  };
-
   return (
-    <Box>
-      {/* Header */}
-      <Box
-        sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <IconButton onClick={() => navigate(-1)}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Box>
-            <Typography variant="h4" component="h1">
-              {teacher.user.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {teacher.user.email}
-            </Typography>
-          </Box>
-        </Box>
-        {isAdmin && (
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<EditIcon />}
-              onClick={() => navigate(`/teachers/${id}/edit`)}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => navigate(`/teachers/${id}/schedules/new`)}
-            >
-              Add Schedule
-            </Button>
-          </Box>
-        )}
-      </Box>
+    <PageContainer>
+      <PageHeader
+        title={teacher.user.name}
+        subtitle={teacher.user.email}
+        back="/teachers"
+        breadcrumbs={[
+          { label: "Teachers", href: "/teachers" },
+          { label: teacher.user.name },
+        ]}
+        actions={
+          isAdmin ? (
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<EditIcon />}
+                onClick={() => navigate(`/teachers/${id}/edit`)}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => navigate(`/teachers/${id}/schedules/new`)}
+              >
+                Add Schedule
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
 
+      <Stack spacing={3}>
       {/* Profile Section */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <SectionCard title="Profile" icon={<PersonIcon />}>
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
           <Avatar
             src={teacher.photo_url || undefined}
@@ -262,161 +258,116 @@ export default function TeacherDetailsPage() {
             )}
           </Box>
         </Box>
-      </Paper>
+      </SectionCard>
 
       {/* Schedules Section */}
-      <Card sx={{ mb: 3 }}>
-        <CardHeader
-          avatar={<ScheduleIcon />}
-          title="Schedules"
-          subheader={`${teacher.schedules.length} schedule(s)`}
-          action={
-            isAdmin && (
-              <Button
-                startIcon={<AddIcon />}
-                onClick={() => navigate(`/teachers/${id}/schedules/new`)}
-              >
-                Add
-              </Button>
-            )
-          }
-        />
-        <Divider />
-        <CardContent sx={{ p: 0 }}>
-          {teacher.schedules.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: "center" }}>
-              <Typography color="text.secondary">No schedules assigned</Typography>
-            </Box>
-          ) : (
-            <List disablePadding>
-              {teacher.schedules.map((schedule, idx) => (
-                <Box key={schedule.id}>
-                  {idx > 0 && <Divider />}
-                  <ListItem>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Typography variant="body1">
-                            {decodeDayMask(schedule.day_of_week_mask).join("/")}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
-                          </Typography>
-                          {!schedule.is_active && (
-                            <Chip label="Inactive" size="small" variant="outlined" />
-                          )}
-                          {schedule.session?.name && (
-                            <Chip label={schedule.session.name} size="small" variant="outlined" />
-                          )}
-                        </Box>
-                      }
-                      secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            {schedule.site.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Cycle: {schedule.cycle_start_date} to {schedule.cycle_end_date}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <IconButton component={Link} to={`/schedules/${schedule.id}`} size="small">
-                        <VisibilityIcon />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </Box>
-              ))}
-            </List>
-          )}
-        </CardContent>
-      </Card>
+      <SectionCard
+        title="Schedules"
+        icon={<ScheduleIcon />}
+        actions={
+          isAdmin ? (
+            <Button
+              startIcon={<AddIcon />}
+              onClick={() => navigate(`/teachers/${id}/schedules/new`)}
+            >
+              Add
+            </Button>
+          ) : undefined
+        }
+        noPadding
+      >
+        {teacher.schedules.length === 0 ? (
+          <Box sx={{ p: 3, textAlign: "center" }}>
+            <Typography color="text.secondary">No schedules assigned</Typography>
+          </Box>
+        ) : (
+          <List disablePadding>
+            {teacher.schedules.map((schedule, idx) => (
+              <Box key={schedule.id}>
+                {idx > 0 && <Divider />}
+                <ListItem>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography variant="body1">
+                          {decodeDayMask(schedule.day_of_week_mask).join("/")}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
+                        </Typography>
+                        {!schedule.is_active && (
+                          <Chip label="Inactive" size="small" variant="outlined" />
+                        )}
+                        {schedule.session?.name && (
+                          <Chip label={schedule.session.name} size="small" variant="outlined" />
+                        )}
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          {schedule.site.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Cycle: {formatDate(schedule.cycle_start_date)} to {formatDate(schedule.cycle_end_date)}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <Button
+                      component={Link}
+                      to={`/schedules/${schedule.id}`}
+                      size="small"
+                      endIcon={<ChevronRightIcon fontSize="small" />}
+                      sx={{ textTransform: "none" }}
+                    >
+                      Open schedule
+                    </Button>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              </Box>
+            ))}
+          </List>
+        )}
+      </SectionCard>
 
       {/* Assigned Locations Section */}
       {isAdmin && (
-        <Card sx={{ mb: 3 }}>
-          <CardHeader
-            avatar={<AddLocationAltIcon />}
-            title="Assigned Locations"
-            subheader={`${assignedLocations.length} location(s)`}
-            action={
-              <Button
-                startIcon={<AddIcon />}
-                onClick={() => setIsAssignDialogOpen(true)}
-                disabled={availableLocations.length === 0}
-              >
-                Assign Location
-              </Button>
-            }
-          />
-          <Divider />
-          <CardContent sx={{ p: 0 }}>
-            {assignedLocations.length === 0 ? (
-              <Box sx={{ p: 3, textAlign: "center" }}>
-                <Typography color="text.secondary">No locations assigned</Typography>
-              </Box>
-            ) : (
-              <List disablePadding>
-                {assignedLocations.map((location, idx) => (
-                  <Box key={location.id}>
-                    {idx > 0 && <Divider />}
-                    <ListItem>
-                      <ListItemText primary={location.name} />
-                      <ListItemSecondaryAction>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleUnassignLocation(location.id)}
-                          disabled={unassignLocationMutation.isPending}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  </Box>
-                ))}
-              </List>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Assigned Students Section */}
-      <Card>
-        <CardHeader
-          avatar={<SchoolIcon />}
-          title="Assigned Students"
-          subheader={`${teacher.students.length} student(s)`}
-        />
-        <Divider />
-        <CardContent sx={{ p: 0 }}>
-          {teacher.students.length === 0 ? (
+        <SectionCard
+          title="Assigned Locations"
+          icon={<AddLocationAltIcon />}
+          actions={
+            <Button
+              startIcon={<AddIcon />}
+              onClick={() => setIsAssignDialogOpen(true)}
+              disabled={availableLocations.length === 0}
+            >
+              Assign Location
+            </Button>
+          }
+          noPadding
+        >
+          {assignedLocations.length === 0 ? (
             <Box sx={{ p: 3, textAlign: "center" }}>
-              <Typography color="text.secondary">No students assigned</Typography>
+              <Typography color="text.secondary">No locations assigned</Typography>
             </Box>
           ) : (
             <List disablePadding>
-              {teacher.students.map((student, idx) => (
-                <Box key={student.id}>
+              {assignedLocations.map((location, idx) => (
+                <Box key={location.id}>
                   {idx > 0 && <Divider />}
                   <ListItem>
-                    <ListItemText
-                      primary={
-                        isAdmin ? `${student.first_name} ${student.last_name}` : student.initials
-                      }
-                      secondary={student.site.name}
-                    />
+                    <ListItemText primary={location.name} />
                     <ListItemSecondaryAction>
                       <IconButton
-                        component={Link}
-                        to={
-                          isAdmin ? `/students/${student.id}` : `/teachers/students/${student.id}`
-                        }
                         size="small"
+                        color="error"
+                        aria-label="Unassign location"
+                        onClick={() => setUnassignTarget(location.id)}
+                        disabled={unassignLocationMutation.isPending}
                       >
-                        <VisibilityIcon />
+                        <DeleteIcon />
                       </IconButton>
                     </ListItemSecondaryAction>
                   </ListItem>
@@ -424,9 +375,53 @@ export default function TeacherDetailsPage() {
               ))}
             </List>
           )}
-        </CardContent>
-      </Card>
+        </SectionCard>
+      )}
 
+      {/* Assigned Students Section */}
+      <SectionCard
+        title="Assigned Students"
+        icon={<SchoolIcon />}
+        noPadding
+      >
+        {teacher.students.length === 0 ? (
+          <Box sx={{ p: 3, textAlign: "center" }}>
+            <Typography color="text.secondary">No students assigned</Typography>
+          </Box>
+        ) : (
+          <List disablePadding>
+            {teacher.students.map((student, idx) => (
+              <Box key={student.id}>
+                {idx > 0 && <Divider />}
+                <ListItem>
+                  <ListItemText
+                    primary={
+                      isAdmin ? `${student.first_name} ${student.last_name}` : student.initials
+                    }
+                    secondary={student.site.name}
+                  />
+                  <ListItemSecondaryAction>
+                    <Button
+                      component={Link}
+                      to={
+                        isAdmin ? `/students/${student.id}` : `/teachers/students/${student.id}`
+                      }
+                      size="small"
+                      endIcon={<ChevronRightIcon fontSize="small" />}
+                      sx={{ textTransform: "none" }}
+                    >
+                      View student
+                    </Button>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              </Box>
+            ))}
+          </List>
+        )}
+      </SectionCard>
+      </Stack>
+
+      {/* Assign Location Dialog */}
       <Dialog
         open={isAssignDialogOpen}
         onClose={() => {
@@ -454,7 +449,7 @@ export default function TeacherDetailsPage() {
             </Select>
           </FormControl>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setIsAssignDialogOpen(false)}
             disabled={assignLocationMutation.isPending}
@@ -471,6 +466,18 @@ export default function TeacherDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+
+      {/* Unassign Location Confirm Dialog */}
+      <ConfirmDialog
+        open={unassignTarget !== null}
+        title="Unassign location?"
+        message="This teacher will no longer be assigned to this location. You can reassign them later."
+        confirmLabel="Unassign"
+        confirmColor="error"
+        loading={unassignLocationMutation.isPending}
+        onConfirm={handleConfirmUnassign}
+        onCancel={() => setUnassignTarget(null)}
+      />
+    </PageContainer>
   );
 }

@@ -21,9 +21,13 @@ import {
   CheckCircle as AvailableIcon,
   Cancel as UnavailableIcon,
   HelpOutline as ConditionalIcon,
-  SwapHoriz as ScheduleChangeIcon,
 } from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
+import { useToast } from "../../global/components/ToastProvider";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import { formatTime } from "../../../utils/formatDate";
 
 type RequestStatus = "pending" | "negotiating" | "approved" | "denied" | "completed";
 type TeacherResponseStatus = "available" | "unavailable" | "conditional";
@@ -62,14 +66,6 @@ interface ScheduleChangeRequest {
   requested_schedule?: ScheduleInfo;
 }
 
-function formatTime(timeStr: string): string {
-  const [hours, minutes] = timeStr.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-}
-
 function getDaysFromMask(mask: number): string {
   const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   return dayLabels.filter((_, index) => (mask & (1 << index)) !== 0).join("/");
@@ -96,6 +92,7 @@ function ScheduleSummary({ schedule }: { schedule?: ScheduleInfo }) {
 export default function TeacherScheduleChangeRequestsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedRequest, setSelectedRequest] = useState<ScheduleChangeRequest | null>(null);
@@ -141,28 +138,31 @@ export default function TeacherScheduleChangeRequestsPage() {
       setSelectedRequest(null);
       setDialogNotes("");
       setDialogStatus("available");
+      toast.success("Response submitted");
+    },
+    onError: () => {
+      toast.error("Failed to submit response");
     },
   });
 
   const items = data?.items ?? [];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={1} alignItems="center" mb={3}>
-        <ScheduleChangeIcon color="action" />
-        <Typography variant="h4">Schedule Change Requests</Typography>
-      </Stack>
+    <PageContainer>
+      <PageHeader title="Schedule Change Requests" breadcrumbs={[{ label: "Schedule Change Requests" }]} />
 
       {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4, gap: 1 }}>
+          <CircularProgress size={24} />
+          <Typography color="text.secondary">Loading requests...</Typography>
         </Box>
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to load schedule change requests.
-        </Alert>
+        <ErrorAlert
+          message="Failed to load schedule change requests."
+          onRetry={() => queryClient.invalidateQueries({ queryKey: ["teacher-schedule-change-requests", page, rowsPerPage] })}
+        />
       )}
 
       {!isLoading && !error && items.length === 0 && (
@@ -298,7 +298,7 @@ export default function TeacherScheduleChangeRequestsPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setSelectedRequest(null)} disabled={respondMutation.isPending}>
             Cancel
           </Button>
@@ -318,6 +318,6 @@ export default function TeacherScheduleChangeRequestsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

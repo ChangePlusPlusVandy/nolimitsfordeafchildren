@@ -5,8 +5,6 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
   TextField,
   FormControl,
   InputLabel,
@@ -14,13 +12,17 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
-  Alert,
   CircularProgress,
-  Skeleton,
   Avatar,
+  FormHelperText,
+  Stack,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { FormSkeleton } from "../../global/components/skeletons";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
 import { useStudentHttpService, type UpdateStudentInput } from "../services/StudentHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
 import { useToast } from "../../global/components/ToastProvider";
@@ -37,6 +39,9 @@ type FormData = {
   preferred_language: string;
   guardian_summary: string;
   is_active: boolean;
+  hearing_devices: string[];
+  hearing_loss_type: string;
+  other_hearing_device: string;
 };
 
 export default function EditStudentPage() {
@@ -50,12 +55,35 @@ export default function EditStudentPage() {
 
   const [formData, setFormData] = useState<FormData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validateField = (field: keyof FormData, value: string): string => {
+    switch (field) {
+      case "first_name":
+        return value.trim() ? "" : "First name is required";
+      case "last_name":
+        return value.trim() ? "" : "Last name is required";
+      case "site_id":
+        return value ? "" : "Site is required";
+      case "dob":
+        return value ? "" : "Date of birth is required";
+      default:
+        return "";
+    }
+  };
+
+  const handleBlur = (field: keyof FormData) => () => {
+    if (!formData) return;
+    const err = validateField(field, formData[field] as string);
+    setFieldErrors((prev) => ({ ...prev, [field]: err }));
+  };
 
   // Fetch existing student data
   const {
     data: student,
     isLoading: studentLoading,
     error: studentError,
+    refetch,
   } = useQuery({
     queryKey: [studentHttpService.key, "show", id],
     queryFn: () => studentHttpService.queries.show(id!),
@@ -82,9 +110,24 @@ export default function EditStudentPage() {
         preferred_language: student.preferred_language || "",
         guardian_summary: student.guardian_summary || "",
         is_active: student.is_active,
+        hearing_devices: (student.hearing_devices || []).filter((value) => value !== "Other"),
+        hearing_loss_type: student.hearing_loss_type || "",
+        other_hearing_device: (student.hearing_devices || []).find((value) => {
+          return !["BAHA", "Hearing Aid", "Cochlear Implant"].includes(value);
+        }) || "",
       });
     }
   }, [student]);
+
+  const hearingDeviceOptions = ["BAHA", "Hearing Aid", "Cochlear Implant", "Other"];
+  const hearingLossOptions = [
+    { value: "mild", label: "Mild" },
+    { value: "moderate", label: "Moderate" },
+    { value: "moderately_severe", label: "Moderately Severe" },
+    { value: "severe", label: "Severe" },
+    { value: "profound", label: "Profound" },
+    { value: "unknown", label: "Unknown" },
+  ];
 
   const { mutate, isPending } = useMutation({
     mutationFn: (payload: UpdateStudentInput & { id: string }) =>
@@ -115,6 +158,9 @@ export default function EditStudentPage() {
           : null,
       );
       setError(null);
+      if (fieldErrors[field]) {
+        setFieldErrors((prev) => ({ ...prev, [field]: "" }));
+      }
     };
 
   const handleSwitchChange =
@@ -134,21 +180,16 @@ export default function EditStudentPage() {
 
     if (!formData || !id) return;
 
-    // Basic validation
-    if (!formData.first_name.trim()) {
-      setError("First name is required");
-      return;
+    // Inline validation
+    const errors: Record<string, string> = {};
+    const requiredFields: (keyof FormData)[] = ["first_name", "last_name", "site_id", "dob"];
+    for (const field of requiredFields) {
+      const err = validateField(field, formData[field] as string);
+      if (err) errors[field] = err;
     }
-    if (!formData.last_name.trim()) {
-      setError("Last name is required");
-      return;
-    }
-    if (!formData.site_id) {
-      setError("Site is required");
-      return;
-    }
-    if (!formData.dob) {
-      setError("Date of birth is required");
+    setFieldErrors(errors);
+    if (Object.values(errors).some(Boolean)) {
+      setError("Please fix the highlighted fields.");
       return;
     }
 
@@ -162,6 +203,15 @@ export default function EditStudentPage() {
       dob: formData.dob,
       current_school: formData.current_school.trim() || undefined,
       preferred_language: formData.preferred_language.trim() || undefined,
+      hearing_devices: [
+        ...formData.hearing_devices.filter((value) => value !== "Other"),
+        ...(formData.hearing_devices.includes("Other") && formData.other_hearing_device.trim()
+          ? [formData.other_hearing_device.trim()]
+          : []),
+      ],
+      hearing_loss_type: formData.hearing_loss_type
+        ? (formData.hearing_loss_type as any)
+        : null,
       is_active: formData.is_active,
     };
 
@@ -174,227 +224,260 @@ export default function EditStudentPage() {
 
   const isLoading = studentLoading || locationsLoading;
 
+  const breadcrumbs = [
+    { label: "Students", href: "/students" },
+    { label: student ? `${student.first_name} ${student.last_name}` : "Student", href: `/students/${id}` },
+    { label: "Edit" },
+  ];
+
   if (isLoading) {
     return (
-      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-        <Box mb={3}>
-          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
-          <Skeleton variant="text" width={200} height={40} />
-        </Box>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Box display="flex" gap={2}>
-            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
-            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
-          </Box>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={120} />
-        </Box>
-      </Box>
+      <PageContainer maxWidth="md">
+        <PageHeader title="Edit Student" breadcrumbs={breadcrumbs} back={`/students/${id}`} />
+        <FormSkeleton fields={8} />
+      </PageContainer>
     );
   }
 
   if (studentError || !student) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">
-          {studentError ? "Failed to load student." : "Student not found."}
-        </Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mt: 2 }}>
-          Go Back
-        </Button>
-      </Box>
+      <PageContainer maxWidth="md">
+        <PageHeader title="Edit Student" breadcrumbs={breadcrumbs} back={`/students/${id}`} />
+        <ErrorAlert
+          message={studentError ? "Failed to load student." : "Student not found."}
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
     );
   }
 
   if (!formData) {
     return (
-      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-        <Box mb={3}>
-          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
-          <Skeleton variant="text" width={200} height={40} />
-        </Box>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-        </Box>
-      </Box>
+      <PageContainer maxWidth="md">
+        <PageHeader title="Edit Student" breadcrumbs={breadcrumbs} back={`/students/${id}`} />
+        <FormSkeleton fields={6} />
+      </PageContainer>
     );
   }
 
   const activeLocations = locations?.filter((loc) => loc.is_active) || [];
 
   return (
-    <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-      {/* Header */}
-      <Box mb={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(`/students/${id}`)}
-          sx={{ mb: 1 }}
-        >
-          Back to Student
-        </Button>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Avatar
-            src={formData.photo_url || undefined}
-            sx={{
-              width: 60,
-              height: 60,
-              bgcolor: "primary.main",
-              fontSize: "1.5rem",
-            }}
-          >
-            {student.initials}
-          </Avatar>
-          <Box>
-            <Typography variant="h4" component="h1">
-              Edit Student
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              {student.first_name} {student.last_name}
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+    <PageContainer maxWidth="md">
+      <PageHeader
+        title="Edit Student"
+        subtitle={`${student.first_name} ${student.last_name}`}
+        breadcrumbs={breadcrumbs}
+        back={`/students/${id}`}
+      />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
+        <ErrorAlert message={error} sx={{ mb: 3 }} />
       )}
 
       <form onSubmit={handleSubmit}>
-        <Card>
-          <CardContent>
-            <Box display="flex" flexDirection="column" gap={3}>
-              {/* Basic Information */}
-              <Typography variant="h6" color="primary">
-                Basic Information
-              </Typography>
+        <Stack spacing={3}>
+        <SectionCard title="Basic Information">
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+            <Avatar
+              src={formData.photo_url || undefined}
+              sx={{
+                width: 60,
+                height: 60,
+                bgcolor: "primary.main",
+                fontSize: "1.5rem",
+              }}
+            >
+              {student.initials}
+            </Avatar>
+            <Typography variant="body2" color="text.secondary">
+              {student.first_name} {student.last_name}
+            </Typography>
+          </Box>
 
-              <Box display="flex" gap={2} flexWrap="wrap">
-                <TextField
-                  label="First Name"
-                  value={formData.first_name}
-                  onChange={handleChange("first_name")}
-                  required
-                  sx={{ flex: "1 1 200px" }}
-                />
-
-                <TextField
-                  label="Last Name"
-                  value={formData.last_name}
-                  onChange={handleChange("last_name")}
-                  required
-                  sx={{ flex: "1 1 200px" }}
-                />
-              </Box>
-
-              <Box display="flex" gap={2} flexWrap="wrap">
-                <TextField
-                  label="Initials"
-                  value={formData.initials}
-                  onChange={handleChange("initials")}
-                  sx={{ flex: "1 1 100px" }}
-                  placeholder="e.g., JD"
-                  helperText="Used for privacy in lists"
-                />
-
-                <TextField
-                  label="Date of Birth"
-                  type="date"
-                  value={formData.dob}
-                  onChange={handleChange("dob")}
-                  required
-                  sx={{ flex: "1 1 200px" }}
-                  slotProps={{
-                    inputLabel: { shrink: true },
-                  }}
-                />
-              </Box>
-
+          <Stack spacing={3}>
+            <Box display="flex" gap={2} flexWrap="wrap">
               <TextField
-                label="Headshot URL"
-                value={formData.photo_url}
-                onChange={handleChange("photo_url")}
-                fullWidth
-                placeholder="https://..."
-                helperText="Optional profile photo URL for student cards and details"
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch checked={formData.is_active} onChange={handleSwitchChange("is_active")} />
-                }
-                label="Active"
-              />
-
-              {/* Location */}
-              <Typography variant="h6" color="primary" sx={{ mt: 2 }}>
-                Location & School
-              </Typography>
-
-              <FormControl fullWidth required>
-                <InputLabel>Site</InputLabel>
-                <Select value={formData.site_id} label="Site" onChange={handleChange("site_id")}>
-                  {activeLocations.map((location) => (
-                    <MenuItem key={location.id} value={location.id}>
-                      {location.name} ({location.type.replace("_", " ")})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                label="Current School"
-                value={formData.current_school}
-                onChange={handleChange("current_school")}
-                fullWidth
-                placeholder="Name of the school the student attends"
-              />
-
-              {/* Additional Information */}
-              <Typography variant="h6" color="primary" sx={{ mt: 2 }}>
-                Additional Information
-              </Typography>
-
-              <TextField
-                label="Preferred Language"
-                value={formData.preferred_language}
-                onChange={handleChange("preferred_language")}
-                fullWidth
-                placeholder="e.g., English, Spanish"
+                label="First Name"
+                value={formData.first_name}
+                onChange={handleChange("first_name")}
+                onBlur={handleBlur("first_name")}
+                error={!!fieldErrors.first_name}
+                helperText={fieldErrors.first_name}
+                required
+                sx={{ flex: "1 1 200px" }}
               />
 
               <TextField
-                label="Guardian Summary"
-                value={formData.guardian_summary}
-                onChange={handleChange("guardian_summary")}
-                fullWidth
-                multiline
-                rows={3}
-                placeholder="Brief notes about the student's guardians..."
-                InputProps={{
-                  readOnly: !isAdmin,
-                }}
-                helperText={
-                  isAdmin
-                    ? undefined
-                    : isTeacher
-                      ? "Teachers can update guardian summary from Teacher Student Details."
-                      : "Guardian summary can only be edited by staff."
-                }
+                label="Last Name"
+                value={formData.last_name}
+                onChange={handleChange("last_name")}
+                onBlur={handleBlur("last_name")}
+                error={!!fieldErrors.last_name}
+                helperText={fieldErrors.last_name}
+                required
+                sx={{ flex: "1 1 200px" }}
               />
             </Box>
-          </CardContent>
-        </Card>
+
+            <Box display="flex" gap={2} flexWrap="wrap">
+              <TextField
+                label="Initials"
+                value={formData.initials}
+                onChange={handleChange("initials")}
+                sx={{ flex: "1 1 100px" }}
+                placeholder="e.g., JD"
+                helperText="Used for privacy in lists"
+              />
+
+              <TextField
+                label="Date of Birth"
+                type="date"
+                value={formData.dob}
+                onChange={handleChange("dob")}
+                onBlur={handleBlur("dob")}
+                error={!!fieldErrors.dob}
+                helperText={fieldErrors.dob}
+                required
+                sx={{ flex: "1 1 200px" }}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                }}
+              />
+            </Box>
+
+            <TextField
+              label="Headshot URL"
+              value={formData.photo_url}
+              onChange={handleChange("photo_url")}
+              fullWidth
+              placeholder="https://..."
+              helperText="Optional profile photo URL for student cards and details"
+            />
+
+            <FormControlLabel
+              control={
+                <Switch checked={formData.is_active} onChange={handleSwitchChange("is_active")} />
+              }
+              label="Active"
+            />
+          </Stack>
+        </SectionCard>
+
+        <SectionCard title="Location & School">
+          <Stack spacing={3}>
+            <FormControl fullWidth required error={!!fieldErrors.site_id}>
+              <InputLabel>Site</InputLabel>
+              <Select value={formData.site_id} label="Site" onChange={handleChange("site_id")}>
+                {activeLocations.map((location) => (
+                  <MenuItem key={location.id} value={location.id}>
+                    {location.name} ({location.type.replace("_", " ")})
+                  </MenuItem>
+                ))}
+              </Select>
+              {fieldErrors.site_id && <FormHelperText>{fieldErrors.site_id}</FormHelperText>}
+            </FormControl>
+
+            <TextField
+              label="Current School"
+              value={formData.current_school}
+              onChange={handleChange("current_school")}
+              fullWidth
+              placeholder="Name of the school the student attends"
+            />
+          </Stack>
+        </SectionCard>
+
+        <SectionCard title="Additional Information">
+          <Stack spacing={3}>
+            <TextField
+              label="Preferred Language"
+              value={formData.preferred_language}
+              onChange={handleChange("preferred_language")}
+              fullWidth
+              placeholder="e.g., English, Spanish"
+            />
+
+            <FormControl fullWidth>
+              <InputLabel>Hearing Devices</InputLabel>
+              <Select
+                multiple
+                value={formData.hearing_devices}
+                label="Hearing Devices"
+                onChange={(event) => {
+                  const values = event.target.value as string[];
+                  setFormData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          hearing_devices: values,
+                        }
+                      : null,
+                  );
+                }}
+                renderValue={(selected) => (selected as string[]).join(", ")}
+              >
+                {hearingDeviceOptions.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>Select one or more devices</FormHelperText>
+            </FormControl>
+
+            {formData.hearing_devices.includes("Other") && (
+              <TextField
+                label="Other Hearing Device"
+                value={formData.other_hearing_device}
+                onChange={handleChange("other_hearing_device")}
+                fullWidth
+                placeholder="Describe other device"
+              />
+            )}
+
+            <FormControl fullWidth>
+              <InputLabel>Hearing Loss Type</InputLabel>
+              <Select
+                value={formData.hearing_loss_type}
+                label="Hearing Loss Type"
+                onChange={handleChange("hearing_loss_type")}
+              >
+                <MenuItem value="">
+                  <em>Not specified</em>
+                </MenuItem>
+                {hearingLossOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              label="Guardian Summary"
+              value={formData.guardian_summary}
+              onChange={handleChange("guardian_summary")}
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Brief notes about the student's guardians..."
+              InputProps={{
+                readOnly: !isAdmin,
+              }}
+              helperText={
+                isAdmin
+                  ? undefined
+                  : isTeacher
+                    ? "Teachers can update guardian summary from Teacher Student Details."
+                    : "Guardian summary can only be edited by staff."
+              }
+            />
+          </Stack>
+        </SectionCard>
 
         {/* Submit Button */}
-        <Box display="flex" justifyContent="flex-end" gap={2} mt={3}>
+        <Stack direction="row" spacing={2} justifyContent="flex-end">
           <Button variant="outlined" onClick={() => navigate(`/students/${id}`)}>
             Cancel
           </Button>
@@ -406,8 +489,9 @@ export default function EditStudentPage() {
           >
             {isPending ? "Saving..." : "Save Changes"}
           </Button>
-        </Box>
+        </Stack>
+        </Stack>
       </form>
-    </Box>
+    </PageContainer>
   );
 }

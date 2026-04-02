@@ -110,6 +110,15 @@ export interface ChildDetails {
   photo_url: string | null;
   dob: string;
   preferred_language: string;
+  hearing_devices: string[];
+  hearing_loss_type:
+    | "mild"
+    | "moderate"
+    | "moderately_severe"
+    | "severe"
+    | "profound"
+    | "unknown"
+    | null;
   current_school: string | null;
   site: {
     id: string;

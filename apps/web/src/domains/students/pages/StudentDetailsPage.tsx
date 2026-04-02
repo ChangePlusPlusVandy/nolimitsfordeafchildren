@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
-  Paper,
   Button,
   Avatar,
   Chip,
@@ -14,7 +13,6 @@ import {
   ListItemAvatar,
   ListItemText,
   IconButton,
-  Alert,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,10 +22,16 @@ import {
   Select,
   MenuItem,
   TextField,
+  Stack,
 } from "@mui/material";
 import { DetailPageSkeleton } from "../../global/components/skeletons";
 import { useToast } from "../../global/components/ToastProvider";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import ConfirmDialog from "../../global/components/ConfirmDialog";
+import { formatDate, formatTime, formatDateTime } from "../../../utils/formatDate";
 import EditIcon from "@mui/icons-material/Edit";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import SchoolIcon from "@mui/icons-material/School";
@@ -85,12 +89,15 @@ function decodeDayMask(mask: number): string[] {
   return days;
 }
 
-function formatTime(time: string) {
-  const [hours, minutes] = time.split(":");
-  const hour = parseInt(hours!, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
+function formatHearingLossType(value: string | null): string {
+  if (!value) {
+    return "Not specified";
+  }
+
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export default function StudentDetailsPage() {
@@ -115,11 +122,15 @@ export default function StudentDetailsPage() {
   const [editingAttendanceReason, setEditingAttendanceReason] = useState<AbsenceReason | "">("");
   const [editingAttendanceReasonText, setEditingAttendanceReasonText] = useState("");
 
+  // ConfirmDialog state for sibling removal
+  const [removeSiblingId, setRemoveSiblingId] = useState<string | null>(null);
+
   // Fetch student details
   const {
     data: student,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: [studentHttpService.key, "show", id],
     queryFn: () => studentHttpService.queries.show(id!),
@@ -159,9 +170,11 @@ export default function StudentDetailsPage() {
     mutationFn: (siblingId: string) => studentHttpService.mutations.removeSibling(siblingId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [studentHttpService.key, "show", id] });
+      setRemoveSiblingId(null);
       toast.success("Sibling removed");
     },
     onError: () => {
+      setRemoveSiblingId(null);
       toast.error("Failed to remove sibling. Please try again.");
     },
   });
@@ -208,13 +221,7 @@ export default function StudentDetailsPage() {
   };
 
   const handleRemoveSibling = (siblingId: string) => {
-    const confirmed = (
-      globalThis as unknown as { confirm?: (message?: string) => boolean }
-    ).confirm?.("Are you sure you want to remove this sibling?");
-
-    if (confirmed !== false) {
-      removeSiblingMutation.mutate(siblingId);
-    }
+    setRemoveSiblingId(siblingId);
   };
 
   const openAttendanceDialog = (entry: {
@@ -276,20 +283,29 @@ export default function StudentDetailsPage() {
     return age;
   };
 
+  const breadcrumbs = [
+    { label: "Students", href: "/students" },
+    { label: student ? (isAdmin ? `${student.first_name} ${student.last_name}` : student.initials) : "Details" },
+  ];
+
   if (isLoading) {
-    return <DetailPageSkeleton sections={4} />;
+    return (
+      <PageContainer>
+        <PageHeader title="Student Details" breadcrumbs={breadcrumbs} back="/students" />
+        <DetailPageSkeleton sections={4} />
+      </PageContainer>
+    );
   }
 
   if (error || !student) {
     return (
-      <Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
-          Back
-        </Button>
-        <Alert severity="error">
-          {error instanceof Error ? error.message : "Student not found"}
-        </Alert>
-      </Box>
+      <PageContainer>
+        <PageHeader title="Student Details" breadcrumbs={breadcrumbs} back="/students" />
+        <ErrorAlert
+          message={error instanceof Error ? error.message : "Student not found"}
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
     );
   }
 
@@ -317,32 +333,31 @@ export default function StudentDetailsPage() {
   };
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Typography variant="h4" component="h1" sx={{ flex: 1 }}>
-          Student Details
-        </Typography>
-        {isAdmin && (
-          <Button
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={() => navigate(`/students/${id}/edit`)}
-          >
-            Edit
-          </Button>
-        )}
-      </Box>
+    <PageContainer>
+      <PageHeader
+        title="Student Details"
+        breadcrumbs={breadcrumbs}
+        back="/students"
+        actions={
+          isAdmin ? (
+            <Button
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={() => navigate(`/students/${id}/edit`)}
+            >
+              Edit
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Main Content Grid */}
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3 }}>
         {/* Left Column - Profile Info */}
         <Box sx={{ flex: 1 }}>
+          <Stack spacing={3}>
           {/* Profile Card */}
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <SectionCard>
             <Box sx={{ display: "flex", alignItems: "center", gap: 3, mb: 3 }}>
               <Avatar
                 src={student.photo_url || undefined}
@@ -386,7 +401,7 @@ export default function StudentDetailsPage() {
                   Date of Birth
                 </Typography>
                 <Typography>
-                  {new Date(student.dob).toLocaleDateString()} (Age: {calculateAge(student.dob)})
+                  {formatDate(student.dob)} (Age: {calculateAge(student.dob)})
                 </Typography>
               </Box>
 
@@ -422,6 +437,24 @@ export default function StudentDetailsPage() {
                 </Box>
               )}
 
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Hearing Devices
+                </Typography>
+                <Typography>
+                  {student.hearing_devices.length > 0
+                    ? student.hearing_devices.join(", ")
+                    : "Not specified"}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Hearing Loss Type
+                </Typography>
+                <Typography>{formatHearingLossType(student.hearing_loss_type)}</Typography>
+              </Box>
+
               {student.guardian_summary && (
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary">
@@ -431,15 +464,13 @@ export default function StudentDetailsPage() {
                 </Box>
               )}
             </Box>
-          </Paper>
+          </SectionCard>
 
           {/* Schedule History */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              <ScheduleIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-              Schedule History
-            </Typography>
-
+          <SectionCard
+            title="Schedule History"
+            icon={<ScheduleIcon />}
+          >
             {(student.schedule_history?.length || 0) > 0 ? (
               <List dense sx={{ p: 0 }}>
                 {student.schedule_history?.map((entry, index) => (
@@ -463,11 +494,11 @@ export default function StudentDetailsPage() {
                           <>
                             {entry.schedule.site.name} with {entry.schedule.teacher.name}
                             <br />
-                            Cycle: {entry.schedule.cycle_start_date} to {entry.schedule.cycle_end_date}
+                            Cycle: {formatDate(entry.schedule.cycle_start_date)} to {formatDate(entry.schedule.cycle_end_date)}
                             <br />
-                            Enrollment: {new Date(entry.enrolled_at).toLocaleDateString()}
+                            Enrollment: {formatDate(entry.enrolled_at)}
                             {entry.ended_at
-                              ? ` to ${new Date(entry.ended_at).toLocaleDateString()}`
+                              ? ` to ${formatDate(entry.ended_at)}`
                               : " to present"}
                           </>
                         }
@@ -479,18 +510,14 @@ export default function StudentDetailsPage() {
             ) : (
               <Typography color="text.secondary">No schedule history recorded.</Typography>
             )}
-          </Paper>
+          </SectionCard>
 
           {/* Siblings Section */}
-          <Paper sx={{ p: 3 }}>
-            <Box
-              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
-            >
-              <Typography variant="h6">
-                <FamilyRestroomIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Siblings
-              </Typography>
-              {isAdmin && (
+          <SectionCard
+            title="Siblings"
+            icon={<FamilyRestroomIcon />}
+            actions={
+              isAdmin ? (
                 <Button
                   size="small"
                   startIcon={<PersonAddIcon />}
@@ -498,9 +525,9 @@ export default function StudentDetailsPage() {
                 >
                   Add Sibling
                 </Button>
-              )}
-            </Box>
-
+              ) : undefined
+            }
+          >
             {student.siblings.length > 0 ? (
               <>
                 <SiblingAvatars
@@ -515,13 +542,18 @@ export default function StudentDetailsPage() {
                       secondaryAction={
                         isAdmin && (
                           <Box>
-                            <IconButton size="small" onClick={() => setEditingSibling(sibling)}>
+                            <IconButton
+                              size="small"
+                              onClick={() => setEditingSibling(sibling)}
+                              aria-label={`Edit sibling ${sibling.name}`}
+                            >
                               <EditIcon fontSize="small" />
                             </IconButton>
                             <IconButton
                               size="small"
                               color="error"
                               onClick={() => handleRemoveSibling(sibling.id)}
+                              aria-label={`Remove sibling ${sibling.name}`}
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
@@ -545,21 +577,19 @@ export default function StudentDetailsPage() {
                 No siblings recorded
               </Typography>
             )}
-          </Paper>
+          </SectionCard>
+          </Stack>
         </Box>
 
         {/* Right Column - Linked People & Documents */}
         <Box sx={{ flex: 1 }}>
+          <Stack spacing={3}>
           {/* Linked Teachers */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box
-              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
-            >
-              <Typography variant="h6">
-                <SchoolIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Linked Teachers
-              </Typography>
-              {isAdmin && (
+          <SectionCard
+            title="Linked Teachers"
+            icon={<SchoolIcon />}
+            actions={
+              isAdmin ? (
                 <Button
                   size="small"
                   startIcon={<LinkIcon />}
@@ -567,9 +597,9 @@ export default function StudentDetailsPage() {
                 >
                   Link Teacher
                 </Button>
-              )}
-            </Box>
-
+              ) : undefined
+            }
+          >
             {student.teachers.length > 0 ? (
               <List dense>
                 {student.teachers.map((teacher) => (
@@ -586,18 +616,14 @@ export default function StudentDetailsPage() {
                 No teachers linked
               </Typography>
             )}
-          </Paper>
+          </SectionCard>
 
           {/* Linked Parents */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box
-              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
-            >
-              <Typography variant="h6">
-                <FamilyRestroomIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Linked Parents
-              </Typography>
-              {isAdmin && (
+          <SectionCard
+            title="Linked Parents"
+            icon={<FamilyRestroomIcon />}
+            actions={
+              isAdmin ? (
                 <Button
                   size="small"
                   startIcon={<LinkIcon />}
@@ -605,9 +631,9 @@ export default function StudentDetailsPage() {
                 >
                   Link Parent
                 </Button>
-              )}
-            </Box>
-
+              ) : undefined
+            }
+          >
             {student.parents.length > 0 ? (
               <List dense>
                 {student.parents.map((parent) => (
@@ -640,18 +666,14 @@ export default function StudentDetailsPage() {
                 No parents linked
               </Typography>
             )}
-          </Paper>
+          </SectionCard>
 
           {/* Documents Section */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box
-              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
-            >
-              <Typography variant="h6">
-                <DescriptionIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Documents
-              </Typography>
-              {isAdmin && (
+          <SectionCard
+            title="Documents"
+            icon={<DescriptionIcon />}
+            actions={
+              isAdmin ? (
                 <Button
                   size="small"
                   startIcon={<PersonAddIcon />}
@@ -659,23 +681,22 @@ export default function StudentDetailsPage() {
                 >
                   Upload
                 </Button>
-              )}
-            </Box>
+              ) : undefined
+            }
+          >
             <DocumentList
               studentId={id!}
               canDelete={isAdmin}
               onUploadClick={() => setUploadModalOpen(true)}
             />
-          </Paper>
+          </SectionCard>
 
           {/* Attendance Overview */}
           {attendanceOverview && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                <EventAvailableIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Attendance
-              </Typography>
-
+            <SectionCard
+              title="Attendance"
+              icon={<EventAvailableIcon />}
+            >
               <Box
                 sx={{
                   display: "grid",
@@ -701,7 +722,7 @@ export default function StudentDetailsPage() {
                       {index > 0 && <Divider />}
                       <ListItem sx={{ px: 0 }}>
                         <ListItemText
-                          primary={new Date(entry.session_date).toLocaleDateString()}
+                          primary={formatDate(entry.session_date)}
                           secondary={
                             <>
                               <Chip
@@ -716,15 +737,19 @@ export default function StudentDetailsPage() {
                               {entry.marked_by && (
                                 <>
                                   {" "}
-                                  - Marked by {entry.marked_by.name} ({formatRoleLabel(entry.marked_by.role)}) on {" "}
-                                  {new Date(entry.marked_at).toLocaleString()}
+                                  - Marked by {entry.marked_by.name} ({formatRoleLabel(entry.marked_by.role)}) on{" "}
+                                  {formatDateTime(entry.marked_at)}
                                 </>
                               )}
                             </>
                           }
                         />
                         {isAdmin && (
-                          <IconButton size="small" onClick={() => openAttendanceDialog(entry)}>
+                          <IconButton
+                            size="small"
+                            onClick={() => openAttendanceDialog(entry)}
+                            aria-label="Edit attendance"
+                          >
                             <EditIcon fontSize="small" />
                           </IconButton>
                         )}
@@ -735,7 +760,7 @@ export default function StudentDetailsPage() {
               ) : (
                 <Typography color="text.secondary">No attendance records yet.</Typography>
               )}
-            </Paper>
+            </SectionCard>
           )}
 
           {/* Session Notes */}
@@ -743,6 +768,7 @@ export default function StudentDetailsPage() {
 
           {/* Assessments */}
           <AssessmentHistory studentId={id!} canAdd={isTeacher} canEdit={isTeacher} />
+          </Stack>
         </Box>
       </Box>
 
@@ -765,6 +791,20 @@ export default function StudentDetailsPage() {
           title="Edit Sibling"
         />
       )}
+
+      {/* Remove Sibling Confirm Dialog */}
+      <ConfirmDialog
+        open={!!removeSiblingId}
+        title="Remove sibling?"
+        message="Are you sure you want to remove this sibling? This action cannot be undone."
+        confirmLabel="Remove"
+        confirmColor="error"
+        loading={removeSiblingMutation.isPending}
+        onConfirm={() => {
+          if (removeSiblingId) removeSiblingMutation.mutate(removeSiblingId);
+        }}
+        onCancel={() => setRemoveSiblingId(null)}
+      />
 
       {/* Link Teacher Modal */}
       <LinkTeacherModal
@@ -798,7 +838,7 @@ export default function StudentDetailsPage() {
       >
         <DialogTitle>Update Attendance</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             <FormControl fullWidth>
               <InputLabel>Status</InputLabel>
                 <Select
@@ -876,9 +916,9 @@ export default function StudentDetailsPage() {
                 minRows={2}
               />
             )}
-          </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setAttendanceDialogOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -894,6 +934,6 @@ export default function StudentDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

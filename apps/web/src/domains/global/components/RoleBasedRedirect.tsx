@@ -1,5 +1,5 @@
 import { Navigate } from "react-router";
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { useAuth } from "../../../auth";
 
 /**
@@ -14,12 +14,17 @@ export default function RoleBasedRedirect() {
       <Box
         sx={{
           display: "flex",
-          justifyContent: "center",
+          flexDirection: "column",
           alignItems: "center",
-          height: "100vh",
+          justifyContent: "center",
+          height: "60vh",
+          gap: 2,
         }}
       >
-        <CircularProgress />
+        <CircularProgress size={36} />
+        <Typography variant="body2" color="text.secondary">
+          Redirecting...
+        </Typography>
       </Box>
     );
   }
@@ -34,7 +39,6 @@ export default function RoleBasedRedirect() {
     case "unassigned":
       return <Navigate to="/pending-approval" replace />;
     default:
-      // Fallback for unknown role
       return <Navigate to="/my-profile" replace />;
   }
 }

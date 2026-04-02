@@ -38,6 +38,31 @@ export default function InviteUserModal({ open, onClose }: InviteUserModalProps)
   const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("parent");
   const [phone, setPhone] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case "email":
+        if (!value.trim()) return "Email is required";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return "Enter a valid email address";
+        return "";
+      case "name":
+        return value.trim() ? "" : "Name is required";
+      default:
+        return "";
+    }
+  };
+
+  const handleFieldBlur = (field: string, value: string) => {
+    const err = validateField(field, value);
+    setFieldErrors((prev) => ({ ...prev, [field]: err }));
+  };
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: (data: InviteUserInput) => userHttpService.mutations.invite(data),
@@ -58,12 +83,20 @@ export default function InviteUserModal({ open, onClose }: InviteUserModalProps)
       setName("");
       setRole("parent");
       setPhone("");
+      setFieldErrors({});
       onClose();
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const errors: Record<string, string> = {};
+    errors.email = validateField("email", email);
+    errors.name = validateField("name", name);
+    setFieldErrors(errors);
+    if (Object.values(errors).some(Boolean)) return;
+
     mutation.mutate({
       email,
       name,
@@ -89,7 +122,10 @@ export default function InviteUserModal({ open, onClose }: InviteUserModalProps)
               label="Email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
+              onBlur={() => handleFieldBlur("email", email)}
+              error={!!fieldErrors.email}
+              helperText={fieldErrors.email}
               required
               fullWidth
               autoFocus
@@ -100,7 +136,10 @@ export default function InviteUserModal({ open, onClose }: InviteUserModalProps)
             <TextField
               label="Full Name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
+              onBlur={() => handleFieldBlur("name", name)}
+              error={!!fieldErrors.name}
+              helperText={fieldErrors.name}
               required
               fullWidth
               placeholder="John Doe"
@@ -131,7 +170,7 @@ export default function InviteUserModal({ open, onClose }: InviteUserModalProps)
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleClose} disabled={mutation.isPending}>
             Cancel
           </Button>

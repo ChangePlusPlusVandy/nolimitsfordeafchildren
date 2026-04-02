@@ -131,6 +131,29 @@ export class GetAttendanceController {
 
 @Service()
 @JsonController("/v1")
+export class GetAttendanceSiblingParticipationReportController {
+  private attendanceService: AttendanceService;
+  constructor() {
+    this.attendanceService = Container.get(AttendanceService);
+  }
+
+  @Get("/attendance/sibling-participation-report")
+  @Authorized(["administrator"])
+  async handle(
+    @QueryParam("date_from") date_from?: string,
+    @QueryParam("date_to") date_to?: string,
+    @QueryParam("site_id") site_id?: string,
+  ) {
+    return await this.attendanceService.getSiblingParticipationReport({
+      date_from,
+      date_to,
+      site_id,
+    });
+  }
+}
+
+@Service()
+@JsonController("/v1")
 export class GetAttendanceShowController {
   private attendanceService: AttendanceService;
   constructor() {

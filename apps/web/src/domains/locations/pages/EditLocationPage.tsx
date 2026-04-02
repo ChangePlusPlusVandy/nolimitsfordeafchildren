@@ -5,8 +5,6 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
   TextField,
   FormControl,
   InputLabel,
@@ -16,10 +14,15 @@ import {
   Switch,
   Alert,
   CircularProgress,
+  Stack,
+  FormHelperText,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { Skeleton } from "@mui/material";
+import PageContainer from "../../global/components/PageContainer";
+import PageHeader from "../../global/components/PageHeader";
+import SectionCard from "../../global/components/SectionCard";
+import ErrorAlert from "../../global/components/ErrorAlert";
+import { FormSkeleton } from "../../global/components/skeletons";
 import {
   useLocationHttpService,
   type UpdateLocationPayload,
@@ -27,7 +30,6 @@ import {
 } from "../services/LocationHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 
-// Common US timezones
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern Time (ET)" },
   { value: "America/Chicago", label: "Central Time (CT)" },
@@ -38,57 +40,10 @@ const TIMEZONES = [
 ];
 
 const US_STATES = [
-  "AL",
-  "AK",
-  "AZ",
-  "AR",
-  "CA",
-  "CO",
-  "CT",
-  "DE",
-  "FL",
-  "GA",
-  "HI",
-  "ID",
-  "IL",
-  "IN",
-  "IA",
-  "KS",
-  "KY",
-  "LA",
-  "ME",
-  "MD",
-  "MA",
-  "MI",
-  "MN",
-  "MS",
-  "MO",
-  "MT",
-  "NE",
-  "NV",
-  "NH",
-  "NJ",
-  "NM",
-  "NY",
-  "NC",
-  "ND",
-  "OH",
-  "OK",
-  "OR",
-  "PA",
-  "RI",
-  "SC",
-  "SD",
-  "TN",
-  "TX",
-  "UT",
-  "VT",
-  "VA",
-  "WA",
-  "WV",
-  "WI",
-  "WY",
-  "DC",
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+  "VA","WA","WV","WI","WY","DC",
 ];
 
 type FormData = {
@@ -115,20 +70,43 @@ export default function EditLocationPage() {
 
   const [formData, setFormData] = useState<FormData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const toast = useToast();
 
-  // Fetch existing location data
+  const validateField = (field: keyof FormData, value: string): string => {
+    switch (field) {
+      case "name":
+        return value.trim() ? "" : "Name is required";
+      case "address_line1":
+        return value.trim() ? "" : "Address is required";
+      case "city":
+        return value.trim() ? "" : "City is required";
+      case "state":
+        return value ? "" : "State is required";
+      case "postal_code":
+        return value.trim() ? "" : "Postal code is required";
+      default:
+        return "";
+    }
+  };
+
+  const handleBlur = (field: keyof FormData) => () => {
+    if (!formData) return;
+    const err = validateField(field, formData[field] as string);
+    setFieldErrors((prev) => ({ ...prev, [field]: err }));
+  };
+
   const {
     data: location,
     isLoading: locationLoading,
     error: locationError,
+    refetch,
   } = useQuery({
     queryKey: [locationHttpService.key, "show", siteId],
     queryFn: () => locationHttpService.queries.show(siteId!),
     enabled: !!siteId,
   });
 
-  // Initialize form data when location is loaded
   useEffect(() => {
     if (location) {
       setFormData({
@@ -164,58 +142,32 @@ export default function EditLocationPage() {
 
   const handleChange =
     (field: keyof FormData) =>
-    (
-      event:
-        | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-        | { target: { value: unknown } },
-    ) => {
-      setFormData((prev) =>
-        prev
-          ? {
-              ...prev,
-              [field]: event.target.value,
-            }
-          : null,
-      );
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }) => {
+      setFormData((prev) => prev ? { ...prev, [field]: event.target.value } : null);
       setError(null);
+      if (fieldErrors[field]) {
+        setFieldErrors((prev) => ({ ...prev, [field]: "" }));
+      }
     };
 
   const handleSwitchChange =
     (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData((prev) =>
-        prev
-          ? {
-              ...prev,
-              [field]: event.target.checked,
-            }
-          : null,
-      );
+      setFormData((prev) => prev ? { ...prev, [field]: event.target.checked } : null);
     };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData) return;
 
-    // Basic validation
-    if (!formData.name.trim()) {
-      setError("Name is required");
-      return;
+    const errors: Record<string, string> = {};
+    const requiredFields: (keyof FormData)[] = ["name", "address_line1", "city", "state", "postal_code"];
+    for (const field of requiredFields) {
+      const err = validateField(field, formData[field] as string);
+      if (err) errors[field] = err;
     }
-    if (!formData.address_line1.trim()) {
-      setError("Address is required");
-      return;
-    }
-    if (!formData.city.trim()) {
-      setError("City is required");
-      return;
-    }
-    if (!formData.state) {
-      setError("State is required");
-      return;
-    }
-    if (!formData.postal_code.trim()) {
-      setError("Postal code is required");
+    setFieldErrors(errors);
+    if (Object.values(errors).some(Boolean)) {
+      setError("Please fix the highlighted fields.");
       return;
     }
 
@@ -238,81 +190,41 @@ export default function EditLocationPage() {
     mutate(payload);
   };
 
-  if (locationLoading) {
+  const breadcrumbs = [
+    { label: "Locations", href: "/locations" },
+    { label: location?.name ?? "...", href: siteId ? `/locations/${siteId}` : undefined },
+    { label: "Edit" },
+  ];
+
+  if (locationLoading || !formData) {
     return (
-      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-        <Box mb={3}>
-          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
-          <Skeleton variant="text" width={200} height={40} />
-        </Box>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Box display="flex" gap={2}>
-            <Skeleton variant="rectangular" height={56} sx={{ flex: 2 }} />
-            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
-            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
-          </Box>
-          <Skeleton variant="rectangular" height={56} />
-          <Box display="flex" gap={2}>
-            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
-            <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
-          </Box>
-          <Skeleton variant="rectangular" height={56} />
-        </Box>
-      </Box>
+      <PageContainer maxWidth="md">
+        <PageHeader title="Edit Location" back={`/locations/${siteId}`} breadcrumbs={breadcrumbs} />
+        <FormSkeleton />
+      </PageContainer>
     );
   }
 
   if (locationError || !location) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">
-          {locationError ? "Failed to load location." : "Location not found."}
-        </Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/locations")} sx={{ mt: 2 }}>
-          Back to Locations
-        </Button>
-      </Box>
-    );
-  }
-
-  if (!formData) {
-    return (
-      <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-        <Box mb={3}>
-          <Skeleton variant="rectangular" width={150} height={36} sx={{ mb: 1 }} />
-          <Skeleton variant="text" width={200} height={40} />
-        </Box>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={56} />
-        </Box>
-      </Box>
+      <PageContainer maxWidth="md">
+        <PageHeader title="Edit Location" back="/locations" breadcrumbs={breadcrumbs} />
+        <ErrorAlert
+          message={locationError ? "Failed to load location." : "Location not found."}
+          onRetry={locationError ? () => refetch() : undefined}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-      {/* Header */}
-      <Box mb={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(`/locations/${siteId}`)}
-          sx={{ mb: 1 }}
-        >
-          Back to Location
-        </Button>
-        <Typography variant="h4" component="h1">
-          Edit Location
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {location.name}
-        </Typography>
-      </Box>
+    <PageContainer maxWidth="md">
+      <PageHeader
+        title="Edit Location"
+        subtitle={location.name}
+        breadcrumbs={breadcrumbs}
+        back={`/locations/${siteId}`}
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
@@ -321,23 +233,20 @@ export default function EditLocationPage() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <Card>
-          <CardContent>
-            <Box display="flex" flexDirection="column" gap={3}>
-              {/* Basic Info */}
-              <Typography variant="h6" color="primary">
-                Basic Information
-              </Typography>
-
+        <Stack spacing={3}>
+          <SectionCard title="Basic Information">
+            <Stack spacing={3}>
               <TextField
                 label="Location Name"
                 value={formData.name}
                 onChange={handleChange("name")}
+                onBlur={handleBlur("name")}
+                error={!!fieldErrors.name}
+                helperText={fieldErrors.name}
                 required
                 fullWidth
                 placeholder="e.g., Los Angeles Education Center"
               />
-
               <FormControl fullWidth required>
                 <InputLabel>Type</InputLabel>
                 <Select value={formData.type} label="Type" onChange={handleChange("type")}>
@@ -346,28 +255,26 @@ export default function EditLocationPage() {
                   <MenuItem value="remote">Remote</MenuItem>
                 </Select>
               </FormControl>
-
               <FormControlLabel
-                control={
-                  <Switch checked={formData.is_active} onChange={handleSwitchChange("is_active")} />
-                }
+                control={<Switch checked={formData.is_active} onChange={handleSwitchChange("is_active")} />}
                 label="Active"
               />
+            </Stack>
+          </SectionCard>
 
-              {/* Address */}
-              <Typography variant="h6" color="primary" sx={{ mt: 2 }}>
-                Address
-              </Typography>
-
+          <SectionCard title="Address">
+            <Stack spacing={3}>
               <TextField
                 label="Address Line 1"
                 value={formData.address_line1}
                 onChange={handleChange("address_line1")}
+                onBlur={handleBlur("address_line1")}
+                error={!!fieldErrors.address_line1}
+                helperText={fieldErrors.address_line1}
                 required
                 fullWidth
                 placeholder="e.g., 123 Main Street"
               />
-
               <TextField
                 label="Address Line 2"
                 value={formData.address_line2}
@@ -375,95 +282,78 @@ export default function EditLocationPage() {
                 fullWidth
                 placeholder="e.g., Suite 100"
               />
-
-              <Box display="flex" gap={2} flexWrap="wrap">
+              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <TextField
                   label="City"
                   value={formData.city}
                   onChange={handleChange("city")}
+                  onBlur={handleBlur("city")}
+                  error={!!fieldErrors.city}
+                  helperText={fieldErrors.city}
                   required
                   sx={{ flex: "2 1 200px" }}
                 />
-
-                <FormControl sx={{ flex: "1 1 100px" }} required>
+                <FormControl sx={{ flex: "1 1 100px" }} required error={!!fieldErrors.state}>
                   <InputLabel>State</InputLabel>
                   <Select value={formData.state} label="State" onChange={handleChange("state")}>
-                    {US_STATES.map((state) => (
-                      <MenuItem key={state} value={state}>
-                        {state}
-                      </MenuItem>
+                    {US_STATES.map((s) => (
+                      <MenuItem key={s} value={s}>{s}</MenuItem>
                     ))}
                   </Select>
+                  {fieldErrors.state && <FormHelperText>{fieldErrors.state}</FormHelperText>}
                 </FormControl>
-
                 <TextField
                   label="Postal Code"
                   value={formData.postal_code}
                   onChange={handleChange("postal_code")}
+                  onBlur={handleBlur("postal_code")}
+                  error={!!fieldErrors.postal_code}
+                  helperText={fieldErrors.postal_code}
                   required
                   sx={{ flex: "1 1 100px" }}
                   placeholder="e.g., 90001"
                 />
               </Box>
+              <TextField label="Country" value={formData.country} onChange={handleChange("country")} fullWidth disabled />
+            </Stack>
+          </SectionCard>
 
+          <SectionCard title="Coordinates (Optional)">
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Used for displaying the location on the map.
+            </Typography>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <TextField
-                label="Country"
-                value={formData.country}
-                onChange={handleChange("country")}
-                fullWidth
-                disabled
+                label="Latitude"
+                value={formData.latitude}
+                onChange={handleChange("latitude")}
+                sx={{ flex: "1 1 150px" }}
+                placeholder="e.g., 34.052235"
+                type="number"
+                inputProps={{ step: "any" }}
               />
+              <TextField
+                label="Longitude"
+                value={formData.longitude}
+                onChange={handleChange("longitude")}
+                sx={{ flex: "1 1 150px" }}
+                placeholder="e.g., -118.243683"
+                type="number"
+                inputProps={{ step: "any" }}
+              />
+            </Box>
+          </SectionCard>
 
-              {/* Coordinates */}
-              <Typography variant="h6" color="primary" sx={{ mt: 2 }}>
-                Coordinates (Optional)
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: -2 }}>
-                Used for displaying the location on the map
-              </Typography>
-
-              <Box display="flex" gap={2} flexWrap="wrap">
-                <TextField
-                  label="Latitude"
-                  value={formData.latitude}
-                  onChange={handleChange("latitude")}
-                  sx={{ flex: "1 1 150px" }}
-                  placeholder="e.g., 34.052235"
-                  type="number"
-                  inputProps={{ step: "any" }}
-                />
-
-                <TextField
-                  label="Longitude"
-                  value={formData.longitude}
-                  onChange={handleChange("longitude")}
-                  sx={{ flex: "1 1 150px" }}
-                  placeholder="e.g., -118.243683"
-                  type="number"
-                  inputProps={{ step: "any" }}
-                />
-              </Box>
-
-              {/* Settings */}
-              <Typography variant="h6" color="primary" sx={{ mt: 2 }}>
-                Settings
-              </Typography>
-
+          <SectionCard title="Settings">
+            <Stack spacing={3}>
               <FormControl fullWidth required>
                 <InputLabel>Timezone</InputLabel>
-                <Select
-                  value={formData.timezone}
-                  label="Timezone"
-                  onChange={handleChange("timezone")}
-                >
+                <Select value={formData.timezone} label="Timezone" onChange={handleChange("timezone")}>
                   {TIMEZONES.map((tz) => (
-                    <MenuItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </MenuItem>
+                    <MenuItem key={tz.value} value={tz.value}>{tz.label}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
-
               <TextField
                 label="Zoom Link"
                 value={formData.zoom_link}
@@ -472,25 +362,24 @@ export default function EditLocationPage() {
                 placeholder="e.g., https://zoom.us/j/123456789"
                 type="url"
               />
-            </Box>
-          </CardContent>
-        </Card>
+            </Stack>
+          </SectionCard>
 
-        {/* Submit Button */}
-        <Box display="flex" justifyContent="flex-end" gap={2} mt={3}>
-          <Button variant="outlined" onClick={() => navigate(`/locations/${siteId}`)}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={isPending ? <CircularProgress size={20} /> : <SaveIcon />}
-            disabled={isPending}
-          >
-            {isPending ? "Saving..." : "Save Changes"}
-          </Button>
-        </Box>
+          <Stack direction="row" spacing={2} justifyContent="flex-end">
+            <Button variant="outlined" onClick={() => navigate(`/locations/${siteId}`)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={isPending ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+              disabled={isPending}
+            >
+              {isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </Stack>
+        </Stack>
       </form>
-    </Box>
+    </PageContainer>
   );
 }

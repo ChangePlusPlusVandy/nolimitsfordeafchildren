@@ -135,6 +135,7 @@ export type AbsenceReason =
   | "other";
 
 export interface SessionForDay {
+  session_date: string;
   schedule_id: string;
   student_id: string;
   student_initials: string;
@@ -151,6 +152,11 @@ export interface SessionForDay {
     reason: AbsenceReason | null;
     reason_text: string | null;
     marked_at: string;
+    sibling_participants?: Array<{
+      sibling_id: string;
+      name: string;
+      relationship: string;
+    }>;
   } | null;
 }
 
@@ -210,7 +216,7 @@ export function useTeacherHttpService() {
       /**
        * Get current teacher's day schedule
        */
-      myDay: async (params?: { date?: string }): Promise<MyDayResponse> => {
+      myDay: async (params?: { date?: string; start_date?: string; end_date?: string }): Promise<MyDayResponse> => {
         const response = await httpClient.get("/v1/teachers/me/day", { params });
         return response.data;
       },
