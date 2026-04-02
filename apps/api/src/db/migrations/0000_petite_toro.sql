@@ -7,6 +7,7 @@ CREATE TYPE "public"."bulletin_scope" AS ENUM('global', 'site');--> statement-br
 CREATE TYPE "public"."chat_channel" AS ENUM('community', 'teacher');--> statement-breakpoint
 CREATE TYPE "public"."document_review_status" AS ENUM('approved', 'pending', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."document_type" AS ENUM('audiogram', 'iep', 'cv', 'annual_test_result', 'pre_report', 'graduation_speech', 'other');--> statement-breakpoint
+CREATE TYPE "public"."hearing_loss_type" AS ENUM('mild', 'moderate', 'moderately_severe', 'severe', 'profound', 'unknown');--> statement-breakpoint
 CREATE TYPE "public"."location_type" AS ENUM('education_center', 'pop_up', 'remote');--> statement-breakpoint
 CREATE TYPE "public"."request_status" AS ENUM('pending', 'negotiating', 'approved', 'denied', 'completed');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('administrator', 'teacher', 'parent', 'unassigned');--> statement-breakpoint
@@ -34,6 +35,13 @@ CREATE TABLE "assessments" (
 	"assessed_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "attendance_sibling_participants" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"attendance_id" uuid NOT NULL,
+	"sibling_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "attendance" (
@@ -128,6 +136,7 @@ CREATE TABLE "bulletins" (
 	"approval_status" text DEFAULT 'approved' NOT NULL,
 	"title" text NOT NULL,
 	"body" text,
+	"requires_initials" boolean DEFAULT false NOT NULL,
 	"publish_at" timestamp with time zone,
 	"expire_at" timestamp with time zone,
 	"reviewed_by" uuid,
@@ -378,6 +387,8 @@ CREATE TABLE "students" (
 	"dob" date NOT NULL,
 	"current_school" text,
 	"preferred_language" text DEFAULT 'English' NOT NULL,
+	"hearing_devices" text[] DEFAULT '{}'::text[] NOT NULL,
+	"hearing_loss_type" "hearing_loss_type",
 	"guardian_summary" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -403,6 +414,18 @@ CREATE TABLE "teacher_profiles" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "teacher_profiles_user_id_unique" UNIQUE("user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "teacher_sick_day_notices" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"teacher_id" uuid NOT NULL,
+	"site_id" uuid NOT NULL,
+	"notice_date" date NOT NULL,
+	"note" text,
+	"bulletin_id" uuid,
+	"created_by" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "teacher_student" (
@@ -432,6 +455,8 @@ CREATE TABLE "users" (
 ALTER TABLE "assessment_focuses" ADD CONSTRAINT "assessment_focuses_assessment_id_assessments_id_fk" FOREIGN KEY ("assessment_id") REFERENCES "public"."assessments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assessments" ADD CONSTRAINT "assessments_student_id_students_id_fk" FOREIGN KEY ("student_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assessments" ADD CONSTRAINT "assessments_teacher_id_teacher_profiles_id_fk" FOREIGN KEY ("teacher_id") REFERENCES "public"."teacher_profiles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "attendance_sibling_participants" ADD CONSTRAINT "attendance_sibling_participants_attendance_id_attendance_id_fk" FOREIGN KEY ("attendance_id") REFERENCES "public"."attendance"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "attendance_sibling_participants" ADD CONSTRAINT "attendance_sibling_participants_sibling_id_siblings_id_fk" FOREIGN KEY ("sibling_id") REFERENCES "public"."siblings"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attendance" ADD CONSTRAINT "attendance_student_id_students_id_fk" FOREIGN KEY ("student_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attendance" ADD CONSTRAINT "attendance_schedule_id_schedules_id_fk" FOREIGN KEY ("schedule_id") REFERENCES "public"."schedules"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attendance" ADD CONSTRAINT "attendance_marked_by_users_id_fk" FOREIGN KEY ("marked_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -486,9 +511,39 @@ ALTER TABLE "teacher_locations" ADD CONSTRAINT "teacher_locations_teacher_profil
 ALTER TABLE "teacher_locations" ADD CONSTRAINT "teacher_locations_location_id_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teacher_profiles" ADD CONSTRAINT "teacher_profiles_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teacher_profiles" ADD CONSTRAINT "teacher_profiles_primary_site_id_locations_id_fk" FOREIGN KEY ("primary_site_id") REFERENCES "public"."locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teacher_sick_day_notices" ADD CONSTRAINT "teacher_sick_day_notices_teacher_id_teacher_profiles_id_fk" FOREIGN KEY ("teacher_id") REFERENCES "public"."teacher_profiles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teacher_sick_day_notices" ADD CONSTRAINT "teacher_sick_day_notices_site_id_locations_id_fk" FOREIGN KEY ("site_id") REFERENCES "public"."locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teacher_sick_day_notices" ADD CONSTRAINT "teacher_sick_day_notices_bulletin_id_bulletins_id_fk" FOREIGN KEY ("bulletin_id") REFERENCES "public"."bulletins"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teacher_sick_day_notices" ADD CONSTRAINT "teacher_sick_day_notices_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teacher_student" ADD CONSTRAINT "teacher_student_teacher_id_teacher_profiles_id_fk" FOREIGN KEY ("teacher_id") REFERENCES "public"."teacher_profiles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teacher_student" ADD CONSTRAINT "teacher_student_student_id_students_id_fk" FOREIGN KEY ("student_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "assessments_student_cycle_type_idx" ON "assessments" USING btree ("student_id","cycle_start_date","assessment_type");--> statement-breakpoint
+CREATE INDEX "assessments_student_cycle_idx" ON "assessments" USING btree ("student_id","cycle_start_date");--> statement-breakpoint
+CREATE UNIQUE INDEX "attendance_sibling_participants_attendance_id_sibling_id_idx" ON "attendance_sibling_participants" USING btree ("attendance_id","sibling_id");--> statement-breakpoint
+CREATE INDEX "attendance_sibling_participants_sibling_id_idx" ON "attendance_sibling_participants" USING btree ("sibling_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "auth_accounts_provider_account_unique" ON "auth_accounts" USING btree ("provider_id","account_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "bulletin_acknowledgements_bulletin_id_user_id_idx" ON "bulletin_acknowledgements" USING btree ("bulletin_id","user_id");--> statement-breakpoint
+CREATE INDEX "bulletins_approval_status_created_at_idx" ON "bulletins" USING btree ("approval_status","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "bulletin_views_bulletin_id_user_id_idx" ON "bulletin_views" USING btree ("bulletin_id","user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "teacher_locations_teacher_profile_id_location_id_idx" ON "teacher_locations" USING btree ("teacher_profile_id","location_id");
+CREATE INDEX "locations_active_name_idx" ON "locations" USING btree ("is_active","name");--> statement-breakpoint
+CREATE INDEX "locations_type_idx" ON "locations" USING btree ("type");--> statement-breakpoint
+CREATE INDEX "locations_created_at_idx" ON "locations" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "makeup_requests_status_requested_at_idx" ON "makeup_requests" USING btree ("status","requested_at");--> statement-breakpoint
+CREATE INDEX "makeup_requests_student_id_idx" ON "makeup_requests" USING btree ("student_id");--> statement-breakpoint
+CREATE INDEX "makeup_requests_original_schedule_id_idx" ON "makeup_requests" USING btree ("original_schedule_id");--> statement-breakpoint
+CREATE INDEX "makeup_sessions_makeup_request_id_created_at_idx" ON "makeup_sessions" USING btree ("makeup_request_id","created_at");--> statement-breakpoint
+CREATE INDEX "makeup_sessions_teacher_date_idx" ON "makeup_sessions" USING btree ("teacher_id","scheduled_date");--> statement-breakpoint
+CREATE INDEX "photos_location_session_created_idx" ON "photos" USING btree ("location_id","session_date","created_at");--> statement-breakpoint
+CREATE INDEX "photos_student_session_created_idx" ON "photos" USING btree ("student_id","session_date","created_at");--> statement-breakpoint
+CREATE INDEX "schedule_change_requests_status_requested_at_idx" ON "schedule_change_requests" USING btree ("status","requested_at");--> statement-breakpoint
+CREATE INDEX "schedule_change_requests_student_id_idx" ON "schedule_change_requests" USING btree ("student_id");--> statement-breakpoint
+CREATE INDEX "schedule_change_requests_current_schedule_id_idx" ON "schedule_change_requests" USING btree ("current_schedule_id");--> statement-breakpoint
+CREATE INDEX "schedule_change_requests_requested_schedule_id_idx" ON "schedule_change_requests" USING btree ("requested_schedule_id");--> statement-breakpoint
+CREATE INDEX "session_notes_student_created_at_idx" ON "session_notes" USING btree ("student_id","created_at");--> statement-breakpoint
+CREATE INDEX "session_notes_teacher_created_at_idx" ON "session_notes" USING btree ("teacher_id","created_at");--> statement-breakpoint
+CREATE INDEX "students_site_active_initials_idx" ON "students" USING btree ("site_id","is_active","initials");--> statement-breakpoint
+CREATE INDEX "students_created_at_idx" ON "students" USING btree ("created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "teacher_locations_teacher_profile_id_location_id_idx" ON "teacher_locations" USING btree ("teacher_profile_id","location_id");--> statement-breakpoint
+CREATE INDEX "teacher_locations_location_id_idx" ON "teacher_locations" USING btree ("location_id");--> statement-breakpoint
+CREATE INDEX "teacher_sick_day_notices_teacher_date_idx" ON "teacher_sick_day_notices" USING btree ("teacher_id","notice_date");--> statement-breakpoint
+CREATE INDEX "teacher_sick_day_notices_site_date_idx" ON "teacher_sick_day_notices" USING btree ("site_id","notice_date");

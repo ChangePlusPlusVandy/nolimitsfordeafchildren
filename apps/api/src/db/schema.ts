@@ -11,6 +11,7 @@ import {
   numeric,
   pgEnum,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -189,24 +190,32 @@ export const AuthVerificationTable = pgTable("auth_verifications", {
 
 /* ---------------- LOCATION ---------------- */
 
-export const LocationTable = pgTable("locations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  type: locationTypeEnum("type").notNull(),
-  address_line1: text("address_line1").notNull(),
-  address_line2: text("address_line2"),
-  city: text("city").notNull(),
-  state: text("state").notNull(),
-  postal_code: text("postal_code").notNull(),
-  country: text("country").notNull().default("USA"),
-  latitude: numeric("latitude", { precision: 9, scale: 6 }),
-  longitude: numeric("longitude", { precision: 9, scale: 6 }),
-  timezone: text("timezone").notNull().default("America/Los_Angeles"),
-  zoom_link: text("zoom_link"),
-  is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const LocationTable = pgTable(
+  "locations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    type: locationTypeEnum("type").notNull(),
+    address_line1: text("address_line1").notNull(),
+    address_line2: text("address_line2"),
+    city: text("city").notNull(),
+    state: text("state").notNull(),
+    postal_code: text("postal_code").notNull(),
+    country: text("country").notNull().default("USA"),
+    latitude: numeric("latitude", { precision: 9, scale: 6 }),
+    longitude: numeric("longitude", { precision: 9, scale: 6 }),
+    timezone: text("timezone").notNull().default("America/Los_Angeles"),
+    zoom_link: text("zoom_link"),
+    is_active: boolean("is_active").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    activeNameIdx: index("locations_active_name_idx").on(table.is_active, table.name),
+    typeIdx: index("locations_type_idx").on(table.type),
+    createdAtIdx: index("locations_created_at_idx").on(table.created_at),
+  }),
+);
 
 /* ---------------- TEACHER PROFILE ---------------- */
 
@@ -247,25 +256,36 @@ export const ParentProfileTable = pgTable("parent_profiles", {
 
 /* ---------------- STUDENT ---------------- */
 
-export const StudentTable = pgTable("students", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  site_id: uuid("site_id")
-    .notNull()
-    .references(() => LocationTable.id),
-  first_name: text("first_name").notNull(),
-  last_name: text("last_name").notNull(),
-  initials: varchar("initials", { length: 8 }).notNull(),
-  photo_url: text("photo_url"),
-  dob: date("dob").notNull(),
-  current_school: text("current_school"),
-  preferred_language: text("preferred_language").notNull().default("English"),
-  hearing_devices: text("hearing_devices").array().notNull().default(sql`'{}'::text[]`),
-  hearing_loss_type: hearingLossTypeEnum("hearing_loss_type"),
-  guardian_summary: text("guardian_summary"),
-  is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const StudentTable = pgTable(
+  "students",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    site_id: uuid("site_id")
+      .notNull()
+      .references(() => LocationTable.id),
+    first_name: text("first_name").notNull(),
+    last_name: text("last_name").notNull(),
+    initials: varchar("initials", { length: 8 }).notNull(),
+    photo_url: text("photo_url"),
+    dob: date("dob").notNull(),
+    current_school: text("current_school"),
+    preferred_language: text("preferred_language").notNull().default("English"),
+    hearing_devices: text("hearing_devices").array().notNull().default(sql`'{}'::text[]`),
+    hearing_loss_type: hearingLossTypeEnum("hearing_loss_type"),
+    guardian_summary: text("guardian_summary"),
+    is_active: boolean("is_active").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    siteActiveInitialsIdx: index("students_site_active_initials_idx").on(
+      table.site_id,
+      table.is_active,
+      table.initials,
+    ),
+    createdAtIdx: index("students_created_at_idx").on(table.created_at),
+  }),
+);
 
 /* ---------------- SIBLING ---------------- */
 
@@ -388,6 +408,7 @@ export const TeacherLocationTable = pgTable(
       table.teacher_profile_id,
       table.location_id,
     ),
+    locationIdIdx: index("teacher_locations_location_id_idx").on(table.location_id),
   }),
 );
 
@@ -432,46 +453,74 @@ export const AttendanceSiblingParticipantTable = pgTable(
     attendanceSiblingParticipantUnique: uniqueIndex(
       "attendance_sibling_participants_attendance_id_sibling_id_idx",
     ).on(table.attendance_id, table.sibling_id),
+    siblingIdIdx: index("attendance_sibling_participants_sibling_id_idx").on(table.sibling_id),
   }),
 );
 
 /* ---------------- SESSION NOTES ---------------- */
 
-export const SessionNoteTable = pgTable("session_notes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  student_id: uuid("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  teacher_id: uuid("teacher_id")
-    .notNull()
-    .references(() => TeacherProfileTable.id),
-  schedule_id: uuid("schedule_id").references(() => ScheduleTable.id),
-  session_date: date("session_date"),
-  note: text("note").notNull(),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const SessionNoteTable = pgTable(
+  "session_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    student_id: uuid("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    teacher_id: uuid("teacher_id")
+      .notNull()
+      .references(() => TeacherProfileTable.id),
+    schedule_id: uuid("schedule_id").references(() => ScheduleTable.id),
+    session_date: date("session_date"),
+    note: text("note").notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    studentCreatedAtIdx: index("session_notes_student_created_at_idx").on(
+      table.student_id,
+      table.created_at,
+    ),
+    teacherCreatedAtIdx: index("session_notes_teacher_created_at_idx").on(
+      table.teacher_id,
+      table.created_at,
+    ),
+  }),
+);
 
 /* ---------------- ASSESSMENT ---------------- */
 
-export const AssessmentTable = pgTable("assessments", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  student_id: uuid("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  teacher_id: uuid("teacher_id")
-    .notNull()
-    .references(() => TeacherProfileTable.id),
-  cycle_start_date: date("cycle_start_date").notNull(),
-  assessment_type: assessmentTypeEnum("assessment_type").notNull(),
-  teaching_focus: text("teaching_focus").notNull(),
-  summary: text("summary"),
-  score: integer("score").notNull(),
-  notes: text("notes"),
-  assessed_at: timestamp("assessed_at", { withTimezone: true }).notNull().defaultNow(),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const AssessmentTable = pgTable(
+  "assessments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    student_id: uuid("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    teacher_id: uuid("teacher_id")
+      .notNull()
+      .references(() => TeacherProfileTable.id),
+    cycle_start_date: date("cycle_start_date").notNull(),
+    assessment_type: assessmentTypeEnum("assessment_type").notNull(),
+    teaching_focus: text("teaching_focus").notNull(),
+    summary: text("summary"),
+    score: integer("score").notNull(),
+    notes: text("notes"),
+    assessed_at: timestamp("assessed_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    studentCycleTypeIdx: index("assessments_student_cycle_type_idx").on(
+      table.student_id,
+      table.cycle_start_date,
+      table.assessment_type,
+    ),
+    studentCycleIdx: index("assessments_student_cycle_idx").on(
+      table.student_id,
+      table.cycle_start_date,
+    ),
+  }),
+);
 
 export const AssessmentFocusTable = pgTable("assessment_focuses", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -518,27 +567,36 @@ export const DocumentTable = pgTable("documents", {
 
 /* ---------------- BULLETIN ---------------- */
 
-export const BulletinTable = pgTable("bulletins", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  site_id: uuid("site_id").references(() => LocationTable.id),
-  scope: bulletinScopeEnum("scope").notNull().default("global"),
-  role_target: bulletinRoleTargetEnum("role_target").notNull().default("all"),
-  requires_approval: boolean("requires_approval").notNull().default(false),
-  approval_status: text("approval_status").notNull().default("approved"),
-  title: text("title").notNull(),
-  body: text("body"),
-  requires_initials: boolean("requires_initials").notNull().default(false),
-  publish_at: timestamp("publish_at", { withTimezone: true }),
-  expire_at: timestamp("expire_at", { withTimezone: true }),
-  reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
-  reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
-  review_notes: text("review_notes"),
-  created_by: uuid("created_by")
-    .notNull()
-    .references(() => UserTable.id),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const BulletinTable = pgTable(
+  "bulletins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    site_id: uuid("site_id").references(() => LocationTable.id),
+    scope: bulletinScopeEnum("scope").notNull().default("global"),
+    role_target: bulletinRoleTargetEnum("role_target").notNull().default("all"),
+    requires_approval: boolean("requires_approval").notNull().default(false),
+    approval_status: text("approval_status").notNull().default("approved"),
+    title: text("title").notNull(),
+    body: text("body"),
+    requires_initials: boolean("requires_initials").notNull().default(false),
+    publish_at: timestamp("publish_at", { withTimezone: true }),
+    expire_at: timestamp("expire_at", { withTimezone: true }),
+    reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
+    reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+    review_notes: text("review_notes"),
+    created_by: uuid("created_by")
+      .notNull()
+      .references(() => UserTable.id),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    approvalStatusCreatedAtIdx: index("bulletins_approval_status_created_at_idx").on(
+      table.approval_status,
+      table.created_at,
+    ),
+  }),
+);
 
 /* ---------------- BULLETIN ATTACHMENT ---------------- */
 
@@ -606,23 +664,36 @@ export const BulletinAcknowledgementTable = pgTable(
 
 /* ---------------- TEACHER SICK DAY NOTICE ---------------- */
 
-export const TeacherSickDayNoticeTable = pgTable("teacher_sick_day_notices", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  teacher_id: uuid("teacher_id")
-    .notNull()
-    .references(() => TeacherProfileTable.id),
-  site_id: uuid("site_id")
-    .notNull()
-    .references(() => LocationTable.id),
-  notice_date: date("notice_date").notNull(),
-  note: text("note"),
-  bulletin_id: uuid("bulletin_id").references(() => BulletinTable.id),
-  created_by: uuid("created_by")
-    .notNull()
-    .references(() => UserTable.id),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const TeacherSickDayNoticeTable = pgTable(
+  "teacher_sick_day_notices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teacher_id: uuid("teacher_id")
+      .notNull()
+      .references(() => TeacherProfileTable.id),
+    site_id: uuid("site_id")
+      .notNull()
+      .references(() => LocationTable.id),
+    notice_date: date("notice_date").notNull(),
+    note: text("note"),
+    bulletin_id: uuid("bulletin_id").references(() => BulletinTable.id),
+    created_by: uuid("created_by")
+      .notNull()
+      .references(() => UserTable.id),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    teacherDateIdx: index("teacher_sick_day_notices_teacher_date_idx").on(
+      table.teacher_id,
+      table.notice_date,
+    ),
+    siteDateIdx: index("teacher_sick_day_notices_site_date_idx").on(
+      table.site_id,
+      table.notice_date,
+    ),
+  }),
+);
 
 /* ---------------- CHAT MESSAGE ---------------- */
 
@@ -642,109 +713,166 @@ export const ChatMessageTable = pgTable("chat_messages", {
 
 /* ---------------- SESSION PHOTO ---------------- */
 
-export const PhotoTable = pgTable("photos", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  location_id: uuid("location_id")
-    .notNull()
-    .references(() => LocationTable.id),
-  student_id: uuid("student_id").references(() => StudentTable.id),
-  session_date: date("session_date").notNull(),
-  caption: text("caption"),
-  file_url: text("file_url").notNull(),
-  file_name: text("file_name").notNull(),
-  file_size: integer("file_size"),
-  mime_type: text("mime_type"),
-  uploaded_by: uuid("uploaded_by")
-    .notNull()
-    .references(() => UserTable.id),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const PhotoTable = pgTable(
+  "photos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    location_id: uuid("location_id")
+      .notNull()
+      .references(() => LocationTable.id),
+    student_id: uuid("student_id").references(() => StudentTable.id),
+    session_date: date("session_date").notNull(),
+    caption: text("caption"),
+    file_url: text("file_url").notNull(),
+    file_name: text("file_name").notNull(),
+    file_size: integer("file_size"),
+    mime_type: text("mime_type"),
+    uploaded_by: uuid("uploaded_by")
+      .notNull()
+      .references(() => UserTable.id),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    locationSessionCreatedIdx: index("photos_location_session_created_idx").on(
+      table.location_id,
+      table.session_date,
+      table.created_at,
+    ),
+    studentSessionCreatedIdx: index("photos_student_session_created_idx").on(
+      table.student_id,
+      table.session_date,
+      table.created_at,
+    ),
+  }),
+);
 
 // ==================== MAKE-UP SYSTEM ====================
 
 /* ---------------- MAKEUP REQUEST ---------------- */
 
-export const MakeupRequestTable = pgTable("makeup_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  student_id: uuid("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  original_session_date: date("original_session_date").notNull(),
-  original_schedule_id: uuid("original_schedule_id")
-    .notNull()
-    .references(() => ScheduleTable.id),
-  reason: absenceReasonEnum("reason").notNull(),
-  reason_text: text("reason_text"),
-  preferred_dates: text("preferred_dates"),
-  status: requestStatusEnum("status").notNull().default("pending"),
-  requested_by: uuid("requested_by")
-    .notNull()
-    .references(() => UserTable.id),
-  requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-  reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
-  reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
-  review_notes: text("review_notes"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const MakeupRequestTable = pgTable(
+  "makeup_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    student_id: uuid("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    original_session_date: date("original_session_date").notNull(),
+    original_schedule_id: uuid("original_schedule_id")
+      .notNull()
+      .references(() => ScheduleTable.id),
+    reason: absenceReasonEnum("reason").notNull(),
+    reason_text: text("reason_text"),
+    preferred_dates: text("preferred_dates"),
+    status: requestStatusEnum("status").notNull().default("pending"),
+    requested_by: uuid("requested_by")
+      .notNull()
+      .references(() => UserTable.id),
+    requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
+    reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+    review_notes: text("review_notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusRequestedAtIdx: index("makeup_requests_status_requested_at_idx").on(
+      table.status,
+      table.requested_at,
+    ),
+    studentIdIdx: index("makeup_requests_student_id_idx").on(table.student_id),
+    originalScheduleIdIdx: index("makeup_requests_original_schedule_id_idx").on(
+      table.original_schedule_id,
+    ),
+  }),
+);
 
 /* ---------------- MAKEUP SESSION ---------------- */
 
-export const MakeupSessionTable = pgTable("makeup_sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  makeup_request_id: uuid("makeup_request_id").references(() => MakeupRequestTable.id),
-  student_id: uuid("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  teacher_id: uuid("teacher_id")
-    .notNull()
-    .references(() => TeacherProfileTable.id),
-  site_id: uuid("site_id")
-    .notNull()
-    .references(() => LocationTable.id),
-  scheduled_date: date("scheduled_date").notNull(),
-  scheduled_time: time("scheduled_time").notNull(),
-  attendance_status: attendanceStatusEnum("attendance_status"),
-  notes: text("notes"),
-  created_by: uuid("created_by")
-    .notNull()
-    .references(() => UserTable.id),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const MakeupSessionTable = pgTable(
+  "makeup_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    makeup_request_id: uuid("makeup_request_id").references(() => MakeupRequestTable.id),
+    student_id: uuid("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    teacher_id: uuid("teacher_id")
+      .notNull()
+      .references(() => TeacherProfileTable.id),
+    site_id: uuid("site_id")
+      .notNull()
+      .references(() => LocationTable.id),
+    scheduled_date: date("scheduled_date").notNull(),
+    scheduled_time: time("scheduled_time").notNull(),
+    attendance_status: attendanceStatusEnum("attendance_status"),
+    notes: text("notes"),
+    created_by: uuid("created_by")
+      .notNull()
+      .references(() => UserTable.id),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    makeupRequestCreatedAtIdx: index("makeup_sessions_makeup_request_id_created_at_idx").on(
+      table.makeup_request_id,
+      table.created_at,
+    ),
+    teacherDateIdx: index("makeup_sessions_teacher_date_idx").on(
+      table.teacher_id,
+      table.scheduled_date,
+    ),
+  }),
+);
 
 // ==================== SCHEDULE CHANGE SYSTEM ====================
 
 /* ---------------- SCHEDULE CHANGE REQUEST ---------------- */
 
-export const ScheduleChangeRequestTable = pgTable("schedule_change_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  student_id: uuid("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  current_schedule_id: uuid("current_schedule_id")
-    .notNull()
-    .references(() => ScheduleTable.id),
-  requested_schedule_id: uuid("requested_schedule_id").references(() => ScheduleTable.id),
-  preferred_times: text("preferred_times"),
-  flexibility_notes: text("flexibility_notes"),
-  reason: text("reason").notNull(),
-  status: requestStatusEnum("status").notNull().default("pending"),
-  requested_by: uuid("requested_by")
-    .notNull()
-    .references(() => UserTable.id),
-  teacher_response_status: text("teacher_response_status"),
-  teacher_response_notes: text("teacher_response_notes"),
-  teacher_responded_by: uuid("teacher_responded_by").references(() => UserTable.id),
-  teacher_responded_at: timestamp("teacher_responded_at", { withTimezone: true }),
-  requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-  reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
-  reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
-  review_notes: text("review_notes"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const ScheduleChangeRequestTable = pgTable(
+  "schedule_change_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    student_id: uuid("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    current_schedule_id: uuid("current_schedule_id")
+      .notNull()
+      .references(() => ScheduleTable.id),
+    requested_schedule_id: uuid("requested_schedule_id").references(() => ScheduleTable.id),
+    preferred_times: text("preferred_times"),
+    flexibility_notes: text("flexibility_notes"),
+    reason: text("reason").notNull(),
+    status: requestStatusEnum("status").notNull().default("pending"),
+    requested_by: uuid("requested_by")
+      .notNull()
+      .references(() => UserTable.id),
+    teacher_response_status: text("teacher_response_status"),
+    teacher_response_notes: text("teacher_response_notes"),
+    teacher_responded_by: uuid("teacher_responded_by").references(() => UserTable.id),
+    teacher_responded_at: timestamp("teacher_responded_at", { withTimezone: true }),
+    requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
+    reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+    review_notes: text("review_notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusRequestedAtIdx: index("schedule_change_requests_status_requested_at_idx").on(
+      table.status,
+      table.requested_at,
+    ),
+    studentIdIdx: index("schedule_change_requests_student_id_idx").on(table.student_id),
+    currentScheduleIdIdx: index("schedule_change_requests_current_schedule_id_idx").on(
+      table.current_schedule_id,
+    ),
+    requestedScheduleIdIdx: index("schedule_change_requests_requested_schedule_id_idx").on(
+      table.requested_schedule_id,
+    ),
+  }),
+);
 
 export const ScheduleChangeRequestEventTable = pgTable("schedule_change_request_events", {
   id: uuid("id").primaryKey().defaultRandom(),
