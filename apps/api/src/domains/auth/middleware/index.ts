@@ -1,11 +1,7 @@
 // Auth middleware exports
 export {
   loadCurrentUser,
-  devAuthMiddleware,
   createAuthMiddleware,
-  softJwtCheck,
-  strictJwtCheck,
-  createGlobalAuthMiddleware,
 } from "./authMiddleware";
 
 export {

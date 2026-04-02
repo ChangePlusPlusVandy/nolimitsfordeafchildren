@@ -28,7 +28,7 @@ interface UserProfile {
   phone: string | null;
   photo_url: string | null;
   locale: string;
-  role: "administrator" | "teacher" | "parent";
+  role: "administrator" | "teacher" | "parent" | "unassigned";
   is_active: boolean;
   created_at: string;
   parentAddress?: {
@@ -186,9 +186,9 @@ export default function MyProfilePage() {
   const displayProfile = profile || {
     name: authUser?.name || "User",
     email: authUser?.email || "",
-    role: authUser?.role || "parent",
+    role: authUser?.role || "unassigned",
     phone: "",
-    photo_url: authUser?.picture || "",
+    photo_url: "",
     locale: "en-US",
     is_active: true,
     created_at: new Date().toISOString(),
@@ -225,13 +225,7 @@ export default function MyProfilePage() {
       <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
         <Chip
           label={displayProfile.role}
-          color={
-            displayProfile.role === "administrator"
-              ? "primary"
-              : displayProfile.role === "teacher"
-                ? "secondary"
-                : "success"
-          }
+          variant="outlined"
           sx={{ textTransform: "capitalize" }}
         />
         <Chip

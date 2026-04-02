@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
+  TablePagination,
   TextField,
   Typography,
 } from "@mui/material";
@@ -19,12 +20,14 @@ import { useMemo, useState } from "react";
 import { useDocumentHttpService, type Document } from "../../documents/services/DocumentHttpService";
 import { useToast } from "../../global/components/ToastProvider";
 import { useStudentHttpService } from "../../students/services/StudentHttpService";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 export default function DocumentReviewPage() {
   const documentService = useDocumentHttpService();
   const studentService = useStudentHttpService();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const table = useServerTable({ defaultLimit: 20 });
 
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [action, setAction] = useState<"approved" | "rejected" | null>(null);
@@ -46,22 +49,17 @@ export default function DocumentReviewPage() {
   }, [studentsResponse]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: [documentService.key, "pending-review"],
+    queryKey: [documentService.key, "pending-review", table.queryParams],
     queryFn: () =>
       documentService.queries.index({
         entity_type: "student",
         review_status: "pending",
-        page: 1,
-        limit: 100,
+        page: table.page,
+        limit: table.limit,
       }),
   });
 
-  const pendingDocuments = useMemo(() => {
-    const items = (data?.items ?? []) as Document[];
-    return items.filter(
-      (doc) => doc.review_status === "pending" && doc.entity_type === "student",
-    );
-  }, [data]);
+  const pendingDocuments = useMemo(() => (data?.items ?? []) as Document[], [data]);
 
   const reviewMutation = useMutation({
     mutationFn: (payload: { id: string; status: "approved" | "rejected"; review_notes?: string }) =>
@@ -146,6 +144,18 @@ export default function DocumentReviewPage() {
             </Card>
           ))}
         </Stack>
+      )}
+
+      {pendingDocuments.length > 0 && (
+        <TablePagination
+          rowsPerPageOptions={[10, 20, 50]}
+          component="div"
+          count={data?.total ?? 0}
+          rowsPerPage={table.limit}
+          page={Math.max(table.page - 1, 0)}
+          onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+          onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+        />
       )}
 
       <Dialog open={!!selectedDocument && !!action} onClose={() => setSelectedDocument(null)}>

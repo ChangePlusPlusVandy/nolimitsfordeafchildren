@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { UserEntity } from "@/db/schema";
 
-type UserRole = "administrator" | "teacher" | "parent";
+type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
 
 /**
  * Middleware factory that requires the user to have one of the specified roles

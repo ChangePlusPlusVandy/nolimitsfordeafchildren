@@ -47,15 +47,15 @@ interface DocumentListProps {
 
 const DOCUMENT_TYPE_CONFIG: Record<
   DocumentType,
-  { label: string; icon: React.ReactNode; color: string }
+  { label: string; icon: React.ReactNode }
 > = {
-  audiogram: { label: "Audiogram", icon: <HearingIcon />, color: "#7c4dff" },
-  iep: { label: "IEP", icon: <AssignmentIcon />, color: "#00bcd4" },
-  cv: { label: "CV", icon: <DescriptionIcon />, color: "#4caf50" },
-  annual_test_result: { label: "Annual Test", icon: <SchoolIcon />, color: "#ff9800" },
-  pre_report: { label: "Pre-Report", icon: <DescriptionIcon />, color: "#0288d1" },
-  graduation_speech: { label: "Graduation Speech", icon: <SchoolIcon />, color: "#8d6e63" },
-  other: { label: "Other", icon: <FileIcon />, color: "#9e9e9e" },
+  audiogram: { label: "Audiogram", icon: <HearingIcon /> },
+  iep: { label: "IEP", icon: <AssignmentIcon /> },
+  cv: { label: "CV", icon: <DescriptionIcon /> },
+  annual_test_result: { label: "Annual Test", icon: <SchoolIcon /> },
+  pre_report: { label: "Pre-Report", icon: <DescriptionIcon /> },
+  graduation_speech: { label: "Graduation Speech", icon: <SchoolIcon /> },
+  other: { label: "Other", icon: <FileIcon /> },
 };
 
 function formatFileSize(bytes: number | null): string {
@@ -272,7 +272,7 @@ export default function DocumentList({
                 }
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
-                  <Box sx={{ color: config.color }}>{config.icon}</Box>
+                  <Box sx={{ color: "text.secondary" }}>{config.icon}</Box>
                 </ListItemIcon>
                 <ListItemText
                   primary={

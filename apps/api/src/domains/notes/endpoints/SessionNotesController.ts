@@ -6,6 +6,7 @@ import {
   JsonController,
   Param,
   Body,
+  QueryParam,
   CurrentUser,
   Authorized,
   HttpError,
@@ -42,9 +43,12 @@ export class GetStudentNotesController {
 
   @Get("/students/:studentId/notes")
   @Authorized(["administrator", "teacher", "parent"])
-  async handle(@Param("studentId") studentId: string) {
-    const notes = await this.notesService.listForStudent(studentId);
-    return { items: notes };
+  async handle(
+    @Param("studentId") studentId: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.notesService.listForStudent(studentId, { page, limit });
   }
 }
 
@@ -205,8 +209,11 @@ export class GetTeacherNotesController {
 
   @Get("/teachers/:teacherId/notes")
   @Authorized(["administrator", "teacher"])
-  async handle(@Param("teacherId") teacherId: string) {
-    const notes = await this.notesService.listByTeacher(teacherId);
-    return { items: notes };
+  async handle(
+    @Param("teacherId") teacherId: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.notesService.listByTeacher(teacherId, { page, limit });
   }
 }

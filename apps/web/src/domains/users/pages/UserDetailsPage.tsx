@@ -134,6 +134,10 @@ export default function UserDetailsPage() {
       return "Parent/Guardian";
     }
 
+    if (value === "unassigned") {
+      return "Pending Approval";
+    }
+
     return value;
   };
 
@@ -216,13 +220,7 @@ export default function UserDetailsPage() {
       <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
         <Chip
           label={roleLabel(user.role)}
-          color={
-            user.role === "administrator"
-              ? "primary"
-              : user.role === "teacher"
-                ? "secondary"
-                : "success"
-          }
+          variant="outlined"
           sx={{ textTransform: "capitalize" }}
         />
         <Chip
@@ -279,6 +277,7 @@ export default function UserDetailsPage() {
               <MenuItem value="administrator">Administrator</MenuItem>
               <MenuItem value="teacher">Teacher</MenuItem>
               <MenuItem value="parent">Parent/Guardian</MenuItem>
+              <MenuItem value="unassigned">Pending Approval</MenuItem>
             </Select>
           </FormControl>
 

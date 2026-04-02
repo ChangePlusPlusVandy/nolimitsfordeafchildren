@@ -11,7 +11,7 @@ import {
 
 export interface ListUsersQuery {
   search?: string;
-  role?: "administrator" | "teacher" | "parent";
+  role?: "administrator" | "teacher" | "parent" | "unassigned";
   is_active?: boolean;
   page?: number;
   limit?: number;
@@ -22,7 +22,7 @@ export interface ListUsersQuery {
 export interface InviteUserInput {
   email: string;
   name: string;
-  role: "administrator" | "teacher" | "parent";
+  role: "administrator" | "teacher" | "parent" | "unassigned";
   phone?: string;
   // For teachers
   primary_site_id?: string;
@@ -34,7 +34,7 @@ export interface UpdateUserInput {
   phone?: string;
   photo_url?: string;
   locale?: string;
-  role?: "administrator" | "teacher" | "parent";
+  role?: "administrator" | "teacher" | "parent" | "unassigned";
   is_active?: boolean;
 }
 
@@ -133,8 +133,7 @@ export class UsersService {
 
   /**
    * Invite a new user
-   * Creates a user record with a placeholder auth0_id
-   * The real auth0_id will be set when they first log in via Auth0
+   * Creates a user record that will be linked to an auth account on first sign-in.
    */
   async invite(input: InviteUserInput): Promise<UserEntity> {
     // Check if email already exists
@@ -143,9 +142,8 @@ export class UsersService {
       throw new Error("User with this email already exists");
     }
 
-    // Create user with placeholder auth0_id (will be updated on first login)
     const newUser: UserInsert = {
-      auth0Id: `pending:${input.email}`, // Placeholder - will be replaced on first Auth0 login
+      authUserId: null,
       email: input.email.toLowerCase(),
       name: input.name,
       phone: input.phone || null,

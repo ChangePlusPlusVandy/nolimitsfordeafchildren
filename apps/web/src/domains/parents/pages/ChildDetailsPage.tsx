@@ -208,6 +208,7 @@ export default function ChildDetailsPage() {
       const response = await httpClient.get("/v1/photos", {
         params: {
           student_id: studentId,
+          page: 1,
           limit: 30,
         },
       });

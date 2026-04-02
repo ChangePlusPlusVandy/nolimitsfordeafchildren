@@ -217,7 +217,7 @@ export default function MyDayPage() {
     queryKey: ["teacher-session-photos", selectedDate],
     queryFn: async () => {
       const response = await httpClient.get("/v1/photos", {
-        params: { session_date: selectedDate, limit: 20 },
+        params: { session_date: selectedDate, page: 1, limit: 20 },
       });
       return response.data;
     },

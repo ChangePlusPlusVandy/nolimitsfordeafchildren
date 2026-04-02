@@ -71,12 +71,12 @@ export interface AttendanceRecentEntry {
   reason_text: string | null;
   marked_at: Date;
   schedule_id: string;
-  marked_by: {
-    id: string;
-    name: string;
-    role: "administrator" | "teacher" | "parent";
-  } | null;
-}
+    marked_by: {
+      id: string;
+      name: string;
+      role: "administrator" | "teacher" | "parent" | "unassigned";
+    } | null;
+  }
 
 export interface StudentAttendanceOverview {
   total: number;

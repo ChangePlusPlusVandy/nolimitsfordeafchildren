@@ -1,6 +1,7 @@
 import { Service } from "typedi";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
   AssessmentTable,
   AssessmentFocusTable,
@@ -214,7 +215,33 @@ export class AssessmentsService {
   /**
    * List assessments for a student, grouped by cycle
    */
-  async listForStudent(studentId: string): Promise<AssessmentCycle[]> {
+  async listForStudent(
+    studentId: string,
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<AssessmentCycle>> {
+    const { page, limit, offset } = getPagination(query, 10, 100);
+
+    const cycleCountResult = await db
+      .select({ count: sql<number>`count(distinct ${AssessmentTable.cycle_start_date})::int` })
+      .from(AssessmentTable)
+      .where(eq(AssessmentTable.student_id, studentId));
+
+    const total = cycleCountResult[0]?.count ?? 0;
+
+    const cycleRows = await db
+      .selectDistinct({ cycle_start_date: AssessmentTable.cycle_start_date })
+      .from(AssessmentTable)
+      .where(eq(AssessmentTable.student_id, studentId))
+      .orderBy(desc(AssessmentTable.cycle_start_date))
+      .limit(limit)
+      .offset(offset);
+
+    const cycleStartDates = cycleRows.map((row) => row.cycle_start_date);
+
+    if (cycleStartDates.length === 0) {
+      return buildPaginatedResponse([], total, page, limit);
+    }
+
     const results = await db
       .select({
         id: AssessmentTable.id,
@@ -234,7 +261,12 @@ export class AssessmentsService {
       .from(AssessmentTable)
       .innerJoin(TeacherProfileTable, eq(AssessmentTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
-      .where(eq(AssessmentTable.student_id, studentId))
+      .where(
+        and(
+          eq(AssessmentTable.student_id, studentId),
+          inArray(AssessmentTable.cycle_start_date, cycleStartDates),
+        ),
+      )
       .orderBy(desc(AssessmentTable.cycle_start_date), AssessmentTable.assessment_type);
 
     const assessmentIds = results.map((row) => row.id);
@@ -285,7 +317,12 @@ export class AssessmentsService {
       }
     }
 
-    return Array.from(cycleMap.values());
+    const cycleOrder = new Map(cycleStartDates.map((cycleStartDate, index) => [cycleStartDate, index]));
+    const items = Array.from(cycleMap.values()).sort(
+      (a, b) => (cycleOrder.get(a.cycle_start_date) ?? 0) - (cycleOrder.get(b.cycle_start_date) ?? 0),
+    );
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**

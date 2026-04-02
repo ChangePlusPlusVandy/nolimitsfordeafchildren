@@ -1086,7 +1086,7 @@ async function seed() {
 
   const users: Array<{
     id: string;
-    auth0Id: string;
+    authUserId: string;
     email: string;
     name: string;
     phone: string;
@@ -1097,7 +1097,7 @@ async function seed() {
   // Dev Admin (first admin uses fixed ID for dev auth)
   users.push({
     id: DEV_USER_IDS.ADMIN,
-    auth0Id: "auth0|dev-admin",
+    authUserId: "dev-admin",
     email: "admin.dev@gmail.com",
     name: "Dev Admin",
     phone: generatePhone(1),
@@ -1111,7 +1111,7 @@ async function seed() {
     const lastName = shuffledLastNames[i] as string;
     users.push({
       id: randomUUID(),
-      auth0Id: `auth0|admin${i + 1}`,
+      authUserId: `seed-admin-${i + 1}`,
       email: generateEmail(firstName, lastName, i + 1),
       name: `${firstName} ${lastName}`,
       phone: generatePhone(i + 1),
@@ -1123,7 +1123,7 @@ async function seed() {
   // Dev Teacher (first teacher uses fixed ID for dev auth)
   users.push({
     id: DEV_USER_IDS.TEACHER,
-    auth0Id: "auth0|dev-teacher",
+    authUserId: "dev-teacher",
     email: "teacher.dev@gmail.com",
     name: "Dev Teacher",
     phone: generatePhone(100),
@@ -1137,7 +1137,7 @@ async function seed() {
     const lastName = shuffledLastNames[(i + 10) % shuffledLastNames.length] as string;
     users.push({
       id: randomUUID(),
-      auth0Id: `auth0|teacher${i + 1}`,
+      authUserId: `seed-teacher-${i + 1}`,
       email: generateEmail(firstName, lastName, 100 + i),
       name: `${firstName} ${lastName}`,
       phone: generatePhone(100 + i),
@@ -1149,7 +1149,7 @@ async function seed() {
   // Dev Parent (first parent uses fixed ID for dev auth)
   users.push({
     id: DEV_USER_IDS.PARENT,
-    auth0Id: "auth0|dev-parent",
+    authUserId: "dev-parent",
     email: "parent.dev@gmail.com",
     name: "Dev Parent",
     phone: generatePhone(200),
@@ -1163,7 +1163,7 @@ async function seed() {
     const lastName = shuffledLastNames[(i + 40) % shuffledLastNames.length] as string;
     users.push({
       id: randomUUID(),
-      auth0Id: `auth0|parent${i + 1}`,
+      authUserId: `seed-parent-${i + 1}`,
       email: generateEmail(firstName, lastName, 200 + i),
       name: `${firstName} ${lastName}`,
       phone: generatePhone(200 + i),

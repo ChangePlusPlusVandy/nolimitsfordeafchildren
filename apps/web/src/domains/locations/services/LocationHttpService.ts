@@ -31,6 +31,24 @@ export interface LocationMapPin {
   is_active: boolean;
 }
 
+export interface ListLocationsParams {
+  search?: string;
+  type?: LocationType;
+  is_active?: boolean;
+  page?: number;
+  limit?: number;
+  sort?: "name" | "created_at";
+  order?: "asc" | "desc";
+}
+
+export interface PaginatedLocationsResponse {
+  items: Location[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface CreateLocationPayload {
   name: string;
   type: LocationType;
@@ -52,6 +70,7 @@ export interface UpdateLocationPayload extends Partial<CreateLocationPayload> {}
 export function useLocationHttpService(): IHttpService & {
   queries: {
     index: () => Promise<Location[]>;
+    list: (params?: ListLocationsParams) => Promise<PaginatedLocationsResponse>;
     show: (id: string) => Promise<Location>;
     mapData: () => Promise<LocationMapPin[]>;
   };
@@ -76,7 +95,18 @@ export function useLocationHttpService(): IHttpService & {
     },
     queries: {
       index: async () => {
-        const response = await httpClient.get<Location[]>(`/v1/locations`);
+        const response = await httpClient.get<PaginatedLocationsResponse>(`/v1/locations`, {
+          params: {
+            page: 1,
+            limit: 500,
+            sort: "name",
+            order: "asc",
+          },
+        });
+        return response.data.items;
+      },
+      list: async (params?: ListLocationsParams) => {
+        const response = await httpClient.get<PaginatedLocationsResponse>(`/v1/locations`, { params });
         return response.data;
       },
       show: async (id: string) => {

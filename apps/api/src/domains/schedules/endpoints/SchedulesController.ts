@@ -42,10 +42,19 @@ export class SchedulesController {
   async available(
     @QueryParam("site_id") site_id?: string,
     @QueryParam("day_of_week_mask") day_of_week_mask?: number,
+    @QueryParam("day_pattern") day_pattern?: "mws" | "tths",
+    @QueryParam("exclude_current_schedule_id") exclude_current_schedule_id?: string,
     @QueryParam("page") page?: number,
     @QueryParam("limit") limit?: number,
   ) {
-    const query: AvailableSchedulesQuery = { site_id, day_of_week_mask, page, limit };
+    const query: AvailableSchedulesQuery = {
+      site_id,
+      day_of_week_mask,
+      day_pattern,
+      exclude_current_schedule_id,
+      page,
+      limit,
+    };
     return await this.schedulesService.getAvailable(query);
   }
 

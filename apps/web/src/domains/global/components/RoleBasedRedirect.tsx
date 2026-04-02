@@ -31,6 +31,8 @@ export default function RoleBasedRedirect() {
       return <Navigate to="/my-day" replace />;
     case "parent":
       return <Navigate to="/my-students" replace />;
+    case "unassigned":
+      return <Navigate to="/pending-approval" replace />;
     default:
       // Fallback for unknown role
       return <Navigate to="/my-profile" replace />;

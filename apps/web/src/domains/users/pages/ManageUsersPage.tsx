@@ -69,22 +69,13 @@ export default function ManageUsersPage() {
     setPage(0);
   };
 
-  const getRoleColor = (role: UserRole): "primary" | "secondary" | "success" => {
-    switch (role) {
-      case "administrator":
-        return "primary";
-      case "teacher":
-        return "secondary";
-      case "parent":
-        return "success";
-      default:
-        return "primary";
-    }
-  };
-
   const getRoleLabel = (role: UserRole): string => {
     if (role === "parent") {
       return "Parent/Guardian";
+    }
+
+    if (role === "unassigned") {
+      return "Pending Approval";
     }
 
     return role;
@@ -140,6 +131,7 @@ export default function ManageUsersPage() {
               <MenuItem value="administrator">Administrator</MenuItem>
               <MenuItem value="teacher">Teacher</MenuItem>
               <MenuItem value="parent">Parent/Guardian</MenuItem>
+              <MenuItem value="unassigned">Pending Approval</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -184,8 +176,8 @@ export default function ManageUsersPage() {
                       <TableCell>
                         <Chip
                           label={getRoleLabel(user.role)}
-                          color={getRoleColor(user.role)}
                           size="small"
+                          variant="outlined"
                           sx={{ textTransform: "capitalize" }}
                         />
                       </TableCell>

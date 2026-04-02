@@ -143,12 +143,20 @@ export interface MyChildrenResponse {
   items: LinkedChild[];
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export function useParentHttpService(): IHttpService & {
   queries: {
-    myChildren: () => Promise<MyChildrenResponse>;
+    myChildren: (params?: { page?: number; limit?: number }) => Promise<PaginatedResponse<LinkedChild>>;
     childDetails: (studentId: string) => Promise<ChildDetails>;
-    directory: () => Promise<{ items: DirectoryPerson[] }>;
-    zipReport: () => Promise<{ items: ParentZipReportGroup[] }>;
+    directory: (params?: { page?: number; limit?: number }) => Promise<PaginatedResponse<DirectoryPerson>>;
+    zipReport: (params?: { page?: number; limit?: number }) => Promise<PaginatedResponse<ParentZipReportGroup>>;
   };
 } {
   const httpClient = useHttpClient();
@@ -157,20 +165,26 @@ export function useParentHttpService(): IHttpService & {
     key: "parents",
     mutations: {},
     queries: {
-      myChildren: async (): Promise<MyChildrenResponse> => {
-        const response = await httpClient.get(`/v1/parents/me/children`);
+      myChildren: async (
+        params?: { page?: number; limit?: number },
+      ): Promise<PaginatedResponse<LinkedChild>> => {
+        const response = await httpClient.get(`/v1/parents/me/children`, { params });
         return response.data;
       },
       childDetails: async (studentId: string): Promise<ChildDetails> => {
         const response = await httpClient.get(`/v1/parents/children/${studentId}`);
         return response.data;
       },
-      directory: async (): Promise<{ items: DirectoryPerson[] }> => {
-        const response = await httpClient.get(`/v1/parents/directory`);
+      directory: async (
+        params?: { page?: number; limit?: number },
+      ): Promise<PaginatedResponse<DirectoryPerson>> => {
+        const response = await httpClient.get(`/v1/parents/directory`, { params });
         return response.data;
       },
-      zipReport: async (): Promise<{ items: ParentZipReportGroup[] }> => {
-        const response = await httpClient.get(`/v1/parents/zip-report`);
+      zipReport: async (
+        params?: { page?: number; limit?: number },
+      ): Promise<PaginatedResponse<ParentZipReportGroup>> => {
+        const response = await httpClient.get(`/v1/parents/zip-report`, { params });
         return response.data;
       },
     },

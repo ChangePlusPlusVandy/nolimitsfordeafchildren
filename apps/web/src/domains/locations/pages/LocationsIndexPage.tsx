@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import {
@@ -17,6 +17,7 @@ import {
   Alert,
   Paper,
   Skeleton,
+  TablePagination,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -26,6 +27,7 @@ import {
   type LocationMapPin,
   type LocationType,
 } from "../services/LocationHttpService";
+import { useServerTable } from "../../global/hooks/useServerTable";
 import { useAuth } from "../../../auth";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { divIcon, LatLngBounds } from "leaflet";
@@ -71,7 +73,11 @@ export default function LocationsIndexPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const locationHttpService = useLocationHttpService();
-  const [search, setSearch] = useState("");
+  const table = useServerTable({
+    defaultLimit: 20,
+    defaultSort: "name",
+    defaultOrder: "asc",
+  });
 
   const LOCATION_TYPE_LABEL: Record<LocationType, string> = {
     education_center: "Education Center",
@@ -79,20 +85,21 @@ export default function LocationsIndexPage() {
     remote: "Remote",
   };
 
-  const LOCATION_TYPE_COLOR: Record<LocationType, "primary" | "secondary" | "info"> = {
-    education_center: "primary",
-    pop_up: "secondary",
-    remote: "info",
-  };
-
   // Fetch all locations for the list
   const {
-    data: locations,
+    data: locationsData,
     isLoading: locationsLoading,
     error: locationsError,
   } = useQuery({
-    queryKey: [locationHttpService.key, "index"],
-    queryFn: locationHttpService.queries.index,
+    queryKey: [locationHttpService.key, "list", table.queryParams],
+    queryFn: () =>
+      locationHttpService.queries.list({
+        page: table.page,
+        limit: table.limit,
+        sort: "name",
+        order: "asc",
+        ...(table.debouncedSearch ? { search: table.debouncedSearch } : {}),
+      }),
   });
 
   // Fetch map data (optimized for pins)
@@ -164,15 +171,7 @@ export default function LocationsIndexPage() {
     );
   }
 
-  const filteredLocations = (locations ?? []).filter((location) => {
-    if (!search.trim()) return true;
-    const query = search.toLowerCase();
-    return (
-      location.name.toLowerCase().includes(query) ||
-      location.city.toLowerCase().includes(query) ||
-      location.state.toLowerCase().includes(query)
-    );
-  });
+  const locations = locationsData?.items ?? [];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -183,8 +182,8 @@ export default function LocationsIndexPage() {
         </Typography>
         <Box display="flex" gap={2} alignItems="center">
           <TextField
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={table.search}
+            onChange={(event) => table.setSearch(event.target.value)}
             placeholder="Search locations..."
             size="small"
             sx={{ minWidth: 240 }}
@@ -236,14 +235,15 @@ export default function LocationsIndexPage() {
                       <Chip
                         label={LOCATION_TYPE_LABEL[pin.type]}
                         size="small"
-                        color={LOCATION_TYPE_COLOR[pin.type]}
+                        variant="outlined"
                         sx={{ mt: 0.5, mb: 0.5 }}
                       />
                       <br />
                       <Chip
                         label={pin.is_active ? "Active" : "Inactive"}
                         size="small"
-                        color={pin.is_active ? "success" : "error"}
+                        color={pin.is_active ? "success" : "default"}
+                        variant={pin.is_active ? "filled" : "outlined"}
                       />
                     </Box>
                   </Popup>
@@ -289,14 +289,14 @@ export default function LocationsIndexPage() {
       <Card>
         <CardContent sx={{ p: 0 }}>
           <Typography variant="h6" sx={{ p: 2, pb: 1 }}>
-            All Locations ({filteredLocations.length})
+            All Locations ({locationsData?.total ?? 0})
           </Typography>
           <List disablePadding>
-            {filteredLocations.map((location, index) => (
+            {locations.map((location, index) => (
               <ListItem
                 key={location.id}
                 disablePadding
-                divider={index < filteredLocations.length - 1}
+                divider={index < locations.length - 1}
               >
                 <ListItemButton onClick={() => handleLocationClick(location.id)}>
                   <LocationOnIcon
@@ -313,13 +313,12 @@ export default function LocationsIndexPage() {
                     <Chip
                       label={LOCATION_TYPE_LABEL[location.type]}
                       size="small"
-                      color={LOCATION_TYPE_COLOR[location.type]}
                       variant="outlined"
                     />
                     <Chip
                       label={location.is_active ? "Active" : "Inactive"}
                       size="small"
-                      color={location.is_active ? "success" : "error"}
+                      color={location.is_active ? "success" : "default"}
                       variant="outlined"
                     />
                   </Box>
@@ -327,13 +326,22 @@ export default function LocationsIndexPage() {
               </ListItem>
             ))}
           </List>
-          {(locations?.length ?? 0) === 0 && (
+          {locations.length === 0 && (
             <Box p={3} textAlign="center">
               <Typography color="text.secondary">
                 No locations found. {isAdmin && "Click 'Add Location' to create one."}
               </Typography>
             </Box>
           )}
+          <TablePagination
+            rowsPerPageOptions={[10, 20, 50]}
+            component="div"
+            count={locationsData?.total ?? 0}
+            rowsPerPage={table.limit}
+            page={Math.max(table.page - 1, 0)}
+            onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+          />
         </CardContent>
       </Card>
     </Box>

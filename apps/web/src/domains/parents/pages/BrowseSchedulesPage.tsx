@@ -21,6 +21,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  TablePagination,
 } from "@mui/material";
 import {
   Schedule as ScheduleIcon,
@@ -191,6 +192,8 @@ export default function BrowseSchedulesPage() {
   const [siteFilter, setSiteFilter] = useState<string>("");
   const [dayPatternFilter, setDayPatternFilter] = useState<string>("");
   const [selectedSchedule, setSelectedSchedule] = useState<AvailableSchedule | null>(null);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(9);
   const [reason, setReason] = useState("");
   const [preferredTimes, setPreferredTimes] = useState("");
   const [flexibilityNotes, setFlexibilityNotes] = useState("");
@@ -199,20 +202,24 @@ export default function BrowseSchedulesPage() {
   // Fetch linked children
   const { data: childrenData, isLoading: childrenLoading } = useQuery({
     queryKey: [parentHttpService.key, "myChildren"],
-    queryFn: parentHttpService.queries.myChildren,
+    queryFn: () => parentHttpService.queries.myChildren({ page: 1, limit: 100 }),
   });
 
   // Fetch available schedules
   const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
-    queryKey: ["schedules", "available", siteFilter, dayPatternFilter],
+    queryKey: ["schedules", "available", siteFilter, dayPatternFilter, selectedChild, page, rowsPerPage],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (siteFilter) params.append("site_id", siteFilter);
-      if (dayPatternFilter) params.append("day_pattern", dayPatternFilter);
-      if (selectedChildData?.current_schedule_id) {
-        params.append("exclude_current_schedule_id", selectedChildData.current_schedule_id);
-      }
-      const response = await httpClient.get(`/v1/schedules/available?${params.toString()}`);
+      const response = await httpClient.get(`/v1/schedules/available`, {
+        params: {
+          page,
+          limit: rowsPerPage,
+          ...(siteFilter ? { site_id: siteFilter } : {}),
+          ...(dayPatternFilter ? { day_pattern: dayPatternFilter } : {}),
+          ...(selectedChildData?.current_schedule_id
+            ? { exclude_current_schedule_id: selectedChildData.current_schedule_id }
+            : {}),
+        },
+      });
       return response.data;
     },
     enabled: !!selectedChild,
@@ -265,16 +272,19 @@ export default function BrowseSchedulesPage() {
     const value = (event.target as unknown as { value: string }).value;
     setSelectedChild(value);
     setSelectedSchedule(null);
+    setPage(1);
     setPreferredTimes("");
     setFlexibilityNotes("");
   };
 
   const handleSiteFilterChange = (event: SelectChangeEvent) => {
     setSiteFilter((event.target as unknown as { value: string }).value);
+    setPage(1);
   };
 
   const handleDayPatternFilterChange = (event: SelectChangeEvent) => {
     setDayPatternFilter((event.target as unknown as { value: string }).value);
+    setPage(1);
   };
 
   const handleReasonChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -399,23 +409,37 @@ export default function BrowseSchedulesPage() {
               ) : schedules.length === 0 ? (
                 <Alert severity="info">No available schedules match your filters.</Alert>
               ) : (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                  {schedules.map((schedule) => (
-                    <Box
-                      key={schedule.id}
-                      sx={{
-                        flex: "1 1 280px",
-                        maxWidth: { xs: "100%", sm: "calc(50% - 8px)", md: "calc(33.33% - 10px)" },
-                      }}
-                    >
-                      <ScheduleCard
-                        schedule={schedule}
-                        selected={selectedSchedule?.id === schedule.id}
-                        onSelect={setSelectedSchedule}
-                      />
-                    </Box>
-                  ))}
-                </Box>
+                <>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                    {schedules.map((schedule) => (
+                      <Box
+                        key={schedule.id}
+                        sx={{
+                          flex: "1 1 280px",
+                          maxWidth: { xs: "100%", sm: "calc(50% - 8px)", md: "calc(33.33% - 10px)" },
+                        }}
+                      >
+                        <ScheduleCard
+                          schedule={schedule}
+                          selected={selectedSchedule?.id === schedule.id}
+                          onSelect={setSelectedSchedule}
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+                  <TablePagination
+                    rowsPerPageOptions={[6, 9, 18]}
+                    component="div"
+                    count={schedulesData?.total ?? 0}
+                    rowsPerPage={rowsPerPage}
+                    page={Math.max(page - 1, 0)}
+                    onPageChange={(_event, nextPage) => setPage(nextPage + 1)}
+                    onRowsPerPageChange={(event) => {
+                      setRowsPerPage(Number(event.target.value));
+                      setPage(1);
+                    }}
+                  />
+                </>
               )}
 
               {selectedSchedule && (

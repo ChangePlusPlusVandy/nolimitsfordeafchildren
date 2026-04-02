@@ -23,16 +23,8 @@ const DashboardLayout = () => {
 
   return (
     <Box sx={{ display: "flex" }}>
-      {/* Mobile App Bar */}
       {isMobile && (
-        <AppBar
-          position="fixed"
-          sx={{
-            bgcolor: "#D9D9D9",
-            color: "text.primary",
-            boxShadow: 1,
-          }}
-        >
+        <AppBar position="fixed">
           <Toolbar>
             <IconButton
               color="inherit"
@@ -60,13 +52,12 @@ const DashboardLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          bgcolor: "background.default",
           p: { xs: 2, sm: 3 },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           minHeight: "100vh",
           overflow: "auto",
           ...(isMobile && {
-            mt: "56px", // Account for mobile app bar
+            mt: "56px",
           }),
         }}
       >

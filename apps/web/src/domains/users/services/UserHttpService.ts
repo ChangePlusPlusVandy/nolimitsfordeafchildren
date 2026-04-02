@@ -1,10 +1,10 @@
 import { useHttpClient } from "../../../plugins/axios";
 
-export type UserRole = "administrator" | "teacher" | "parent";
+export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
 
 export interface User {
   id: string;
-  auth0Id: string;
+  authUserId: string | null;
   email: string;
   name: string;
   phone: string | null;

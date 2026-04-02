@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { Service } from "typedi";
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql, asc } from "drizzle-orm";
 import { db } from "@/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
   LocationTable,
   ParentProfileTable,
@@ -40,6 +41,7 @@ export interface ListPhotosQuery {
   location_id?: string;
   student_id?: string;
   session_date?: string;
+  page?: number;
   limit?: number;
 }
 
@@ -182,9 +184,9 @@ export class PhotosService {
     return result[0]!;
   }
 
-  async listPhotos(query: ListPhotosQuery, currentUser: UserEntity) {
+  async listPhotos(query: ListPhotosQuery, currentUser: UserEntity): Promise<PaginatedResponse<any>> {
     const conditions = [];
-    const limit = Math.min(query.limit ?? 40, 100);
+    const { page, limit, offset } = getPagination(query, 40, 100);
 
     if (query.location_id) {
       conditions.push(eq(PhotoTable.location_id, query.location_id));
@@ -201,7 +203,7 @@ export class PhotosService {
     if (currentUser.role === "teacher") {
       const allowedLocationIds = await this.getTeacherAllowedLocationIds(currentUser.id);
       if (allowedLocationIds.length === 0) {
-        return { items: [] };
+        return buildPaginatedResponse([], 0, page, limit);
       }
       conditions.push(inArray(PhotoTable.location_id, allowedLocationIds));
     }
@@ -211,14 +213,14 @@ export class PhotosService {
       const locationIds = await this.getParentAllowedLocationIds(currentUser.id);
 
       if (studentIds.length === 0 || locationIds.length === 0) {
-        return { items: [] };
+        return buildPaginatedResponse([], 0, page, limit);
       }
 
       conditions.push(inArray(PhotoTable.location_id, locationIds));
 
       if (query.student_id) {
         if (!studentIds.includes(query.student_id)) {
-          return { items: [] };
+          return buildPaginatedResponse([], 0, page, limit);
         }
       } else {
         conditions.push(or(isNull(PhotoTable.student_id), inArray(PhotoTable.student_id, studentIds))!);
@@ -226,6 +228,13 @@ export class PhotosService {
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(PhotoTable)
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
 
     const rows = await db
       .select({
@@ -250,11 +259,11 @@ export class PhotosService {
       .leftJoin(StudentTable, eq(PhotoTable.student_id, StudentTable.id))
       .innerJoin(UserTable, eq(PhotoTable.uploaded_by, UserTable.id))
       .where(whereClause)
-      .orderBy(desc(PhotoTable.session_date), desc(PhotoTable.created_at))
-      .limit(limit);
+      .orderBy(desc(PhotoTable.session_date), desc(PhotoTable.created_at), asc(PhotoTable.id))
+      .limit(limit)
+      .offset(offset);
 
-    return {
-      items: rows.map((row) => ({
+    const items = rows.map((row) => ({
         id: row.id,
         location_id: row.location_id,
         student_id: row.student_id,
@@ -281,8 +290,9 @@ export class PhotosService {
           id: row.uploaded_by,
           name: row.uploader_name,
         },
-      })),
-    };
+      }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   async deletePhoto(photoId: string): Promise<boolean> {

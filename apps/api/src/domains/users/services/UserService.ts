@@ -6,7 +6,7 @@ import type { UserEntity } from "../models/entities/UserTable";
 
 export interface IUserService {
   getById(id: string): Promise<UserProjection | undefined>;
-  getByAuth0Id(auth0Id: string): Promise<UserProjection | undefined>;
+  getByAuthUserId(authUserId: string): Promise<UserProjection | undefined>;
   insert(user: Omit<UserEntity, "id">): Promise<UserProjection>;
 }
 
@@ -21,8 +21,8 @@ export class UserService implements IUserService {
     return await this.userRepository.getById(id);
   }
 
-  async getByAuth0Id(auth0Id: string): Promise<UserProjection | undefined> {
-    return await this.userRepository.getByAuth0Id(auth0Id);
+  async getByAuthUserId(authUserId: string): Promise<UserProjection | undefined> {
+    return await this.userRepository.getByAuthUserId(authUserId);
   }
 
   async insert(user: Omit<UserEntity, "id">): Promise<UserProjection> {

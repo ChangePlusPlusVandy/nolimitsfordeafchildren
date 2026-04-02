@@ -278,8 +278,8 @@ export class GetOverdueAudiogramsController {
    */
   @Get("/documents/audiograms/overdue")
   @Authorized(["administrator"])
-  async handle() {
-    return await this.documentsService.getOverdueAudiograms();
+  async handle(@QueryParam("page") page?: number, @QueryParam("limit") limit?: number) {
+    return await this.documentsService.getOverdueAudiograms(0, { page, limit });
   }
 }
 
@@ -297,8 +297,12 @@ export class GetAudiogramsDueSoonController {
    */
   @Get("/documents/audiograms/due-soon")
   @Authorized(["administrator"])
-  async handle(@QueryParam("days") days?: number) {
+  async handle(
+    @QueryParam("days") days?: number,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
     const daysValue = days || 30;
-    return await this.documentsService.getAudiogramsDueSoon(daysValue);
+    return await this.documentsService.getAudiogramsDueSoon(daysValue, { page, limit });
   }
 }

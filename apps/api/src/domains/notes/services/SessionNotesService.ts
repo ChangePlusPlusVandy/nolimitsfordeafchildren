@@ -1,6 +1,7 @@
 import { Service } from "typedi";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
   SessionNoteTable,
   StudentTable,
@@ -76,7 +77,19 @@ export class SessionNotesService {
   /**
    * List notes for a student
    */
-  async listForStudent(studentId: string): Promise<SessionNoteWithDetails[]> {
+  async listForStudent(
+    studentId: string,
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<SessionNoteWithDetails>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(SessionNoteTable)
+      .where(eq(SessionNoteTable.student_id, studentId));
+
+    const total = countResult[0]?.count ?? 0;
+
     const results = await db
       .select({
         id: SessionNoteTable.id,
@@ -93,9 +106,11 @@ export class SessionNotesService {
       .innerJoin(TeacherProfileTable, eq(SessionNoteTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .where(eq(SessionNoteTable.student_id, studentId))
-      .orderBy(desc(SessionNoteTable.created_at));
+      .orderBy(desc(SessionNoteTable.created_at), desc(SessionNoteTable.id))
+      .limit(limit)
+      .offset(offset);
 
-    return results.map((row) => ({
+    const items = results.map((row) => ({
       id: row.id,
       student_id: row.student_id,
       teacher_id: row.teacher_id,
@@ -109,12 +124,26 @@ export class SessionNotesService {
         name: row.teacher_name,
       },
     }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
    * List notes by a teacher
    */
-  async listByTeacher(teacherId: string, limit: number = 20): Promise<SessionNoteWithDetails[]> {
+  async listByTeacher(
+    teacherId: string,
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<SessionNoteWithDetails>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(SessionNoteTable)
+      .where(eq(SessionNoteTable.teacher_id, teacherId));
+
+    const total = countResult[0]?.count ?? 0;
+
     const results = await db
       .select({
         id: SessionNoteTable.id,
@@ -132,10 +161,11 @@ export class SessionNotesService {
       .from(SessionNoteTable)
       .innerJoin(StudentTable, eq(SessionNoteTable.student_id, StudentTable.id))
       .where(eq(SessionNoteTable.teacher_id, teacherId))
-      .orderBy(desc(SessionNoteTable.created_at))
-      .limit(limit);
+      .orderBy(desc(SessionNoteTable.created_at), desc(SessionNoteTable.id))
+      .limit(limit)
+      .offset(offset);
 
-    return results.map((row) => ({
+    const items = results.map((row) => ({
       id: row.id,
       student_id: row.student_id,
       teacher_id: row.teacher_id,
@@ -151,6 +181,8 @@ export class SessionNotesService {
         last_name: row.student_last_name,
       },
     }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**

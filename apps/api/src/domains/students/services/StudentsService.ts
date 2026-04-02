@@ -1,6 +1,7 @@
 import { Service } from "typedi";
 import Container from "@/container";
 import { AttendanceService } from "@/domains/attendance/services/AttendanceService";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import { db } from "../../../db";
 import {
   StudentTable,
@@ -17,17 +18,19 @@ import {
   type StudentEntity,
   type SiblingEntity,
 } from "../../../db/schema";
-import { eq, and, isNull, ilike, or, sql, desc } from "drizzle-orm";
+import { eq, and, isNull, ilike, or, sql, desc, asc } from "drizzle-orm";
 
 // Types
-export type UserRole = "administrator" | "teacher" | "parent";
+export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
 
 export interface StudentFilters {
   search?: string;
   site_id?: string;
   is_active?: boolean;
+  page?: number;
   limit?: number;
-  cursor?: string;
+  sort?: "initials" | "created_at" | "dob";
+  order?: "asc" | "desc";
 }
 
 export interface CreateStudentInput {
@@ -103,19 +106,20 @@ export class StudentsService {
     filters: StudentFilters,
     userRole: UserRole,
     userId?: string,
-  ): Promise<{ items: any[]; nextCursor: string | null }> {
-    const limit = filters.limit ?? 50;
+  ): Promise<PaginatedResponse<any>> {
+    const { page, limit, offset } = getPagination(filters, 20, 100);
 
     // Build base query conditions
     const conditions: any[] = [];
 
     // Apply search filter (on initials only for privacy in list view)
     if (filters.search) {
+      const searchQuery = `%${filters.search.trim()}%`;
       conditions.push(
         or(
-          ilike(StudentTable.initials, `%${filters.search}%`),
-          ilike(StudentTable.first_name, `%${filters.search}%`),
-          ilike(StudentTable.last_name, `%${filters.search}%`),
+          ilike(StudentTable.initials, searchQuery),
+          ilike(StudentTable.first_name, searchQuery),
+          ilike(StudentTable.last_name, searchQuery),
         ),
       );
     }
@@ -130,21 +134,37 @@ export class StudentsService {
       conditions.push(eq(StudentTable.is_active, filters.is_active));
     }
 
-    // Apply cursor for pagination
-    if (filters.cursor) {
-      conditions.push(sql`${StudentTable.id} > ${filters.cursor}`);
-    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const sortColumn =
+      filters.sort === "created_at"
+        ? StudentTable.created_at
+        : filters.sort === "dob"
+          ? StudentTable.dob
+          : StudentTable.initials;
+
+    const orderFn = filters.order === "desc" ? desc : asc;
+    const secondarySort = filters.order === "desc" ? desc(StudentTable.id) : asc(StudentTable.id);
 
     let students: StudentEntity[];
+    let total = 0;
 
     if (userRole === "administrator") {
       // Admins see all students
+      const countResult = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(StudentTable)
+        .where(whereClause);
+
+      total = countResult[0]?.count ?? 0;
+
       students = await db
         .select()
         .from(StudentTable)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(StudentTable.id)
-        .limit(limit + 1);
+        .where(whereClause)
+        .orderBy(orderFn(sortColumn), secondarySort)
+        .limit(limit)
+        .offset(offset);
     } else if (userRole === "teacher" && userId) {
       // Teachers see only assigned students
       const teacherProfile = await db
@@ -154,10 +174,25 @@ export class StudentsService {
         .limit(1);
 
       if (!teacherProfile.length) {
-        return { items: [], nextCursor: null };
+        return buildPaginatedResponse([], 0, page, limit);
       }
 
       const teacherProfileId = teacherProfile[0]!.id;
+
+      const teacherScope = and(
+        eq(TeacherStudentTable.teacher_id, teacherProfileId),
+        isNull(TeacherStudentTable.unassigned_at),
+      );
+      const teacherWhereClause = whereClause ? and(teacherScope, whereClause) : teacherScope;
+
+      const countResult = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(StudentTable)
+        .innerJoin(TeacherStudentTable, eq(TeacherStudentTable.student_id, StudentTable.id))
+        .where(teacherWhereClause);
+
+      total = countResult[0]?.count ?? 0;
+
       students = await db
         .select({
           id: StudentTable.id,
@@ -177,15 +212,12 @@ export class StudentsService {
         .from(StudentTable)
         .innerJoin(
           TeacherStudentTable,
-          and(
-            eq(TeacherStudentTable.student_id, StudentTable.id),
-            eq(TeacherStudentTable.teacher_id, teacherProfileId),
-            isNull(TeacherStudentTable.unassigned_at),
-          ),
+          eq(TeacherStudentTable.student_id, StudentTable.id),
         )
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(StudentTable.id)
-        .limit(limit + 1);
+        .where(teacherWhereClause)
+        .orderBy(orderFn(sortColumn), secondarySort)
+        .limit(limit)
+        .offset(offset);
     } else if (userRole === "parent" && userId) {
       // Parents see only their linked children
       const parentProfile = await db
@@ -195,10 +227,25 @@ export class StudentsService {
         .limit(1);
 
       if (!parentProfile.length) {
-        return { items: [], nextCursor: null };
+        return buildPaginatedResponse([], 0, page, limit);
       }
 
       const parentProfileId = parentProfile[0]!.id;
+
+      const parentScope = and(
+        eq(ParentStudentLinkTable.parent_id, parentProfileId),
+        isNull(ParentStudentLinkTable.revoked_at),
+      );
+      const parentWhereClause = whereClause ? and(parentScope, whereClause) : parentScope;
+
+      const countResult = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(StudentTable)
+        .innerJoin(ParentStudentLinkTable, eq(ParentStudentLinkTable.student_id, StudentTable.id))
+        .where(parentWhereClause);
+
+      total = countResult[0]?.count ?? 0;
+
       students = await db
         .select({
           id: StudentTable.id,
@@ -218,23 +265,14 @@ export class StudentsService {
         .from(StudentTable)
         .innerJoin(
           ParentStudentLinkTable,
-          and(
-            eq(ParentStudentLinkTable.student_id, StudentTable.id),
-            eq(ParentStudentLinkTable.parent_id, parentProfileId),
-            isNull(ParentStudentLinkTable.revoked_at),
-          ),
+          eq(ParentStudentLinkTable.student_id, StudentTable.id),
         )
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(StudentTable.id)
-        .limit(limit + 1);
+        .where(parentWhereClause)
+        .orderBy(orderFn(sortColumn), secondarySort)
+        .limit(limit)
+        .offset(offset);
     } else {
-      return { items: [], nextCursor: null };
-    }
-
-    // Determine if there are more results
-    const hasMore = students.length > limit;
-    if (hasMore) {
-      students.pop();
+      return buildPaginatedResponse([], 0, page, limit);
     }
 
     // For list views, show only initials (not full names) for PII protection
@@ -251,10 +289,7 @@ export class StudentsService {
       }),
     }));
 
-    return {
-      items,
-      nextCursor: hasMore && students.length > 0 ? students[students.length - 1]!.id : null,
-    };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -262,7 +297,7 @@ export class StudentsService {
    */
   async show(
     id: string,
-    user?: { id: string; role: "administrator" | "teacher" | "parent" },
+    user?: { id: string; role: "administrator" | "teacher" | "parent" | "unassigned" },
   ): Promise<any> {
     // Get student
     const [student] = await db.select().from(StudentTable).where(eq(StudentTable.id, id)).limit(1);
@@ -646,7 +681,24 @@ export class StudentsService {
   /**
    * Get student's teachers (existing method - updated)
    */
-  async teachers(studentId: string, _query: any): Promise<{ items: any[]; nextCursor: null }> {
+  async teachers(
+    studentId: string,
+    query: { page?: number; limit?: number },
+  ): Promise<PaginatedResponse<any>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(TeacherStudentTable)
+      .where(
+        and(
+          eq(TeacherStudentTable.student_id, studentId),
+          isNull(TeacherStudentTable.unassigned_at),
+        ),
+      );
+
+    const total = countResult[0]?.count ?? 0;
+
     const teacherLinks = await db
       .select({
         link_id: TeacherStudentTable.id,
@@ -663,18 +715,20 @@ export class StudentsService {
           eq(TeacherStudentTable.student_id, studentId),
           isNull(TeacherStudentTable.unassigned_at),
         ),
-      );
+      )
+      .orderBy(desc(TeacherStudentTable.assigned_at), desc(TeacherStudentTable.id))
+      .limit(limit)
+      .offset(offset);
 
-    return {
-      items: teacherLinks.map((t) => ({
-        link_id: t.link_id,
-        teacher_id: t.teacher_id,
-        name: t.teacher_name,
-        email: t.teacher_email,
-        assigned_at: t.assigned_at,
-      })),
-      nextCursor: null,
-    };
+    const items = teacherLinks.map((t) => ({
+      link_id: t.link_id,
+      teacher_id: t.teacher_id,
+      name: t.teacher_name,
+      email: t.teacher_email,
+      assigned_at: t.assigned_at,
+    }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -738,7 +792,24 @@ export class StudentsService {
   /**
    * Get student's parents (existing method - updated)
    */
-  async parents(studentId: string): Promise<{ items: any[] }> {
+  async parents(
+    studentId: string,
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<any>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(ParentStudentLinkTable)
+      .where(
+        and(
+          eq(ParentStudentLinkTable.student_id, studentId),
+          isNull(ParentStudentLinkTable.revoked_at),
+        ),
+      );
+
+    const total = countResult[0]?.count ?? 0;
+
     const parentLinks = await db
       .select({
         link_id: ParentStudentLinkTable.id,
@@ -759,21 +830,24 @@ export class StudentsService {
           eq(ParentStudentLinkTable.student_id, studentId),
           isNull(ParentStudentLinkTable.revoked_at),
         ),
-      );
+      )
+      .orderBy(desc(ParentStudentLinkTable.linked_at), desc(ParentStudentLinkTable.id))
+      .limit(limit)
+      .offset(offset);
 
-    return {
-      items: parentLinks.map((p) => ({
-        link_id: p.link_id,
-        parent_id: p.parent_id,
-        user_id: p.user_id,
-        name: p.parent_name,
-        email: p.parent_email,
-        phone: p.parent_phone,
-        relationship: p.relationship,
-        is_primary: p.is_primary,
-        linked_at: p.linked_at,
-      })),
-    };
+    const items = parentLinks.map((p) => ({
+      link_id: p.link_id,
+      parent_id: p.parent_id,
+      user_id: p.user_id,
+      name: p.parent_name,
+      email: p.parent_email,
+      phone: p.parent_phone,
+      relationship: p.relationship,
+      is_primary: p.is_primary,
+      linked_at: p.linked_at,
+    }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**

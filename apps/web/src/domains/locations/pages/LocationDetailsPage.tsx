@@ -31,12 +31,6 @@ export default function LocationDetailsPage() {
     remote: "Remote",
   };
 
-  const LOCATION_TYPE_COLOR: Record<LocationType, "primary" | "secondary" | "info"> = {
-    education_center: "primary",
-    pop_up: "secondary",
-    remote: "info",
-  };
-
   const {
     data: location,
     isLoading,
@@ -126,11 +120,12 @@ export default function LocationDetailsPage() {
           <Box display="flex" gap={1} flexWrap="wrap">
             <Chip
               label={LOCATION_TYPE_LABEL[location.type]}
-              color={LOCATION_TYPE_COLOR[location.type]}
+              variant="outlined"
             />
             <Chip
               label={location.is_active ? "Active" : "Inactive"}
-              color={location.is_active ? "success" : "error"}
+              color={location.is_active ? "success" : "default"}
+              variant={location.is_active ? "filled" : "outlined"}
             />
           </Box>
         </Box>

@@ -11,9 +11,9 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   TextField,
   Select,
   MenuItem,
@@ -27,6 +27,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import SchoolIcon from "@mui/icons-material/School";
 import { TableSkeleton } from "../../global/components/skeletons";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 import { useStudentHttpService, type StudentFilters } from "../services/StudentHttpService";
 import { useLocationHttpService } from "../../locations/services/LocationHttpService";
@@ -44,15 +45,22 @@ export default function StudentsIndexPage() {
   // Modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  // Filter state
-  const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState<string>("");
-  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
+  const table = useServerTable({
+    defaultLimit: 20,
+    defaultOrder: "asc",
+    defaultSort: "initials",
+  });
+
+  const locationFilter = table.getFilter("site_id");
+  const activeFilter = (table.getFilter("active") || "active") as ActiveFilter;
 
   // Build query params
   const queryParams: StudentFilters = {
-    limit: 50,
-    ...(search && { search }),
+    page: table.page,
+    limit: table.limit,
+    sort: (table.sort as StudentFilters["sort"]) ?? "initials",
+    order: table.order ?? "asc",
+    ...(table.debouncedSearch && { search: table.debouncedSearch }),
     ...(locationFilter && { site_id: locationFilter }),
     ...(activeFilter !== "all" && { is_active: activeFilter === "active" }),
   };
@@ -69,12 +77,14 @@ export default function StudentsIndexPage() {
 
   // Fetch locations for filter dropdown
   const { data: locations } = useQuery({
-    queryKey: [locationHttpService.key, "index"],
+    queryKey: [locationHttpService.key, "index", "students-filter"],
     queryFn: locationHttpService.queries.index,
   });
 
   // Create a map of location IDs to names for display
   const locationMap = new Map(locations?.map((loc) => [loc.id, loc.name]) ?? []);
+
+  const students = studentsData?.items ?? [];
 
   if (studentsLoading) {
     return (
@@ -104,8 +114,6 @@ export default function StudentsIndexPage() {
       </Alert>
     );
   }
-
-  const students = studentsData?.items ?? [];
 
   return (
     <Box>
@@ -138,8 +146,8 @@ export default function StudentsIndexPage() {
           <TextField
             label="Search"
             placeholder="Search by name or initials..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={table.search}
+            onChange={(e) => table.setSearch(e.target.value)}
             sx={{ minWidth: 250 }}
             InputProps={{
               startAdornment: (
@@ -154,7 +162,7 @@ export default function StudentsIndexPage() {
             <Select
               value={locationFilter}
               label="Location"
-              onChange={(e) => setLocationFilter(e.target.value)}
+              onChange={(e) => table.setFilter("site_id", e.target.value)}
             >
               <MenuItem value="">All Locations</MenuItem>
               {locations?.map((location) => (
@@ -169,7 +177,7 @@ export default function StudentsIndexPage() {
             <Select
               value={activeFilter}
               label="Status"
-              onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
+              onChange={(e) => table.setFilter("active", e.target.value as ActiveFilter)}
             >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
@@ -181,87 +189,81 @@ export default function StudentsIndexPage() {
 
       {/* Students Table */}
       <Paper>
-        <TableContainer>
-          <Table>
-            <TableHead>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Initials</TableCell>
+              {isAdmin && <TableCell>Name</TableCell>}
+              <TableCell>Location</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {students.length === 0 ? (
               <TableRow>
-                <TableCell>Initials</TableCell>
-                {isAdmin && <TableCell>Name</TableCell>}
-                <TableCell>Location</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell colSpan={isAdmin ? 5 : 4} align="center">
+                  <Box sx={{ py: 4 }}>
+                    <SchoolIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1 }} />
+                    <Typography color="text.secondary">
+                      No students found.
+                      {isAdmin && " Click 'Add Student' to create one."}
+                    </Typography>
+                  </Box>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {students.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={isAdmin ? 5 : 4} align="center">
-                    <Box sx={{ py: 4 }}>
-                      <SchoolIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1 }} />
-                      <Typography color="text.secondary">
-                        No students found.
-                        {isAdmin && " Click 'Add Student' to create one."}
-                      </Typography>
-                    </Box>
+            ) : (
+              students.map((student) => (
+                <TableRow
+                  key={student.id}
+                  hover
+                  sx={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/students/${student.id}`)}
+                >
+                  <TableCell>
+                    <Chip label={student.initials} size="small" color="primary" variant="outlined" />
+                  </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      {student.first_name && student.last_name
+                        ? `${student.first_name} ${student.last_name}`
+                        : "-"}
+                    </TableCell>
+                  )}
+                  <TableCell>{locationMap.get(student.site_id) ?? "-"}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={student.is_active ? "Active" : "Inactive"}
+                      size="small"
+                      color={student.is_active ? "success" : "default"}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/students/${student.id}`);
+                      }}
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
-              ) : (
-                students.map((student) => (
-                  <TableRow
-                    key={student.id}
-                    hover
-                    sx={{ cursor: "pointer" }}
-                    onClick={() => navigate(`/students/${student.id}`)}
-                  >
-                    <TableCell>
-                      <Chip
-                        label={student.initials}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        {student.first_name && student.last_name
-                          ? `${student.first_name} ${student.last_name}`
-                          : "-"}
-                      </TableCell>
-                    )}
-                    <TableCell>{locationMap.get(student.site_id) ?? "-"}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={student.is_active ? "Active" : "Inactive"}
-                        size="small"
-                        color={student.is_active ? "success" : "default"}
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/students/${student.id}`);
-                        }}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {students.length > 0 && (
-          <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
-            <Typography variant="body2" color="text.secondary">
-              Showing {students.length} student{students.length !== 1 ? "s" : ""}
-              {studentsData?.nextCursor && " (more available)"}
-            </Typography>
-          </Box>
-        )}
+              ))
+            )}
+          </TableBody>
+        </Table>
+        <TablePagination
+          rowsPerPageOptions={[10, 20, 50]}
+          component="div"
+          count={studentsData?.total ?? 0}
+          rowsPerPage={table.limit}
+          page={Math.max(table.page - 1, 0)}
+          onPageChange={(_e, nextPage) => table.setPage(nextPage + 1)}
+          onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+        />
       </Paper>
 
       {/* Create Student Modal */}

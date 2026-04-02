@@ -38,8 +38,10 @@ export default function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
         return <Navigate to="/my-day" replace />;
       case "parent":
         return <Navigate to="/my-students" replace />;
+      case "unassigned":
+        return <Navigate to="/pending-approval" replace />;
       default:
-        return <Navigate to="/" replace />;
+        return <Navigate to="/login" replace />;
     }
   }
 

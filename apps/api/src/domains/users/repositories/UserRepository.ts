@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 
 export interface IUserRepository {
   getById(id: string): Promise<UserProjection | undefined>;
-  getByAuth0Id(auth0Id: string): Promise<UserProjection | undefined>;
+  getByAuthUserId(authUserId: string): Promise<UserProjection | undefined>;
   insert(user: Omit<UserEntity, "id">): Promise<UserProjection>;
 }
 
@@ -19,8 +19,8 @@ export class UserRepository implements IUserRepository {
     return new UserProjection(user.id);
   }
 
-  async getByAuth0Id(auth0Id: string): Promise<UserProjection | undefined> {
-    const [user] = await db.select().from(UserTable).where(eq(UserTable.auth0Id, auth0Id));
+  async getByAuthUserId(authUserId: string): Promise<UserProjection | undefined> {
+    const [user] = await db.select().from(UserTable).where(eq(UserTable.authUserId, authUserId));
     if (user === undefined) return undefined;
 
     return new UserProjection(user.id);

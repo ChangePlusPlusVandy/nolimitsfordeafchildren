@@ -100,7 +100,7 @@ export interface AttendanceRecentEntry {
   marked_by: {
     id: string;
     name: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   } | null;
 }
 
@@ -149,13 +149,18 @@ export interface StudentFilters {
   search?: string;
   site_id?: string;
   is_active?: boolean;
+  page?: number;
   limit?: number;
-  cursor?: string;
+  sort?: "initials" | "created_at" | "dob";
+  order?: "asc" | "desc";
 }
 
 export interface ListStudentsResponse {
   items: StudentListItem[];
-  nextCursor: string | null;
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface CreateStudentInput {
@@ -243,16 +248,32 @@ export function useStudentHttpService() {
        */
       teachers: async (
         studentId: string,
-      ): Promise<{ items: LinkedTeacher[]; nextCursor: null }> => {
-        const response = await httpClient.get(`/v1/students/${studentId}/teachers`);
+        params?: { page?: number; limit?: number },
+      ): Promise<{
+        items: LinkedTeacher[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }> => {
+        const response = await httpClient.get(`/v1/students/${studentId}/teachers`, { params });
         return response.data;
       },
 
       /**
        * Get student's linked parents
        */
-      parents: async (studentId: string): Promise<{ items: LinkedParent[] }> => {
-        const response = await httpClient.get(`/v1/students/${studentId}/parents`);
+      parents: async (
+        studentId: string,
+        params?: { page?: number; limit?: number },
+      ): Promise<{
+        items: LinkedParent[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }> => {
+        const response = await httpClient.get(`/v1/students/${studentId}/parents`, { params });
         return response.data;
       },
     },

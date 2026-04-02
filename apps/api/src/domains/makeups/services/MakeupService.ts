@@ -1,6 +1,7 @@
 import { Service } from "typedi";
-import { eq, and, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, isNull, inArray } from "drizzle-orm";
 import { db } from "@/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
   MakeupRequestTable,
   MakeupSessionTable,
@@ -92,6 +93,15 @@ export interface MakeupSessionWithDetails extends MakeupSessionEntity {
     id: string;
     name: string;
   };
+}
+
+interface ListMakeupRequestsFilters {
+  status?: RequestStatus;
+  student_id?: string;
+  site_id?: string;
+  page?: number;
+  limit?: number;
+  student_ids?: string[];
 }
 
 @Service()
@@ -250,14 +260,39 @@ export class MakeupService {
   /**
    * List makeup requests with filtering
    */
-  async listRequests(filters: {
-    status?: RequestStatus;
-    student_id?: string;
-    site_id?: string;
-    limit?: number;
-  }): Promise<{ items: MakeupRequestWithDetails[] }> {
-    // Build query with joins
-    let query = db
+  async listRequests(
+    filters: ListMakeupRequestsFilters,
+  ): Promise<PaginatedResponse<MakeupRequestWithDetails>> {
+    const { page, limit, offset } = getPagination(filters, 20, 100);
+    const conditions: any[] = [];
+
+    if (filters.status) {
+      conditions.push(eq(MakeupRequestTable.status, filters.status));
+    }
+
+    if (filters.student_id) {
+      conditions.push(eq(MakeupRequestTable.student_id, filters.student_id));
+    }
+
+    if (filters.site_id) {
+      conditions.push(eq(ScheduleTable.site_id, filters.site_id));
+    }
+
+    if (filters.student_ids && filters.student_ids.length > 0) {
+      conditions.push(inArray(MakeupRequestTable.student_id, filters.student_ids));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(MakeupRequestTable)
+      .innerJoin(ScheduleTable, eq(MakeupRequestTable.original_schedule_id, ScheduleTable.id))
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
+
+    const results = await db
       .select({
         id: MakeupRequestTable.id,
         student_id: MakeupRequestTable.student_id,
@@ -286,24 +321,55 @@ export class MakeupService {
       .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
       .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(whereClause)
       .orderBy(desc(MakeupRequestTable.requested_at))
-      .limit(filters.limit || 50);
+      .limit(limit)
+      .offset(offset);
 
-    const conditions: any[] = [];
+    const requestIds = results.map((row) => row.id);
+    const sessionsByRequestId = new Map<
+      string,
+      {
+        id: string;
+        scheduled_date: string;
+        scheduled_time: string;
+        teacher_name: string;
+        site_name: string;
+      }
+    >();
 
-    if (filters.status) {
-      conditions.push(eq(MakeupRequestTable.status, filters.status));
+    if (requestIds.length > 0) {
+      const sessionRows = await db
+        .select({
+          id: MakeupSessionTable.id,
+          makeup_request_id: MakeupSessionTable.makeup_request_id,
+          scheduled_date: MakeupSessionTable.scheduled_date,
+          scheduled_time: MakeupSessionTable.scheduled_time,
+          teacher_name: UserTable.name,
+          site_name: LocationTable.name,
+          created_at: MakeupSessionTable.created_at,
+        })
+        .from(MakeupSessionTable)
+        .innerJoin(TeacherProfileTable, eq(MakeupSessionTable.teacher_id, TeacherProfileTable.id))
+        .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+        .innerJoin(LocationTable, eq(MakeupSessionTable.site_id, LocationTable.id))
+        .where(inArray(MakeupSessionTable.makeup_request_id, requestIds))
+        .orderBy(desc(MakeupSessionTable.created_at));
+
+      for (const row of sessionRows) {
+        if (!row.makeup_request_id || sessionsByRequestId.has(row.makeup_request_id)) {
+          continue;
+        }
+
+        sessionsByRequestId.set(row.makeup_request_id, {
+          id: row.id,
+          scheduled_date: row.scheduled_date,
+          scheduled_time: row.scheduled_time,
+          teacher_name: row.teacher_name,
+          site_name: row.site_name,
+        });
+      }
     }
-
-    if (filters.student_id) {
-      conditions.push(eq(MakeupRequestTable.student_id, filters.student_id));
-    }
-
-    if (filters.site_id) {
-      conditions.push(eq(ScheduleTable.site_id, filters.site_id));
-    }
-
-    const results = conditions.length > 0 ? await query.where(and(...conditions)) : await query;
 
     const items: MakeupRequestWithDetails[] = results.map((row) => ({
       id: row.id,
@@ -332,9 +398,10 @@ export class MakeupService {
         site_name: row.site_name,
         teacher_name: row.teacher_name,
       },
+      makeup_session: sessionsByRequestId.get(row.id) ?? null,
     }));
 
-    return { items };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -515,13 +582,23 @@ export class MakeupService {
    */
   async listSessionsForTeacher(
     teacherId: string,
-    date?: string,
-  ): Promise<{ items: MakeupSessionWithDetails[] }> {
+    query: { date?: string; page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<MakeupSessionWithDetails>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
     const conditions = [eq(MakeupSessionTable.teacher_id, teacherId)];
 
-    if (date) {
-      conditions.push(eq(MakeupSessionTable.scheduled_date, date));
+    if (query.date) {
+      conditions.push(eq(MakeupSessionTable.scheduled_date, query.date));
     }
+
+    const whereClause = and(...conditions);
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(MakeupSessionTable)
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
 
     const results = await db
       .select({
@@ -545,8 +622,10 @@ export class MakeupService {
       .from(MakeupSessionTable)
       .innerJoin(StudentTable, eq(MakeupSessionTable.student_id, StudentTable.id))
       .innerJoin(LocationTable, eq(MakeupSessionTable.site_id, LocationTable.id))
-      .where(and(...conditions))
-      .orderBy(MakeupSessionTable.scheduled_date, MakeupSessionTable.scheduled_time);
+      .where(whereClause)
+      .orderBy(MakeupSessionTable.scheduled_date, MakeupSessionTable.scheduled_time)
+      .limit(limit)
+      .offset(offset);
 
     const items: MakeupSessionWithDetails[] = results.map((row) => ({
       id: row.id,
@@ -573,7 +652,7 @@ export class MakeupService {
       },
     }));
 
-    return { items };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -600,80 +679,18 @@ export class MakeupService {
    */
   async listRequestsForParent(
     parentUserId: string,
-  ): Promise<{ items: MakeupRequestWithDetails[] }> {
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<MakeupRequestWithDetails>> {
     const studentIds = await this.getParentStudentIds(parentUserId);
     if (studentIds.length === 0) {
-      return { items: [] };
+      const { page, limit } = getPagination(query, 20, 100);
+      return buildPaginatedResponse([], 0, page, limit);
     }
 
-    const results = await db
-      .select({
-        id: MakeupRequestTable.id,
-        student_id: MakeupRequestTable.student_id,
-        original_session_date: MakeupRequestTable.original_session_date,
-        original_schedule_id: MakeupRequestTable.original_schedule_id,
-        reason: MakeupRequestTable.reason,
-        reason_text: MakeupRequestTable.reason_text,
-        preferred_dates: MakeupRequestTable.preferred_dates,
-        status: MakeupRequestTable.status,
-        requested_by: MakeupRequestTable.requested_by,
-        requested_at: MakeupRequestTable.requested_at,
-        reviewed_by: MakeupRequestTable.reviewed_by,
-        reviewed_at: MakeupRequestTable.reviewed_at,
-        review_notes: MakeupRequestTable.review_notes,
-        created_at: MakeupRequestTable.created_at,
-        updated_at: MakeupRequestTable.updated_at,
-        student_initials: StudentTable.initials,
-        student_first_name: StudentTable.first_name,
-        student_last_name: StudentTable.last_name,
-        site_name: LocationTable.name,
-        teacher_name: UserTable.name,
-      })
-      .from(MakeupRequestTable)
-      .innerJoin(StudentTable, eq(MakeupRequestTable.student_id, StudentTable.id))
-      .innerJoin(ScheduleTable, eq(MakeupRequestTable.original_schedule_id, ScheduleTable.id))
-      .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
-      .innerJoin(TeacherProfileTable, eq(ScheduleTable.teacher_id, TeacherProfileTable.id))
-      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
-      .where(sql`${MakeupRequestTable.student_id} IN ${studentIds}`)
-      .orderBy(desc(MakeupRequestTable.requested_at));
-
-    const items: MakeupRequestWithDetails[] = [];
-
-    for (const row of results) {
-      const makeupSession = await this.getMakeupSessionForRequest(row.id);
-
-      items.push({
-        id: row.id,
-        student_id: row.student_id,
-        original_session_date: row.original_session_date,
-        original_schedule_id: row.original_schedule_id,
-        reason: row.reason,
-        reason_text: row.reason_text,
-        preferred_dates: row.preferred_dates,
-        status: row.status,
-        requested_by: row.requested_by,
-        requested_at: row.requested_at,
-        reviewed_by: row.reviewed_by,
-        reviewed_at: row.reviewed_at,
-        review_notes: row.review_notes,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        student: {
-          id: row.student_id,
-          initials: row.student_initials,
-          first_name: row.student_first_name,
-          last_name: row.student_last_name,
-        },
-        original_schedule: {
-          id: row.original_schedule_id,
-          site_name: row.site_name,
-          teacher_name: row.teacher_name,
-        },
-        makeup_session: makeupSession,
-      });
-    }
-
-    return { items };
+    return await this.listRequests({
+      student_ids: studentIds,
+      page: query.page,
+      limit: query.limit,
+    });
   }
 }

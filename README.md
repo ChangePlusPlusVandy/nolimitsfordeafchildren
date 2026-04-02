@@ -36,9 +36,17 @@ cp apps/web/.env.example apps/web/.env
 ```
 
 The default `.env.example` files are pre-configured for local development with:
-- Auth disabled (mock admin user)
+- Better Auth email/password authentication
 - Local PostgreSQL connection
 - Local MinIO S3 storage
+
+Configure Better Auth in `apps/api/.env`:
+
+```bash
+BETTER_AUTH_URL=https://your-api-domain
+BETTER_AUTH_SECRET=replace-with-32-byte-random-secret
+BOOTSTRAP_ADMIN_EMAILS=admin1@example.com,admin2@example.com
+```
 
 ### 3. Install Dependencies
 
@@ -63,46 +71,6 @@ npm run dev
 This starts:
 - **API** at http://localhost:3000
 - **Web** at http://localhost:5173
-
-## Auth0 Setup (Optional for Development)
-
-Authentication is disabled by default for local development. To enable Auth0:
-
-### 1. Create Auth0 Application
-
-1. Go to **Applications > Create Application**
-2. Select **Single Page Application**
-3. Configure settings:
-   - Allowed Callback URLs: `http://localhost:5173`
-   - Allowed Logout URLs: `http://localhost:5173`
-   - Allowed Web Origins: `http://localhost:5173`
-4. Enable Refresh Token Rotation in the application settings
-
-### 2. Create Auth0 API
-
-1. Go to **Applications > APIs > Create API**
-2. Set a Name (e.g., `No Limits API`)
-3. Set Identifier/Audience (e.g., `https://api.nolimits.local`)
-4. Keep Signing Algorithm as `RS256`
-5. Enable **Allow Offline Access** in Access Settings
-
-### 3. Update Environment Variables
-
-**apps/api/.env:**
-```bash
-AUTH_DISABLED=false
-AUTH0_DOMAIN=your-tenant.us.auth0.com
-AUTH0_AUDIENCE=https://api.nolimits.local
-AUTH0_ISSUER_BASE_URL=https://your-tenant.us.auth0.com
-```
-
-**apps/web/.env:**
-```bash
-VITE_AUTH_DISABLED=false
-VITE_AUTH0_DOMAIN=your-tenant.us.auth0.com
-VITE_AUTH0_CLIENT_ID=your-spa-client-id
-VITE_AUTH0_AUDIENCE=https://api.nolimits.local
-```
 
 ## Docker Compose Services
 

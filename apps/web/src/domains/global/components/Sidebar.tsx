@@ -7,6 +7,7 @@ import {
   ListItemText,
   Box,
   Divider,
+  Typography,
 } from "@mui/material";
 import PeopleIcon from "@mui/icons-material/People";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -28,7 +29,6 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
-import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
 export const DRAWER_WIDTH = 240;
 
@@ -36,7 +36,8 @@ type NavItem = {
   text: string;
   to: string;
   icon: React.ReactNode;
-  roles?: UserRole[]; // If undefined, shown to all roles
+  roles?: UserRole[];
+  section?: string;
 };
 
 const navItems: NavItem[] = [
@@ -46,6 +47,7 @@ const navItems: NavItem[] = [
     to: "/locations",
     icon: <LocationOnIcon />,
     roles: ["administrator"],
+    section: "Admin",
   },
   {
     text: "Users",
@@ -108,6 +110,7 @@ const navItems: NavItem[] = [
     to: "/my-day",
     icon: <TodayIcon />,
     roles: ["teacher"],
+    section: "Teacher",
   },
   {
     text: "Make-Up Sessions",
@@ -134,6 +137,7 @@ const navItems: NavItem[] = [
     to: "/my-students",
     icon: <ChildCareIcon />,
     roles: ["parent"],
+    section: "Parent",
   },
   {
     text: "Schedule Change",
@@ -159,6 +163,7 @@ const navItems: NavItem[] = [
     text: "Bulletin",
     to: "/bulletin",
     icon: <ArticleIcon />,
+    section: "General",
   },
   {
     text: "Profile",
@@ -174,135 +179,103 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }: SidebarProps) => {
-  const { authEnabled, user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const location = useLocation();
 
   const handleLogout = () => {
-    if (!authEnabled) {
-      window.location.reload();
-      return;
-    }
-    logout();
+    void logout();
   };
 
   const handleNavClick = () => {
-    // Close mobile drawer on navigation
     if (isMobile && onMobileClose) {
       onMobileClose();
     }
   };
 
-  // Filter nav items based on user role
   const visibleItems = navItems.filter((item) => {
-    if (!item.roles) return true; // Show to all if no roles specified
+    if (user?.role === "unassigned") {
+      return item.to === "/my-profile";
+    }
+    if (!item.roles) return true;
     return hasRole(...item.roles);
   });
 
   const drawerContent = (
-    <Box
-      sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }}
-      role="presentation"
-    >
-      {/* Logo */}
-      <Box sx={{ padding: 2, textAlign: "center", height: 190 }}>
-        <img
-          src={nolimitsLogo}
-          alt="No Limits for Deaf Children Logo"
-          style={{ maxWidth: "100%", maxHeight: "100%" }}
-        />
-      </Box>
-
+    <Box sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }} role="presentation">
       {/* User info */}
       {user && (
-        <Box sx={{ px: 2, pb: 1 }}>
-          <Box
-            sx={{
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              color: "text.primary",
-              textOverflow: "ellipsis",
-              overflow: "hidden",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <Box sx={{ px: 2, py: 2 }}>
+          <Typography variant="subtitle2" noWrap>
             {user.name}
-          </Box>
-          <Box
-            sx={{
-              fontSize: "0.75rem",
-              color: "text.secondary",
-              textTransform: "capitalize",
-            }}
-          >
-            {user.role}
-          </Box>
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {user.role === "unassigned" ? "Pending approval" : user.role}
+          </Typography>
         </Box>
       )}
 
-      <Divider sx={{ mx: 1, mb: 1 }} />
+      <Divider />
 
       {/* Navigation items */}
-      <List sx={{ padding: "0 8px", flexGrow: 1 }} component="nav" aria-label="Main navigation">
-        {visibleItems.map((item) => {
+      <List sx={{ flexGrow: 1, px: 1 }} component="nav" aria-label="Main navigation">
+        {visibleItems.map((item, index) => {
           const isActive =
             location.pathname === item.to ||
             (item.to !== "/" && location.pathname.startsWith(item.to));
 
+          // Show section header if this item starts a new section
+          const showSection = item.section && (index === 0 || visibleItems[index - 1]?.section !== item.section);
+
           return (
-            <ListItem key={item.text} disablePadding sx={{ margin: "4px 0" }}>
-              <ListItemButton
-                component={Link}
-                to={item.to}
-                onClick={handleNavClick}
-                sx={{
-                  borderRadius: "8px",
-                  ...(isActive && {
-                    backgroundColor: "white",
-                    "&:hover": {
-                      backgroundColor: "white",
-                    },
-                  }),
-                }}
-              >
-                <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>{item.icon}</ListItemIcon>
-                <ListItemText
-                  primary={item.text}
-                  primaryTypographyProps={{
-                    fontSize: "1.1rem",
-                    sx: { pt: 0.5, pb: 0.5 },
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
+            <Box key={item.text}>
+              {showSection && (
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ px: 2, pt: index === 0 ? 1 : 2, pb: 0.5, display: "block" }}
+                >
+                  {item.section}
+                </Typography>
+              )}
+              <ListItem disablePadding>
+                <ListItemButton
+                  component={Link}
+                  to={item.to}
+                  selected={isActive}
+                  onClick={handleNavClick}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            </Box>
           );
         })}
       </List>
 
       {/* Logout button at bottom */}
-      <Box sx={{ padding: "0 8px", mb: 2 }}>
-        <Divider sx={{ mb: 1 }} />
-        <List disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
-                handleNavClick();
-                handleLogout();
-              }}
-              sx={{ borderRadius: "8px" }}
-              aria-label="Logout from application"
-            >
-              <ListItemIcon sx={{ "& svg": { fontSize: "2rem" } }}>
-                <LogoutIcon />
-              </ListItemIcon>
-              <ListItemText primary="Logout" primaryTypographyProps={{ fontSize: "1.1rem" }} />
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </Box>
+      <Divider />
+      <List sx={{ px: 1 }} disablePadding>
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => {
+              handleNavClick();
+              handleLogout();
+            }}
+            aria-label="Logout from application"
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItemButton>
+        </ListItem>
+      </List>
     </Box>
   );
 
-  // Mobile: temporary drawer that overlays content
   if (isMobile) {
     return (
       <Drawer
@@ -310,14 +283,11 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
         anchor="left"
         open={mobileOpen}
         onClose={onMobileClose}
-        ModalProps={{
-          keepMounted: true, // Better mobile performance
-        }}
+        ModalProps={{ keepMounted: true }}
         sx={{
           "& .MuiDrawer-paper": {
             width: DRAWER_WIDTH,
             boxSizing: "border-box",
-            backgroundColor: "#D9D9D9",
           },
         }}
       >
@@ -326,7 +296,6 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
     );
   }
 
-  // Desktop: permanent drawer
   return (
     <Drawer
       variant="permanent"
@@ -337,8 +306,6 @@ export const Sidebar = ({ isMobile = false, mobileOpen = false, onMobileClose }:
         "& .MuiDrawer-paper": {
           width: DRAWER_WIDTH,
           boxSizing: "border-box",
-          backgroundColor: "#D9D9D9",
-          overflowX: "hidden",
         },
       }}
     >

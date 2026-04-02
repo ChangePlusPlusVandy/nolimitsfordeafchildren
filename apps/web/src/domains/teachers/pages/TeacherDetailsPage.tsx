@@ -306,7 +306,7 @@ export default function TeacherDetailsPage() {
                             <Chip label="Inactive" size="small" variant="outlined" />
                           )}
                           {schedule.session?.name && (
-                            <Chip label={schedule.session.name} size="small" color="info" variant="outlined" />
+                            <Chip label={schedule.session.name} size="small" variant="outlined" />
                           )}
                         </Box>
                       }

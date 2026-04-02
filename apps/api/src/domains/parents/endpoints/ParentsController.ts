@@ -1,4 +1,11 @@
-import { Get, JsonController, Param, CurrentUser, Authorized } from "routing-controllers";
+import {
+  Get,
+  JsonController,
+  Param,
+  CurrentUser,
+  Authorized,
+  QueryParam,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { ParentsService } from "../services/ParentsService";
@@ -18,8 +25,12 @@ export class GetParentsMeChildrenController {
    */
   @Get("/parents/me/children")
   @Authorized(["parent"])
-  async handle(@CurrentUser({ required: true }) currentUser: UserEntity) {
-    return await this.parentsService.myChildren(currentUser.id);
+  async handle(
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.parentsService.myChildren(currentUser.id, { page, limit });
   }
 }
 
@@ -63,8 +74,12 @@ export class GetParentsDirectoryController {
    */
   @Get("/parents/directory")
   @Authorized(["parent"])
-  async handle(@CurrentUser({ required: true }) currentUser: UserEntity) {
-    return await this.parentsService.directory(currentUser.id);
+  async handle(
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.parentsService.directory(currentUser.id, { page, limit });
   }
 }
 
@@ -82,7 +97,7 @@ export class GetParentsZipReportController {
    */
   @Get("/parents/zip-report")
   @Authorized(["administrator"])
-  async handle() {
-    return await this.parentsService.zipReport();
+  async handle(@QueryParam("page") page?: number, @QueryParam("limit") limit?: number) {
+    return await this.parentsService.zipReport({ page, limit });
   }
 }

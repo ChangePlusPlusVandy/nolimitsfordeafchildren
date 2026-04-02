@@ -1,4 +1,13 @@
-import { Body, Delete, Get, JsonController, Param, Post, Authorized } from "routing-controllers";
+import {
+  Body,
+  Delete,
+  Get,
+  JsonController,
+  Param,
+  Post,
+  Authorized,
+  QueryParam,
+} from "routing-controllers";
 import { Service } from "typedi";
 import Container from "@/container";
 import { StudentsService, type LinkParentInput } from "../services/StudentsService";
@@ -15,8 +24,12 @@ export class StudentParentsAdminController {
 
   @Get("/:id/parents")
   @Authorized()
-  async parents(@Param("id") id: string) {
-    return await this.studentsService.parents(id);
+  async parents(
+    @Param("id") id: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+  ) {
+    return await this.studentsService.parents(id, { page, limit });
   }
 
   @Post("/:id/parents")

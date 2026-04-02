@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
+  TablePagination,
   TextField,
   Typography,
 } from "@mui/material";
@@ -95,15 +96,28 @@ function ScheduleSummary({ schedule }: { schedule?: ScheduleInfo }) {
 export default function TeacherScheduleChangeRequestsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedRequest, setSelectedRequest] = useState<ScheduleChangeRequest | null>(null);
   const [dialogStatus, setDialogStatus] = useState<TeacherResponseStatus>("available");
   const [dialogNotes, setDialogNotes] = useState("");
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["teacher-schedule-change-requests"],
+    queryKey: ["teacher-schedule-change-requests", page, rowsPerPage],
     queryFn: async () => {
-      const response = await httpClient.get("/v1/schedule-change-requests");
-      return response.data as { items: ScheduleChangeRequest[] };
+      const response = await httpClient.get("/v1/schedule-change-requests", {
+        params: {
+          page,
+          limit: rowsPerPage,
+        },
+      });
+      return response.data as {
+        items: ScheduleChangeRequest[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
   });
 
@@ -248,6 +262,21 @@ export default function TeacherScheduleChangeRequestsPage() {
           </Card>
         ))}
       </Stack>
+
+      {items.length > 0 && (
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 20]}
+          component="div"
+          count={data?.total ?? 0}
+          rowsPerPage={rowsPerPage}
+          page={Math.max(page - 1, 0)}
+          onPageChange={(_event, nextPage) => setPage(nextPage + 1)}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(Number(event.target.value));
+            setPage(1);
+          }}
+        />
+      )}
 
       <Dialog open={Boolean(selectedRequest)} onClose={() => setSelectedRequest(null)} maxWidth="sm" fullWidth>
         <DialogTitle>Confirm Teacher Response</DialogTitle>

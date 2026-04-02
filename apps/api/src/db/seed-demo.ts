@@ -1,6 +1,6 @@
 /**
  * Production Demo Seed Script
- * Creates demo data linked to real Auth0 users
+ * Creates demo data linked to real app users
  *
  * IDEMPOTENT: Can be re-run without duplicating data
  * SAFE: Does NOT delete existing users
@@ -733,7 +733,7 @@ async function seedDemo() {
   console.log("🌱 Starting production demo seed...\n");
 
   // Step 1: Look up real users
-  console.log("👤 Looking up real Auth0 users...");
+  console.log("👤 Looking up real users...");
 
   const [adminUser] = await db
     .select()

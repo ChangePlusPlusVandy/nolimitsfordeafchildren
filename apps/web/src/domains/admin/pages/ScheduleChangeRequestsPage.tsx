@@ -24,6 +24,7 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  TablePagination,
 } from "@mui/material";
 import {
   CheckCircle as ApproveIcon,
@@ -34,6 +35,7 @@ import {
   ArrowForward as ArrowIcon,
 } from "@mui/icons-material";
 import { useHttpClient } from "../../../plugins/axios";
+import { useServerTable } from "../../global/hooks/useServerTable";
 
 type RequestStatus = "pending" | "negotiating" | "approved" | "denied" | "completed";
 
@@ -128,8 +130,9 @@ function ScheduleDisplay({ schedule }: { schedule?: ScheduleInfo }) {
 export default function ScheduleChangeRequestsPage() {
   const httpClient = useHttpClient();
   const queryClient = useQueryClient();
+  const table = useServerTable({ defaultLimit: 20 });
 
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("");
+  const statusFilter = (table.getFilter("status") || "") as RequestStatus | "";
   const [selectedRequest, setSelectedRequest] = useState<ScheduleChangeRequest | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState<"approved" | "denied" | "negotiating">(
@@ -139,12 +142,22 @@ export default function ScheduleChangeRequestsPage() {
 
   // Fetch requests
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["admin-schedule-change-requests", statusFilter],
+    queryKey: ["admin-schedule-change-requests", table.queryParams],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (statusFilter) params.append("status", statusFilter);
-      const response = await httpClient.get(`/v1/schedule-change-requests?${params}`);
-      return response.data as { items: ScheduleChangeRequest[] };
+      const response = await httpClient.get(`/v1/schedule-change-requests`, {
+        params: {
+          page: table.page,
+          limit: table.limit,
+          ...(statusFilter ? { status: statusFilter } : {}),
+        },
+      });
+      return response.data as {
+        items: ScheduleChangeRequest[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
   });
 
@@ -218,9 +231,7 @@ export default function ScheduleChangeRequestsPage() {
             size="small"
             label="Status"
             value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter((e.target as unknown as { value: string }).value as RequestStatus | "")
-            }
+            onChange={(e) => table.setFilter("status", e.target.value as RequestStatus | "")}
             sx={{ minWidth: 150 }}
           >
             <MenuItem value="">All</MenuItem>
@@ -382,6 +393,15 @@ export default function ScheduleChangeRequestsPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            rowsPerPageOptions={[10, 20, 50]}
+            component="div"
+            count={data?.total ?? 0}
+            rowsPerPage={table.limit}
+            page={Math.max(table.page - 1, 0)}
+            onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+            onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+          />
         </TableContainer>
       )}
 

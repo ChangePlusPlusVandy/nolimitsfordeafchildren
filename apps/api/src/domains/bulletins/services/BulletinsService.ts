@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { Service } from "typedi";
 import { eq, and, or, lte, gte, desc, isNull, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
   BulletinTable,
   BulletinAttachmentTable,
@@ -25,7 +26,7 @@ import { getPresignedUploadUrl, getPublicUrl } from "@/s3";
 
 export type BulletinScope = "global" | "site";
 export type BulletinRoleTarget = "all" | "administrator" | "teacher" | "parent";
-export type UserRole = "administrator" | "teacher" | "parent";
+export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
 
 export interface ListBulletinsQuery {
   siteId?: string;
@@ -86,7 +87,7 @@ export interface BulletinViewWithUser extends BulletinViewEntity {
     id: string;
     name: string;
     email: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   };
 }
 
@@ -95,7 +96,7 @@ export interface BulletinAcknowledgementWithUser extends BulletinAcknowledgement
     id: string;
     name: string;
     email: string;
-    role: "administrator" | "teacher" | "parent";
+    role: "administrator" | "teacher" | "parent" | "unassigned";
   };
 }
 
@@ -341,7 +342,9 @@ export class BulletinsService {
 
       // Role target filter: 'all' OR matches user's role
       conditions.push(
-        or(eq(BulletinTable.role_target, "all"), eq(BulletinTable.role_target, userRole)),
+        userRole === "unassigned"
+          ? eq(BulletinTable.role_target, "all")
+          : or(eq(BulletinTable.role_target, "all"), eq(BulletinTable.role_target, userRole)),
       );
 
       conditions.push(eq(BulletinTable.approval_status, "approved"));
@@ -753,7 +756,18 @@ export class BulletinsService {
     return result.length > 0;
   }
 
-  async listPendingApproval(): Promise<{ items: BulletinWithDetails[] }> {
+  async listPendingApproval(
+    query: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResponse<BulletinWithDetails>> {
+    const { page, limit, offset } = getPagination(query, 20, 100);
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(BulletinTable)
+      .where(eq(BulletinTable.approval_status, "pending"));
+
+    const total = countResult[0]?.count ?? 0;
+
     const rows = await db
       .select({
         bulletin: BulletinTable,
@@ -764,7 +778,9 @@ export class BulletinsService {
       .leftJoin(UserTable, eq(BulletinTable.created_by, UserTable.id))
       .leftJoin(LocationTable, eq(BulletinTable.site_id, LocationTable.id))
       .where(eq(BulletinTable.approval_status, "pending"))
-      .orderBy(desc(BulletinTable.created_at));
+      .orderBy(desc(BulletinTable.created_at), desc(BulletinTable.id))
+      .limit(limit)
+      .offset(offset);
 
     const bulletinIds = rows.map((row) => row.bulletin.id);
     const attachmentsMap = new Map<string, BulletinAttachmentEntity[]>();
@@ -782,15 +798,15 @@ export class BulletinsService {
       }
     }
 
-    return {
-      items: rows.map((row) => ({
+    const items = rows.map((row) => ({
         ...row.bulletin,
         attachments: attachmentsMap.get(row.bulletin.id) ?? [],
         created_by_name: row.created_by_name ?? undefined,
         site_name: row.site_name ?? undefined,
         view_count: 0,
-      })),
-    };
+      }));
+
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   async reviewBulletin(
