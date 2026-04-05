@@ -1,5 +1,6 @@
 import {
   Body,
+  CurrentUser,
   Get,
   JsonController,
   Param,
@@ -18,11 +19,18 @@ import type {
   ListLocationsQuery,
 } from "../services/LocationsService";
 
+type CurrentUserLike =
+  | {
+      id: string;
+      role: "administrator" | "teacher" | "parent" | "unassigned";
+    }
+  | null
+  | undefined;
+
 /**
  * Consolidated Locations Controller
  *
  * IMPORTANT: Route order matters! Static routes must come before parameterized routes.
- * Within a single controller class, routing-controllers respects method order.
  */
 @Service()
 @JsonController("/v1/locations")
@@ -47,7 +55,15 @@ export class LocationsController {
     @QueryParam("sort") sort?: "name" | "created_at",
     @QueryParam("order") order?: "asc" | "desc",
   ) {
-    const query: ListLocationsQuery = { search, type, is_active, page, limit, sort, order };
+    const query: ListLocationsQuery = {
+      search,
+      type,
+      is_active,
+      page,
+      limit,
+      sort,
+      order,
+    };
     return await this.locationsService.index(query);
   }
 
@@ -73,11 +89,27 @@ export class LocationsController {
   }
 
   /**
+   * GET /v1/locations/:siteId/staff
+   * Parent-facing staff list for a location
+   */
+  @Get("/:siteId/staff")
+  @Authorized(["parent", "administrator"])
+  async staff(
+    @Param("siteId") siteId: string,
+    @CurrentUser() currentUser?: CurrentUserLike,
+  ) {
+    return await this.locationsService.staffByLocation(siteId, currentUser);
+  }
+
+  /**
    * GET /v1/locations/:siteId/now-next
    * Returns current and upcoming sessions at a location
    */
   @Get("/:siteId/now-next")
-  async nowNext(@Param("siteId") siteId: string, @QueryParam("date") date?: string) {
+  async nowNext(
+    @Param("siteId") siteId: string,
+    @QueryParam("date") date?: string,
+  ) {
     return await this.locationsService.nowNext(siteId, { date });
   }
 
@@ -100,7 +132,10 @@ export class LocationsController {
    */
   @Patch("/:siteId")
   @Authorized(["administrator"])
-  async update(@Param("siteId") siteId: string, @Body() body: UpdateLocationDto) {
+  async update(
+    @Param("siteId") siteId: string,
+    @Body() body: UpdateLocationDto,
+  ) {
     const location = await this.locationsService.update(siteId, body);
     if (!location) {
       throw new Error("Location not found");
@@ -109,7 +144,6 @@ export class LocationsController {
   }
 }
 
-// Keep old class names as aliases for backwards compatibility with imports
 export const GetLocationsController = LocationsController;
 export const PostLocationsController = LocationsController;
 export const GetLocationController = LocationsController;
