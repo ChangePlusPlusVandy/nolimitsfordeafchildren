@@ -7,11 +7,11 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Skeleton,
   Stack,
   TablePagination,
   TextField,
@@ -27,6 +27,7 @@ import { useToast } from "../../global/components/ToastProvider";
 import PageContainer from "../../global/components/PageContainer";
 import PageHeader from "../../global/components/PageHeader";
 import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
 import { formatTime } from "../../../utils/formatDate";
 
 type RequestStatus = "pending" | "negotiating" | "approved" | "denied" | "completed";
@@ -149,24 +150,46 @@ export default function TeacherScheduleChangeRequestsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Schedule Change Requests" breadcrumbs={[{ label: "Schedule Change Requests" }]} />
+      <PageHeader
+        title="Schedule Change Requests"
+        breadcrumbs={[{ label: "Schedule Change Requests" }]}
+      />
 
       {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4, gap: 1 }}>
-          <CircularProgress size={24} />
-          <Typography color="text.secondary">Loading requests...</Typography>
-        </Box>
+        <Stack spacing={2}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} variant="outlined">
+              <CardContent>
+                <Stack spacing={2}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Skeleton variant="text" width="40%" />
+                    <Skeleton variant="rounded" width={80} height={24} />
+                  </Stack>
+                  <Skeleton variant="text" width="60%" />
+                  <Skeleton variant="text" width="80%" />
+                </Stack>
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
       )}
 
       {error && (
         <ErrorAlert
           message="Failed to load schedule change requests."
-          onRetry={() => queryClient.invalidateQueries({ queryKey: ["teacher-schedule-change-requests", page, rowsPerPage] })}
+          onRetry={() =>
+            queryClient.invalidateQueries({
+              queryKey: ["teacher-schedule-change-requests", page, rowsPerPage],
+            })
+          }
         />
       )}
 
       {!isLoading && !error && items.length === 0 && (
-        <Alert severity="info">No schedule change requests currently need your response.</Alert>
+        <EmptyState
+          title="No Schedule Change Requests"
+          description="No schedule change requests currently need your response."
+        />
       )}
 
       <Stack spacing={2}>
@@ -191,14 +214,24 @@ export default function TeacherScheduleChangeRequestsPage() {
 
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      gutterBottom
+                    >
                       Current Schedule
                     </Typography>
                     <ScheduleSummary schedule={request.current_schedule} />
                   </Box>
 
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      gutterBottom
+                    >
                       Requested Schedule
                     </Typography>
                     <ScheduleSummary schedule={request.requested_schedule} />
@@ -278,13 +311,21 @@ export default function TeacherScheduleChangeRequestsPage() {
         />
       )}
 
-      <Dialog open={Boolean(selectedRequest)} onClose={() => setSelectedRequest(null)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={Boolean(selectedRequest)}
+        onClose={() => setSelectedRequest(null)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Confirm Teacher Response</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography>
               Set response to <strong>{dialogStatus}</strong>
-              {selectedRequest ? ` for ${selectedRequest.student?.first_name} ${selectedRequest.student?.last_name}` : ""}.
+              {selectedRequest
+                ? ` for ${selectedRequest.student?.first_name} ${selectedRequest.student?.last_name}`
+                : ""}
+              .
             </Typography>
             <TextField
               label="Notes (optional)"

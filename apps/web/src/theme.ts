@@ -1,7 +1,57 @@
-import { createTheme } from "@mui/material/styles";
+import { createTheme, alpha } from "@mui/material/styles";
+
+declare module "@mui/material/styles" {
+  interface PaletteColor {
+    50?: string;
+  }
+  interface SimplePaletteColorOptions {
+    50?: string;
+  }
+}
+
+const brandNavy = "#1e3e67";
+const brandOrange = "#f79460";
 
 export const theme = createTheme({
   palette: {
+    primary: {
+      main: brandNavy,
+      light: "#2d5a94",
+      dark: "#142b48",
+      contrastText: "#ffffff",
+      50: alpha(brandNavy, 0.06),
+    },
+    secondary: {
+      main: brandOrange,
+      light: "#f9b08a",
+      dark: "#d4703c",
+      contrastText: "#ffffff",
+      50: alpha(brandOrange, 0.08),
+    },
+    success: {
+      main: "#2e7d32",
+      light: "#4caf50",
+      dark: "#1b5e20",
+      50: alpha("#2e7d32", 0.06),
+    },
+    warning: {
+      main: "#ed6c02",
+      light: "#ff9800",
+      dark: "#e65100",
+      50: alpha("#ed6c02", 0.06),
+    },
+    error: {
+      main: "#d32f2f",
+      light: "#ef5350",
+      dark: "#c62828",
+      50: alpha("#d32f2f", 0.06),
+    },
+    info: {
+      main: "#0288d1",
+      light: "#03a9f4",
+      dark: "#01579b",
+      50: alpha("#0288d1", 0.06),
+    },
     background: {
       default: "#f5f5f5",
       paper: "#ffffff",
@@ -11,6 +61,7 @@ export const theme = createTheme({
     borderRadius: 10,
   },
   typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica Neue", Arial, sans-serif',
     h4: {
       fontWeight: 700,
       fontSize: "1.75rem",
@@ -127,6 +178,30 @@ export const theme = createTheme({
         paper: {
           borderRight: "1px solid rgba(0,0,0,0.08)",
           boxShadow: "none",
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          marginLeft: 8,
+          marginRight: 8,
+          marginBottom: 2,
+          "&.Mui-selected": {
+            backgroundColor: alpha(brandNavy, 0.1),
+            borderLeft: `3px solid ${brandNavy}`,
+            "&:hover": {
+              backgroundColor: alpha(brandNavy, 0.15),
+            },
+            "& .MuiListItemIcon-root": {
+              color: brandNavy,
+            },
+            "& .MuiListItemText-primary": {
+              fontWeight: 600,
+              color: brandNavy,
+            },
+          },
         },
       },
     },

@@ -167,11 +167,17 @@ export default function MyDayPage() {
   const [sickDaySiteId, setSickDaySiteId] = useState("");
   const [siblingDialogOpen, setSiblingDialogOpen] = useState(false);
   const [siblingSession, setSiblingSession] = useState<SessionForDay | null>(null);
-  const [siblingOptions, setSiblingOptions] = useState<Array<{ id: string; name: string; relationship: string }>>([]);
+  const [siblingOptions, setSiblingOptions] = useState<
+    Array<{ id: string; name: string; relationship: string }>
+  >([]);
   const [siblingDialogSelection, setSiblingDialogSelection] = useState<string[]>([]);
-  const [pendingSiblingSelections, setPendingSiblingSelections] = useState<Record<string, string[]>>({});
+  const [pendingSiblingSelections, setPendingSiblingSelections] = useState<
+    Record<string, string[]>
+  >({});
 
-  function getSessionKey(session: Pick<SessionForDay, "session_date" | "schedule_id" | "student_id">): string {
+  function getSessionKey(
+    session: Pick<SessionForDay, "session_date" | "schedule_id" | "student_id">,
+  ): string {
     return `${session.session_date}::${session.schedule_id}::${session.student_id}`;
   }
 
@@ -387,7 +393,9 @@ export default function MyDayPage() {
       toast.success("Sick-day notice posted to parents");
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || error.message || "Failed to post sick-day notice");
+      toast.error(
+        error.response?.data?.message || error.message || "Failed to post sick-day notice",
+      );
     },
   });
 
@@ -395,7 +403,8 @@ export default function MyDayPage() {
     // Store previous state for undo
     const previousStatus = session.attendance?.status || null;
     const previousLateMinutes = session.attendance?.late_minutes || null;
-    const previousSiblingIds = session.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
+    const previousSiblingIds =
+      session.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
     const siblingParticipantIds = getSiblingIdsForSession(session);
 
     if (status === "present") {
@@ -436,7 +445,8 @@ export default function MyDayPage() {
 
     const previousStatus = selectedSession.attendance?.status || null;
     const previousLateMinutes = selectedSession.attendance?.late_minutes || null;
-    const previousSiblingIds = selectedSession.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
+    const previousSiblingIds =
+      selectedSession.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
     const siblingParticipantIds = getSiblingIdsForSession(selectedSession);
 
     markAttendanceMutation.mutate({
@@ -464,7 +474,8 @@ export default function MyDayPage() {
 
     const previousStatus = selectedSession.attendance?.status || null;
     const previousLateMinutes = selectedSession.attendance?.late_minutes || null;
-    const previousSiblingIds = selectedSession.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
+    const previousSiblingIds =
+      selectedSession.attendance?.sibling_participants?.map((sp) => sp.sibling_id) ?? [];
     const siblingParticipantIds = getSiblingIdsForSession(selectedSession);
 
     markAttendanceMutation.mutate({
@@ -575,51 +586,38 @@ export default function MyDayPage() {
 
   if (isLoading) {
     return (
-      <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-          <Typography variant="h4" component="h1">
-            {view === "day" ? "My Day" : "My Week"}
-          </Typography>
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-            <Skeleton variant="text" width={200} />
-            <Skeleton variant="text" width={200} />
-          </Box>
-        </Box>
-        {/* Session cards skeleton */}
-        <Paper sx={{ mb: 3, overflow: "hidden" }}>
-          <Box sx={{ px: 3, py: 2, bgcolor: "grey.100" }}>
-            <Skeleton variant="text" width={150} />
-          </Box>
-          <Divider />
-          <Box sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} variant="outlined">
-                  <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <Skeleton variant="circular" width={48} height={48} />
-                      <Box sx={{ flex: 1 }}>
-                        <Skeleton variant="text" width="40%" />
-                        <Skeleton variant="text" width="25%" />
-                      </Box>
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Skeleton variant="rounded" width={80} height={32} />
-                        <Skeleton variant="rounded" width={80} height={32} />
-                        <Skeleton variant="rounded" width={90} height={32} />
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          </Box>
-        </Paper>
-      </Box>
+      <PageContainer>
+        <PageHeader title={view === "day" ? "My Day" : "My Week"} />
+        <SectionCard>
+          <Stack spacing={2}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Stack key={i} direction="row" spacing={2} alignItems="center">
+                <Skeleton variant="circular" width={48} height={48} />
+                <Box sx={{ flex: 1 }}>
+                  <Skeleton variant="text" width="40%" />
+                  <Skeleton variant="text" width="25%" />
+                </Box>
+                <Skeleton
+                  variant="rounded"
+                  width={80}
+                  height={32}
+                  sx={{ display: { xs: "none", sm: "block" } }}
+                />
+              </Stack>
+            ))}
+          </Stack>
+        </SectionCard>
+      </PageContainer>
     );
   }
 
   if (error) {
-    return <ErrorAlert message="Failed to load today's sessions." onRetry={() => refetch()} />;
+    return (
+      <PageContainer>
+        <PageHeader title="My Day" />
+        <ErrorAlert message="Failed to load today's sessions." onRetry={() => refetch()} />
+      </PageContainer>
+    );
   }
 
   const sessions = data?.sessions || [];
@@ -686,19 +684,26 @@ export default function MyDayPage() {
     {} as Record<string, number>,
   );
 
-  const sortedSessionDates = Array.from(new Set(sessions.map((session) => session.session_date))).sort(
-    (a, b) => a.localeCompare(b),
-  );
+  const sortedSessionDates = Array.from(
+    new Set(sessions.map((session) => session.session_date)),
+  ).sort((a, b) => a.localeCompare(b));
   const photoItems = photosData?.items || [];
   const siteEntries = [
     ...groupedSiteEntries.map(([, value]) => [value.site_id, value.site_name] as const),
-    ...((teacherProfileData?.locations || []).map((location) => [location.id, location.name] as const)),
+    ...(teacherProfileData?.locations || []).map(
+      (location) => [location.id, location.name] as const,
+    ),
     ...(teacherProfileData?.primarySite
-      ? ([[teacherProfileData.primarySite.id, teacherProfileData.primarySite.name] as const] as const)
+      ? ([
+          [teacherProfileData.primarySite.id, teacherProfileData.primarySite.name] as const,
+        ] as const)
       : []),
   ];
 
-  const siteOptions = Array.from(new Map(siteEntries).entries()).map(([id, name]) => ({ id, name }));
+  const siteOptions = Array.from(new Map(siteEntries).entries()).map(([id, name]) => ({
+    id,
+    name,
+  }));
   const studentOptions = sessions
     .filter((session) => !photoLocationId || session.site_id === photoLocationId)
     .map((session) => ({
@@ -721,7 +726,11 @@ export default function MyDayPage() {
         breadcrumbs={[{ label: view === "day" ? "My Day" : "My Week" }]}
         actions={
           <>
-            <Typography variant="subtitle1" color="text.secondary" sx={{ display: "flex", alignItems: "center" }}>
+            <Typography
+              variant="subtitle1"
+              color="text.secondary"
+              sx={{ display: "flex", alignItems: "center" }}
+            >
               {view === "day"
                 ? new Date(selectedDate).toLocaleDateString("en-US", {
                     weekday: "long",
@@ -755,7 +764,7 @@ export default function MyDayPage() {
                 },
                 "& .MuiToggleButton-root.Mui-selected": {
                   backgroundColor: "primary.main",
-                  color: "white",
+                  color: "primary.contrastText",
                   fontWeight: 500,
                 },
                 "& .MuiToggleButton-root.Mui-selected:hover": {
@@ -779,324 +788,352 @@ export default function MyDayPage() {
       />
 
       <Stack spacing={3}>
-      <SectionCard title="Session Photos" icon={<PhotoCameraIcon />}>
-        {view === "week" && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Photo uploads are available in Day view only.
-          </Alert>
-        )}
-
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2, mb: 2 }}>
-          <FormControl fullWidth>
-            <InputLabel>Location</InputLabel>
-            <Select
-              value={photoLocationId}
-              label="Location"
-              onChange={(event) => {
-                setPhotoLocationId((event.target as unknown as { value: string }).value);
-                setPhotoStudentId("");
-              }}
-            >
-              {siteOptions.map((site) => (
-                <MenuItem key={site.id} value={site.id}>
-                  {site.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth>
-            <InputLabel>Student (optional)</InputLabel>
-            <Select
-              value={photoStudentId}
-              label="Student (optional)"
-              onChange={(event) =>
-                setPhotoStudentId((event.target as unknown as { value: string }).value)
-              }
-            >
-              <MenuItem value="">All students at location</MenuItem>
-              {studentOptions.map((student) => (
-                <MenuItem key={student.id} value={student.id}>
-                  {student.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <TextField
-            fullWidth
-            label="Caption (optional)"
-            value={photoCaption}
-            onChange={(event) =>
-              setPhotoCaption((event.target as unknown as { value: string }).value)
-            }
-            placeholder="Group speech practice at library"
-          />
-
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Button component="label" variant="outlined">
-              Choose Photo
-              <input
-                hidden
-                type="file"
-                accept="image/*"
-                onChange={(event) => setPhotoFile(event.target.files?.[0] || null)}
-              />
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              {photoFile?.name || "No file selected"}
-            </Typography>
-          </Stack>
-        </Box>
-
-        <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
-          <Button
-            variant="contained"
-            onClick={() => uploadPhotoMutation.mutate()}
-            disabled={view !== "day" || !photoLocationId || !photoFile || uploadPhotoMutation.isPending}
-          >
-            {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photo"}
-          </Button>
-        </Stack>
-
-        {photoItems.length > 0 ? (
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" }, gap: 2 }}>
-            {photoItems.map((photo) => (
-              <Card key={photo.id} variant="outlined">
-                <Box
-                  component="img"
-                  src={photo.file_url}
-                  alt={photo.caption || photo.file_name}
-                  sx={{ width: "100%", height: 160, objectFit: "cover" }}
-                />
-                <CardContent>
-                  <Typography variant="body2" fontWeight={500}>
-                    {photo.location.name}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {photo.student ? `Student ${photo.student.initials}` : "Group photo"}
-                  </Typography>
-                  {photo.caption && (
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {photo.caption}
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
-        ) : (
-          <Typography color="text.secondary">No photos uploaded for this date yet.</Typography>
-        )}
-      </SectionCard>
-
-      {sessions.length === 0 ? (
-        <SectionCard>
-          <Typography color="text.secondary" sx={{ textAlign: "center" }}>
-            {view === "day" ? "No sessions scheduled for today." : "No sessions scheduled for this week."}
-          </Typography>
-        </SectionCard>
-      ) : (
-        <>
-          {view === "week" && sortedSessionDates.length > 0 && (
-            <SectionCard>
-              <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                Week At A Glance
-              </Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap flexWrap="wrap">
-                {sortedSessionDates.map((date) => {
-                  const totalForDay = sessionsByDay[date] ?? 0;
-                  const markedForDay = markedByDay[date] ?? 0;
-
-                  return (
-                    <Chip
-                      key={date}
-                      label={`${new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}: ${markedForDay}/${totalForDay} marked`}
-                      color={markedForDay === totalForDay ? "success" : "default"}
-                      variant={markedForDay === totalForDay ? "filled" : "outlined"}
-                    />
-                  );
-                })}
-              </Stack>
-            </SectionCard>
+        <SectionCard title="Session Photos" icon={<PhotoCameraIcon />}>
+          {view === "week" && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Photo uploads are available in Day view only.
+            </Alert>
           )}
 
-          {groupedSiteEntries.map(([groupKey, { session_date, site_name, sessions: siteSessions }]) => (
-            <SectionCard key={groupKey} noPadding>
-              <Box sx={{ px: 3, py: 2, bgcolor: "grey.100" }}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  {new Date(`${session_date}T00:00:00`).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </Typography>
-                <Typography variant="h6">{site_name}</Typography>
-              </Box>
-              <Divider />
-              <Box sx={{ p: 2 }}>
-                <Stack spacing={2}>
-                  {siteSessions.map((session) => (
-                    <Card
-                      key={`${session.schedule_id}-${session.student_id}`}
-                      variant="outlined"
-                      sx={{
-                        borderColor: session.attendance
-                          ? getStatusBorderColor(session.attendance.status)
-                          : "grey.300",
-                        borderWidth: session.attendance ? 2 : 1,
-                      }}
-                    >
-                      <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 2,
-                              cursor: "pointer",
-                              borderRadius: 1,
-                              p: 0.5,
-                              m: -0.5,
-                              "&:hover": {
-                                bgcolor: "action.hover",
-                              },
-                            }}
-                            onClick={() => navigate(`/teachers/students/${session.student_id}`)}
-                          >
-                            <Avatar sx={{ bgcolor: "primary.main", width: 48, height: 48 }}>
-                              {session.student_initials}
-                            </Avatar>
-
-                            <Box>
-                              <Typography variant="subtitle1" fontWeight="medium">
-                                {session.student_first_name} {session.student_last_name}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {formatTime(session.start_time)} - {formatTime(session.end_time)}
-                              </Typography>
-                            </Box>
-                          </Box>
-
-                          <Box sx={{ flex: 1 }} />
-
-                          {session.attendance ? (
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                              <Chip
-                                label={getStatusLabel(session.attendance.status)}
-                                color={getStatusColor(session.attendance.status)}
-                                size="small"
-                              />
-                              {session.attendance.reason && (
-                                <Typography variant="caption" color="text.secondary">
-                                  (
-                                  {
-                                    ABSENCE_REASONS.find(
-                                      (r) => r.value === session.attendance?.reason,
-                                    )?.label
-                                  }
-                                  )
-                                </Typography>
-                              )}
-                              {session.attendance.late_minutes && (
-                                <Typography variant="caption" color="text.secondary">
-                                  ({session.attendance.late_minutes} min late)
-                                </Typography>
-                              )}
-                              {session.attendance.sibling_participants &&
-                                session.attendance.sibling_participants.length > 0 && (
-                                  <Typography variant="caption" color="text.secondary">
-                                    Siblings: {session.attendance.sibling_participants.map((sp) => sp.name).join(", ")}
-                                  </Typography>
-                                )}
-                              <Button size="small" onClick={() => openSiblingDialog(session)}>
-                                Siblings
-                              </Button>
-                            </Box>
-                          ) : (
-                            <ButtonGroup variant="outlined" size="small">
-                              <Button
-                                color="success"
-                                onClick={() => handleMarkAttendance(session, "present")}
-                                startIcon={<CheckIcon />}
-                                disabled={markAttendanceMutation.isPending}
-                              >
-                                Present
-                              </Button>
-                              <Button
-                                color="inherit"
-                                onClick={() => openSiblingDialog(session)}
-                                disabled={markAttendanceMutation.isPending}
-                              >
-                                Siblings
-                              </Button>
-                              <Button
-                                color="warning"
-                                onClick={() => handleMarkAttendance(session, "late")}
-                                disabled={markAttendanceMutation.isPending}
-                              >
-                                Late
-                              </Button>
-                              <Button
-                                color="error"
-                                onClick={() => handleMarkAttendance(session, "no_show")}
-                                startIcon={<CloseIcon />}
-                                disabled={markAttendanceMutation.isPending}
-                              >
-                                No Show
-                              </Button>
-                              <Button
-                                color="inherit"
-                                onClick={() => handleMarkAttendance(session, "cancelled")}
-                                startIcon={<BlockIcon />}
-                                disabled={markAttendanceMutation.isPending}
-                              >
-                                Cancelled
-                              </Button>
-                            </ButtonGroup>
-                          )}
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Stack>
-              </Box>
-            </SectionCard>
-          ))}
-
-          {/* Sticky footer showing progress */}
-          <Paper
+          <Box
             sx={{
-              position: "fixed",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              p: 2,
-              borderTop: 1,
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              zIndex: 1000,
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: 2,
+              mb: 2,
             }}
-            elevation={3}
           >
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 2 }}>
-              <Typography variant="body1">
-                <strong>{markedCount}</strong> of <strong>{totalCount}</strong> marked
-              </Typography>
-              {markedCount === totalCount && totalCount > 0 && (
-                <Chip label="All Done!" color="success" size="small" />
-              )}
-            </Box>
-          </Paper>
+            <FormControl fullWidth>
+              <InputLabel>Location</InputLabel>
+              <Select
+                value={photoLocationId}
+                label="Location"
+                onChange={(event) => {
+                  setPhotoLocationId((event.target as unknown as { value: string }).value);
+                  setPhotoStudentId("");
+                }}
+              >
+                {siteOptions.map((site) => (
+                  <MenuItem key={site.id} value={site.id}>
+                    {site.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          {/* Add bottom padding to account for sticky footer */}
-          <Box sx={{ height: 80 }} />
-        </>
-      )}
+            <FormControl fullWidth>
+              <InputLabel>Student (optional)</InputLabel>
+              <Select
+                value={photoStudentId}
+                label="Student (optional)"
+                onChange={(event) =>
+                  setPhotoStudentId((event.target as unknown as { value: string }).value)
+                }
+              >
+                <MenuItem value="">All students at location</MenuItem>
+                {studentOptions.map((student) => (
+                  <MenuItem key={student.id} value={student.id}>
+                    {student.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Caption (optional)"
+              value={photoCaption}
+              onChange={(event) =>
+                setPhotoCaption((event.target as unknown as { value: string }).value)
+              }
+              placeholder="Group speech practice at library"
+            />
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button component="label" variant="outlined">
+                Choose Photo
+                <input
+                  hidden
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setPhotoFile(event.target.files?.[0] || null)}
+                />
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                {photoFile?.name || "No file selected"}
+              </Typography>
+            </Stack>
+          </Box>
+
+          <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
+            <Button
+              variant="contained"
+              onClick={() => uploadPhotoMutation.mutate()}
+              disabled={
+                view !== "day" || !photoLocationId || !photoFile || uploadPhotoMutation.isPending
+              }
+            >
+              {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photo"}
+            </Button>
+          </Stack>
+
+          {photoItems.length > 0 ? (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              {photoItems.map((photo) => (
+                <Card key={photo.id} variant="outlined">
+                  <Box
+                    component="img"
+                    src={photo.file_url}
+                    alt={photo.caption || photo.file_name}
+                    sx={{ width: "100%", height: 160, objectFit: "cover" }}
+                  />
+                  <CardContent>
+                    <Typography variant="body2" fontWeight={500}>
+                      {photo.location.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {photo.student ? `Student ${photo.student.initials}` : "Group photo"}
+                    </Typography>
+                    {photo.caption && (
+                      <Typography variant="body2" sx={{ mt: 0.5 }}>
+                        {photo.caption}
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          ) : (
+            <Typography color="text.secondary">No photos uploaded for this date yet.</Typography>
+          )}
+        </SectionCard>
+
+        {sessions.length === 0 ? (
+          <SectionCard>
+            <Typography color="text.secondary" sx={{ textAlign: "center" }}>
+              {view === "day"
+                ? "No sessions scheduled for today."
+                : "No sessions scheduled for this week."}
+            </Typography>
+          </SectionCard>
+        ) : (
+          <>
+            {view === "week" && sortedSessionDates.length > 0 && (
+              <SectionCard>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                  Week At A Glance
+                </Typography>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  useFlexGap
+                  flexWrap="wrap"
+                >
+                  {sortedSessionDates.map((date) => {
+                    const totalForDay = sessionsByDay[date] ?? 0;
+                    const markedForDay = markedByDay[date] ?? 0;
+
+                    return (
+                      <Chip
+                        key={date}
+                        label={`${new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })}: ${markedForDay}/${totalForDay} marked`}
+                        color={markedForDay === totalForDay ? "success" : "default"}
+                        variant={markedForDay === totalForDay ? "filled" : "outlined"}
+                      />
+                    );
+                  })}
+                </Stack>
+              </SectionCard>
+            )}
+
+            {groupedSiteEntries.map(
+              ([groupKey, { session_date, site_name, sessions: siteSessions }]) => (
+                <SectionCard key={groupKey} noPadding>
+                  <Box sx={{ px: 3, py: 2, bgcolor: "grey.100" }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      {new Date(`${session_date}T00:00:00`).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Typography>
+                    <Typography variant="h6">{site_name}</Typography>
+                  </Box>
+                  <Divider />
+                  <Box sx={{ p: 2 }}>
+                    <Stack spacing={2}>
+                      {siteSessions.map((session) => (
+                        <Card
+                          key={`${session.schedule_id}-${session.student_id}`}
+                          variant="outlined"
+                          sx={{
+                            borderColor: session.attendance
+                              ? getStatusBorderColor(session.attendance.status)
+                              : "grey.300",
+                            borderWidth: session.attendance ? 2 : 1,
+                          }}
+                        >
+                          <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 2,
+                                  cursor: "pointer",
+                                  borderRadius: 1,
+                                  p: 0.5,
+                                  m: -0.5,
+                                  "&:hover": {
+                                    bgcolor: "action.hover",
+                                  },
+                                }}
+                                onClick={() => navigate(`/teachers/students/${session.student_id}`)}
+                              >
+                                <Avatar sx={{ bgcolor: "primary.main", width: 48, height: 48 }}>
+                                  {session.student_initials}
+                                </Avatar>
+
+                                <Box>
+                                  <Typography variant="subtitle1" fontWeight="medium">
+                                    {session.student_first_name} {session.student_last_name}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {formatTime(session.start_time)} -{" "}
+                                    {formatTime(session.end_time)}
+                                  </Typography>
+                                </Box>
+                              </Box>
+
+                              <Box sx={{ flex: 1 }} />
+
+                              {session.attendance ? (
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                  <Chip
+                                    label={getStatusLabel(session.attendance.status)}
+                                    color={getStatusColor(session.attendance.status)}
+                                    size="small"
+                                  />
+                                  {session.attendance.reason && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      (
+                                      {
+                                        ABSENCE_REASONS.find(
+                                          (r) => r.value === session.attendance?.reason,
+                                        )?.label
+                                      }
+                                      )
+                                    </Typography>
+                                  )}
+                                  {session.attendance.late_minutes && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      ({session.attendance.late_minutes} min late)
+                                    </Typography>
+                                  )}
+                                  {session.attendance.sibling_participants &&
+                                    session.attendance.sibling_participants.length > 0 && (
+                                      <Typography variant="caption" color="text.secondary">
+                                        Siblings:{" "}
+                                        {session.attendance.sibling_participants
+                                          .map((sp) => sp.name)
+                                          .join(", ")}
+                                      </Typography>
+                                    )}
+                                  <Button size="small" onClick={() => openSiblingDialog(session)}>
+                                    Siblings
+                                  </Button>
+                                </Box>
+                              ) : (
+                                <ButtonGroup variant="outlined" size="small">
+                                  <Button
+                                    color="success"
+                                    onClick={() => handleMarkAttendance(session, "present")}
+                                    startIcon={<CheckIcon />}
+                                    disabled={markAttendanceMutation.isPending}
+                                  >
+                                    Present
+                                  </Button>
+                                  <Button
+                                    color="inherit"
+                                    onClick={() => openSiblingDialog(session)}
+                                    disabled={markAttendanceMutation.isPending}
+                                  >
+                                    Siblings
+                                  </Button>
+                                  <Button
+                                    color="warning"
+                                    onClick={() => handleMarkAttendance(session, "late")}
+                                    disabled={markAttendanceMutation.isPending}
+                                  >
+                                    Late
+                                  </Button>
+                                  <Button
+                                    color="error"
+                                    onClick={() => handleMarkAttendance(session, "no_show")}
+                                    startIcon={<CloseIcon />}
+                                    disabled={markAttendanceMutation.isPending}
+                                  >
+                                    No Show
+                                  </Button>
+                                  <Button
+                                    color="inherit"
+                                    onClick={() => handleMarkAttendance(session, "cancelled")}
+                                    startIcon={<BlockIcon />}
+                                    disabled={markAttendanceMutation.isPending}
+                                  >
+                                    Cancelled
+                                  </Button>
+                                </ButtonGroup>
+                              )}
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </Stack>
+                  </Box>
+                </SectionCard>
+              ),
+            )}
+
+            {/* Sticky footer showing progress */}
+            <Paper
+              sx={{
+                position: "fixed",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                p: 2,
+                borderTop: 1,
+                borderColor: "divider",
+                bgcolor: "background.paper",
+                zIndex: 1000,
+              }}
+              elevation={3}
+            >
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 2 }}>
+                <Typography variant="body1">
+                  <strong>{markedCount}</strong> of <strong>{totalCount}</strong> marked
+                </Typography>
+                {markedCount === totalCount && totalCount > 0 && (
+                  <Chip label="All Done!" color="success" size="small" />
+                )}
+              </Box>
+            </Paper>
+
+            {/* Add bottom padding to account for sticky footer */}
+            <Box sx={{ height: 80 }} />
+          </>
+        )}
       </Stack>
 
       {/* Reason Dialog */}
@@ -1120,11 +1157,7 @@ export default function MyDayPage() {
 
             <FormControl fullWidth required>
               <InputLabel>Reason</InputLabel>
-              <Select
-                value={selectedReason}
-                label="Reason"
-                onChange={handleReasonChange}
-              >
+              <Select value={selectedReason} label="Reason" onChange={handleReasonChange}>
                 {ABSENCE_REASONS.map((reason) => (
                   <MenuItem key={reason.value} value={reason.value}>
                     {reason.label}
@@ -1158,7 +1191,12 @@ export default function MyDayPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={lateDialogOpen} onClose={() => setLateDialogOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={lateDialogOpen}
+        onClose={() => setLateDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Mark as Late</DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
@@ -1171,7 +1209,9 @@ export default function MyDayPage() {
                 value={String(selectedLateMinutes)}
                 label="Late By"
                 onChange={(event) =>
-                  setSelectedLateMinutes(Number((event.target as unknown as { value: string }).value))
+                  setSelectedLateMinutes(
+                    Number((event.target as unknown as { value: string }).value),
+                  )
                 }
               >
                 <MenuItem value="10">10 minutes</MenuItem>
@@ -1215,7 +1255,12 @@ export default function MyDayPage() {
         }
       />
 
-      <Dialog open={sickDayDialogOpen} onClose={() => setSickDayDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={sickDayDialogOpen}
+        onClose={() => setSickDayDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Report Sick Day</DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
@@ -1260,7 +1305,12 @@ export default function MyDayPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={siblingDialogOpen} onClose={() => setSiblingDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={siblingDialogOpen}
+        onClose={() => setSiblingDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Sibling Participants</DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
