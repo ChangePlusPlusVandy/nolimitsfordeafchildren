@@ -6,11 +6,12 @@
  * SAFE: Does NOT delete existing users
  *
  * Run with: npm run db:seed-demo
+ * Also runs automatically on server start (see server.ts)
  */
 
 import "dotenv/config";
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "./index";
 import {
   UserTable,
@@ -18,16 +19,28 @@ import {
   TeacherProfileTable,
   ParentProfileTable,
   StudentTable,
+  SiblingTable,
+  SessionTable,
   ScheduleTable,
   EnrollmentTable,
   TeacherStudentTable,
   ParentStudentLinkTable,
+  TeacherLocationTable,
   AttendanceTable,
+  AttendanceSiblingParticipantTable,
   SessionNoteTable,
   AssessmentTable,
+  AssessmentFocusTable,
+  DocumentTable,
   BulletinTable,
+  BulletinViewTable,
+  BulletinAcknowledgementTable,
+  TeacherSickDayNoticeTable,
+  ChatMessageTable,
   MakeupRequestTable,
+  MakeupSessionTable,
   ScheduleChangeRequestTable,
+  ScheduleChangeRequestEventTable,
 } from "./schema";
 
 // ==================== TEST USER EMAILS ====================
@@ -48,6 +61,12 @@ const randomElement = <T>(arr: readonly T[] | T[]): T =>
 
 const randomInt = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
+
+const daysAgo = (n: number): Date => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+};
 
 // ==================== LA AREA LOCATIONS ====================
 
@@ -628,16 +647,76 @@ const LA_LOCATIONS: LocationData[] = [
 // ==================== STUDENT DATA ====================
 
 const STUDENT_DATA = [
-  { firstName: "Emma", lastName: "Johnson", age: 5 },
-  { firstName: "Liam", lastName: "Williams", age: 7 },
-  { firstName: "Olivia", lastName: "Brown", age: 4 },
-  { firstName: "Noah", lastName: "Garcia", age: 8 },
-  { firstName: "Ava", lastName: "Martinez", age: 6 },
-  { firstName: "Ethan", lastName: "Davis", age: 9 },
-  { firstName: "Sophia", lastName: "Rodriguez", age: 3 },
-  { firstName: "Mason", lastName: "Wilson", age: 10 },
-  { firstName: "Isabella", lastName: "Anderson", age: 5 },
-  { firstName: "Lucas", lastName: "Taylor", age: 7 },
+  {
+    firstName: "Emma",
+    lastName: "Johnson",
+    age: 5,
+    devices: ["Cochlear Implant"],
+    lossType: "profound" as const,
+  },
+  {
+    firstName: "Liam",
+    lastName: "Williams",
+    age: 7,
+    devices: ["Hearing Aid", "BAHA"],
+    lossType: "severe" as const,
+  },
+  {
+    firstName: "Olivia",
+    lastName: "Brown",
+    age: 4,
+    devices: ["Cochlear Implant"],
+    lossType: "profound" as const,
+  },
+  {
+    firstName: "Noah",
+    lastName: "Garcia",
+    age: 8,
+    devices: ["Hearing Aid"],
+    lossType: "moderate" as const,
+  },
+  {
+    firstName: "Ava",
+    lastName: "Martinez",
+    age: 6,
+    devices: ["Cochlear Implant", "Hearing Aid"],
+    lossType: "severe" as const,
+  },
+  {
+    firstName: "Ethan",
+    lastName: "Davis",
+    age: 9,
+    devices: ["BAHA"],
+    lossType: "moderately_severe" as const,
+  },
+  {
+    firstName: "Sophia",
+    lastName: "Rodriguez",
+    age: 3,
+    devices: ["Hearing Aid"],
+    lossType: "moderate" as const,
+  },
+  {
+    firstName: "Mason",
+    lastName: "Wilson",
+    age: 10,
+    devices: ["Cochlear Implant"],
+    lossType: "profound" as const,
+  },
+  {
+    firstName: "Isabella",
+    lastName: "Anderson",
+    age: 5,
+    devices: ["Hearing Aid"],
+    lossType: "mild" as const,
+  },
+  {
+    firstName: "Lucas",
+    lastName: "Taylor",
+    age: 7,
+    devices: ["Cochlear Implant", "BAHA"],
+    lossType: "severe" as const,
+  },
 ];
 
 // ==================== SESSION NOTE TEMPLATES ====================
@@ -682,58 +761,126 @@ const generateAssessmentFocus = (): string => {
   return focus;
 };
 
+// ==================== ASSESSMENT FOCUS GOALS ====================
+
+const FOCUS_GOALS = [
+  { goal: "Produces /s/ in initial position", maxScore: 10 },
+  { goal: "Produces /r/ blends accurately", maxScore: 10 },
+  { goal: "Uses 4-5 word sentences", maxScore: 10 },
+  { goal: "Follows 2-step directions", maxScore: 10 },
+  { goal: "Identifies environmental sounds", maxScore: 10 },
+  { goal: "Responds to name from 3 feet", maxScore: 5 },
+  { goal: "Imitates 3-syllable words", maxScore: 10 },
+  { goal: "Uses past tense verbs", maxScore: 10 },
+  { goal: "Answers wh- questions", maxScore: 5 },
+  { goal: "Produces /th/ in final position", maxScore: 10 },
+];
+
 // ==================== BULLETIN DATA ====================
 
 const BULLETIN_DATA = [
   {
     title: "Welcome to the New Cycle!",
     body: "We're excited to start a new 10-week teaching cycle. Please ensure all audiograms are up to date.",
+    roleTarget: "all" as const,
+    requiresInitials: false,
   },
   {
     title: "Holiday Schedule Update",
     body: "Please note the upcoming holiday schedule changes. Sessions will resume on January 6th.",
+    roleTarget: "all" as const,
+    requiresInitials: false,
   },
   {
     title: "New Assessment Guidelines",
     body: "Please review the updated assessment scoring rubric before completing assessments this cycle.",
+    roleTarget: "teacher" as const,
+    requiresInitials: false,
   },
   {
     title: "Parent Workshop Announcement",
-    body: "Join us for an informative workshop on January 15th. Refreshments will be provided.",
+    body: "Join us for an informative workshop on supporting your child's speech development at home. Refreshments will be provided. Please RSVP by confirming below.",
+    roleTarget: "parent" as const,
+    requiresInitials: true,
   },
   {
     title: "Summer Program Registration",
     body: "Registration is now open for our summer program. Space is limited, so sign up early!",
+    roleTarget: "all" as const,
+    requiresInitials: false,
   },
   {
     title: "Staff Training Notice",
-    body: "Staff members should plan to attend the upcoming training session on January 20th.",
+    body: "Staff members should plan to attend the upcoming training session on the new assessment platform.",
+    roleTarget: "teacher" as const,
+    requiresInitials: false,
   },
   {
-    title: "Schedule Changes for Next Month",
-    body: "Please review the schedule changes that will take effect next month.",
+    title: "Important: Audiogram Compliance Reminder",
+    body: "All parents must submit updated audiograms every 6 months. Several students are past due. Please upload your child's most recent audiogram through the app immediately.",
+    roleTarget: "parent" as const,
+    requiresInitials: true,
   },
   {
     title: "Graduation Ceremony Details",
-    body: "Mark your calendars for our upcoming graduation ceremony on February 1st!",
+    body: "Mark your calendars for our upcoming graduation ceremony! Students will present their graduation speeches.",
+    roleTarget: "all" as const,
+    requiresInitials: false,
   },
   {
     title: "New Resource Materials Available",
     body: "New learning materials are now available. Ask your teacher for more information.",
+    roleTarget: "all" as const,
+    requiresInitials: false,
   },
   {
     title: "Health and Safety Guidelines",
     body: "Please review the updated health and safety guidelines for all participants.",
+    roleTarget: "all" as const,
+    requiresInitials: false,
+  },
+];
+
+// ==================== CHAT MESSAGE DATA ====================
+
+const CHAT_MESSAGES = [
+  {
+    fromRole: "admin",
+    message: "Good morning everyone! Reminder that assessments are due by end of this cycle.",
+    isAnnouncement: true,
+  },
+  { fromRole: "teacher", message: "Thanks for the reminder. I have 3 students left to complete." },
+  {
+    fromRole: "admin",
+    message: "Great, let me know if you need any help with the scoring rubric.",
+  },
+  {
+    fromRole: "teacher",
+    message: "Quick question - should we use the updated rubric for the post-assessments too?",
+  },
+  {
+    fromRole: "admin",
+    message: "Yes, use the updated rubric for both pre and post going forward.",
+  },
+  {
+    fromRole: "teacher",
+    message:
+      "Got it, thanks! Also, Emma Johnson has been making amazing progress this cycle. Her /s/ production improved from 3/10 to 8/10.",
+  },
+  {
+    fromRole: "admin",
+    message:
+      "That's wonderful to hear! Make sure to document that in the session notes for her parents to see.",
   },
 ];
 
 // ==================== MAIN SEED FUNCTION ====================
 
-async function seedDemo() {
-  console.log("🌱 Starting production demo seed...\n");
+export async function seedDemo() {
+  console.log("Starting production demo seed...\n");
 
   // Step 1: Look up real users
-  console.log("👤 Looking up real users...");
+  console.log("Looking up real users...");
 
   const [adminUser] = await db
     .select()
@@ -748,32 +895,24 @@ async function seedDemo() {
     .from(UserTable)
     .where(eq(UserTable.email, TEST_USERS.PARENT));
 
-  if (!adminUser) {
-    console.error(`❌ Admin user not found: ${TEST_USERS.ADMIN}`);
-    process.exit(1);
-  }
-  if (!teacherUser) {
-    console.error(`❌ Teacher user not found: ${TEST_USERS.TEACHER}`);
-    process.exit(1);
-  }
-  if (!parentUser) {
-    console.error(`❌ Parent user not found: ${TEST_USERS.PARENT}`);
-    process.exit(1);
+  if (!adminUser || !teacherUser || !parentUser) {
+    console.log("  Test users not found yet -- skipping demo seed (run db:seed-users first)");
+    return;
   }
 
-  console.log(`  ✓ Admin: ${adminUser.name} (${adminUser.id})`);
-  console.log(`  ✓ Teacher: ${teacherUser.name} (${teacherUser.id})`);
-  console.log(`  ✓ Parent: ${parentUser.name} (${parentUser.id})`);
+  console.log(`  Admin: ${adminUser.name} (${adminUser.id})`);
+  console.log(`  Teacher: ${teacherUser.name} (${teacherUser.id})`);
+  console.log(`  Parent: ${parentUser.name} (${parentUser.id})`);
 
   // Step 2: Check/Create Teacher Profile
-  console.log("\n👩‍🏫 Setting up teacher profile...");
+  console.log("\nSetting up teacher profile...");
   let [teacherProfile] = await db
     .select()
     .from(TeacherProfileTable)
     .where(eq(TeacherProfileTable.user_id, teacherUser.id));
 
   // Step 3: Check/Create Locations (only if none exist)
-  console.log("\n📍 Setting up locations...");
+  console.log("\nSetting up locations...");
   const existingLocations = await db.select().from(LocationTable);
 
   let locations: typeof existingLocations;
@@ -799,10 +938,10 @@ async function seedDemo() {
     }));
     await db.insert(LocationTable).values(locationData);
     locations = await db.select().from(LocationTable);
-    console.log(`  ✓ Created ${locations.length} locations`);
+    console.log(`  Created ${locations.length} locations`);
   } else {
     locations = existingLocations;
-    console.log(`  ✓ Using ${locations.length} existing locations`);
+    console.log(`  Using ${locations.length} existing locations`);
   }
 
   const primarySite = locations[0]!;
@@ -816,20 +955,40 @@ async function seedDemo() {
         id: randomUUID(),
         user_id: teacherUser.id,
         primary_site_id: primarySite.id,
-        bio: "Dedicated educator with 8 years of experience helping deaf children learn to speak.",
-        qualifications: "M.S. in Speech-Language Pathology",
+        bio: "Dedicated educator with 8 years of experience helping deaf children learn to speak. Specializes in auditory-verbal therapy and early intervention.",
+        qualifications: "M.S. in Speech-Language Pathology, University of Southern California",
         credentials: "CCC-SLP, LSLS Cert. AVT",
         age_group_specialty: "elementary",
       })
       .returning();
     teacherProfile = newProfile!;
-    console.log(`  ✓ Created teacher profile: ${teacherProfile.id}`);
+    console.log(`  Created teacher profile: ${teacherProfile.id}`);
   } else {
-    console.log(`  ✓ Teacher profile exists: ${teacherProfile.id}`);
+    console.log(`  Teacher profile exists: ${teacherProfile.id}`);
+  }
+
+  // Step 3b: Teacher Locations
+  console.log("\nSetting up teacher locations...");
+  const existingTeacherLocations = await db
+    .select()
+    .from(TeacherLocationTable)
+    .where(eq(TeacherLocationTable.teacher_profile_id, teacherProfile.id));
+
+  if (existingTeacherLocations.length === 0) {
+    console.log("  Assigning teacher to 3 locations...");
+    const teacherLocationData = [locations[0]!, locations[1]!, locations[2]!].map((loc) => ({
+      id: randomUUID(),
+      teacher_profile_id: teacherProfile!.id,
+      location_id: loc.id,
+    }));
+    await db.insert(TeacherLocationTable).values(teacherLocationData);
+    console.log(`  Assigned teacher to ${teacherLocationData.length} locations`);
+  } else {
+    console.log(`  Using ${existingTeacherLocations.length} existing teacher locations`);
   }
 
   // Step 4: Check/Create Parent Profile
-  console.log("\n👨‍👩‍👧 Setting up parent profile...");
+  console.log("\nSetting up parent profile...");
   let [parentProfile] = await db
     .select()
     .from(ParentProfileTable)
@@ -842,29 +1001,79 @@ async function seedDemo() {
       .values({
         id: randomUUID(),
         user_id: parentUser.id,
+        address_line1: "1234 Maple Drive",
+        city: "Los Angeles",
+        state: "CA",
+        postal_code: "90071",
         household_notes: "Prefers morning sessions. Both parents work from home.",
         preferred_contact_method: "email",
       })
       .returning();
     parentProfile = newProfile!;
-    console.log(`  ✓ Created parent profile: ${parentProfile.id}`);
+    console.log(`  Created parent profile: ${parentProfile.id}`);
   } else {
-    console.log(`  ✓ Parent profile exists: ${parentProfile.id}`);
+    // Update address if missing
+    if (!parentProfile.address_line1) {
+      await db
+        .update(ParentProfileTable)
+        .set({
+          address_line1: "1234 Maple Drive",
+          city: "Los Angeles",
+          state: "CA",
+          postal_code: "90071",
+        })
+        .where(eq(ParentProfileTable.id, parentProfile.id));
+      console.log(`  Updated parent profile address`);
+    }
+    console.log(`  Parent profile exists: ${parentProfile.id}`);
   }
 
-  // Step 5: Check/Create Students
-  console.log("\n🧒 Setting up students...");
+  // Step 5: Session (semester/cycle)
+  console.log("\nSetting up session (10-week cycle)...");
+  const existingSessions = await db.select().from(SessionTable);
+
+  let session: (typeof existingSessions)[0];
+  if (existingSessions.length === 0) {
+    const cycleStart = new Date();
+    cycleStart.setDate(cycleStart.getDate() - (cycleStart.getDay() || 7) + 1); // Monday of this week
+    cycleStart.setDate(cycleStart.getDate() - 14); // Start 2 weeks ago so there's existing data
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setDate(cycleEnd.getDate() + 69); // 10 weeks
+
+    const [newSession] = await db
+      .insert(SessionTable)
+      .values({
+        id: randomUUID(),
+        name: "Spring 2026 - Cycle 3",
+        start_date: formatDate(cycleStart),
+        end_date: formatDate(cycleEnd),
+        is_active: true,
+        is_archived: false,
+      })
+      .returning();
+    session = newSession!;
+    console.log(
+      `  Created session: ${session.name} (${session.start_date} to ${session.end_date})`,
+    );
+  } else {
+    session = existingSessions[0]!;
+    console.log(`  Using existing session: ${session.name}`);
+  }
+
+  // Step 6: Check/Create Students
+  console.log("\nSetting up students...");
   const existingStudents = await db.select().from(StudentTable);
 
   let students: typeof existingStudents;
   if (existingStudents.length === 0) {
     console.log("  Creating 10 demo students...");
     const today = new Date();
-    const studentData = STUDENT_DATA.map((s, i) => {
+    // All students at the primary site so parent/teacher/admin views align
+    const studentData = STUDENT_DATA.map((s) => {
       const dob = new Date(today.getFullYear() - s.age, randomInt(0, 11), randomInt(1, 28));
       return {
         id: randomUUID(),
-        site_id: locations[i % locations.length]!.id,
+        site_id: primarySite.id, // All at teacher's primary site
         first_name: s.firstName,
         last_name: s.lastName,
         initials: `${s.firstName[0]}${s.lastName[0]}`,
@@ -876,20 +1085,82 @@ async function seedDemo() {
           "Oak Tree School",
         ]),
         preferred_language: "English",
-        guardian_summary: `Lives with parents in ${locations[i % locations.length]!.city}`,
+        hearing_devices: s.devices,
+        hearing_loss_type: s.lossType,
+        guardian_summary: `Lives with parents in Los Angeles`,
         is_active: true,
       };
     });
     await db.insert(StudentTable).values(studentData);
     students = await db.select().from(StudentTable);
-    console.log(`  ✓ Created ${students.length} students`);
+    console.log(`  Created ${students.length} students`);
   } else {
     students = existingStudents;
-    console.log(`  ✓ Using ${students.length} existing students`);
+    // Update hearing info if missing
+    for (let i = 0; i < Math.min(students.length, STUDENT_DATA.length); i++) {
+      const student = students[i]!;
+      const data = STUDENT_DATA[i]!;
+      if (!student.hearing_loss_type || student.hearing_devices.length === 0) {
+        await db
+          .update(StudentTable)
+          .set({
+            hearing_devices: data.devices,
+            hearing_loss_type: data.lossType,
+            site_id: primarySite.id,
+          })
+          .where(eq(StudentTable.id, student.id));
+      }
+    }
+    console.log(`  Using ${students.length} existing students (updated hearing info)`);
   }
 
-  // Step 6: Create Schedules for teacher
-  console.log("\n📅 Setting up schedules...");
+  // Step 7: Siblings
+  console.log("\nSetting up siblings...");
+  const existingSiblings = await db.select().from(SiblingTable);
+
+  let siblings: typeof existingSiblings;
+  if (existingSiblings.length === 0 && students.length >= 2) {
+    console.log("  Creating siblings...");
+    const siblingData = [
+      {
+        student_id: students[0]!.id,
+        name: "Jake Johnson",
+        age: 8,
+        relationship: "brother",
+        is_participant: true,
+        has_hearing_loss: false,
+        notes: "Attends sessions to support Emma",
+      },
+      {
+        student_id: students[0]!.id,
+        name: "Mia Johnson",
+        age: 3,
+        relationship: "sister",
+        is_participant: true,
+        has_hearing_loss: true,
+        notes: "Recently diagnosed, starting therapy next cycle",
+      },
+      {
+        student_id: students[1]!.id,
+        name: "Owen Williams",
+        age: 5,
+        relationship: "brother",
+        is_participant: true,
+        has_hearing_loss: false,
+        notes: "Very supportive during sessions",
+      },
+    ].map((s) => ({ id: randomUUID(), ...s }));
+    await db.insert(SiblingTable).values(siblingData);
+    siblings = await db.select().from(SiblingTable);
+    console.log(`  Created ${siblings.length} siblings`);
+  } else {
+    siblings = existingSiblings;
+    console.log(`  Using ${siblings.length} existing siblings`);
+  }
+
+  // Step 8: Create Schedules for teacher
+  // Use day_of_week_mask = 62 (Mon-Fri, bits 1-5) so demo works any weekday
+  console.log("\nSetting up schedules...");
   const existingSchedules = await db
     .select()
     .from(ScheduleTable)
@@ -898,19 +1169,18 @@ async function seedDemo() {
   let schedules: typeof existingSchedules;
   if (existingSchedules.length === 0) {
     console.log("  Creating 3 schedules for teacher...");
-    const cycleStart = new Date();
-    cycleStart.setDate(cycleStart.getDate() - (cycleStart.getDay() || 7) + 1);
-    const cycleEnd = new Date(cycleStart);
-    cycleEnd.setDate(cycleEnd.getDate() + 69);
+    const cycleStart = new Date(session.start_date);
+    const cycleEnd = new Date(session.end_date);
 
     const scheduleData = [
-      { dayMask: 37, startTime: "09:00:00", endTime: "10:00:00" }, // M/W/S morning
-      { dayMask: 37, startTime: "10:00:00", endTime: "11:00:00" }, // M/W/S mid-morning
-      { dayMask: 37, startTime: "14:00:00", endTime: "15:00:00" }, // M/W/S afternoon
+      { dayMask: 62, startTime: "09:00:00", endTime: "10:00:00" }, // Mon-Fri morning
+      { dayMask: 62, startTime: "10:30:00", endTime: "11:30:00" }, // Mon-Fri mid-morning
+      { dayMask: 62, startTime: "14:00:00", endTime: "15:00:00" }, // Mon-Fri afternoon
     ].map((s) => ({
       id: randomUUID(),
       teacher_id: teacherProfile!.id,
       site_id: primarySite.id,
+      session_id: session.id,
       day_of_week_mask: s.dayMask,
       start_time: s.startTime,
       end_time: s.endTime,
@@ -923,14 +1193,31 @@ async function seedDemo() {
       .select()
       .from(ScheduleTable)
       .where(eq(ScheduleTable.teacher_id, teacherProfile.id));
-    console.log(`  ✓ Created ${schedules.length} schedules`);
+    console.log(`  Created ${schedules.length} schedules`);
   } else {
-    schedules = existingSchedules;
-    console.log(`  ✓ Using ${schedules.length} existing schedules`);
+    // Update existing schedules to use Mon-Fri mask and current cycle dates
+    const cycleStart = new Date(session.start_date);
+    const cycleEnd = new Date(session.end_date);
+    for (const sched of existingSchedules) {
+      await db
+        .update(ScheduleTable)
+        .set({
+          day_of_week_mask: 62,
+          session_id: session.id,
+          cycle_start_date: formatDate(cycleStart),
+          cycle_end_date: formatDate(cycleEnd),
+        })
+        .where(eq(ScheduleTable.id, sched.id));
+    }
+    schedules = await db
+      .select()
+      .from(ScheduleTable)
+      .where(eq(ScheduleTable.teacher_id, teacherProfile.id));
+    console.log(`  Updated ${schedules.length} existing schedules (Mon-Fri, current cycle)`);
   }
 
-  // Step 7: Create Enrollments (link students to schedules)
-  console.log("\n📝 Setting up enrollments...");
+  // Step 9: Create Enrollments (link students to schedules)
+  console.log("\nSetting up enrollments...");
   const existingEnrollments = await db.select().from(EnrollmentTable);
 
   if (existingEnrollments.length === 0) {
@@ -941,13 +1228,13 @@ async function seedDemo() {
       schedule_id: schedules[i % schedules.length]!.id,
     }));
     await db.insert(EnrollmentTable).values(enrollmentData);
-    console.log(`  ✓ Created ${enrollmentData.length} enrollments`);
+    console.log(`  Created ${enrollmentData.length} enrollments`);
   } else {
-    console.log(`  ✓ Using ${existingEnrollments.length} existing enrollments`);
+    console.log(`  Using ${existingEnrollments.length} existing enrollments`);
   }
 
-  // Step 8: Create Teacher-Student Links
-  console.log("\n🔗 Setting up teacher-student links...");
+  // Step 10: Create Teacher-Student Links
+  console.log("\nSetting up teacher-student links...");
   const existingTeacherStudentLinks = await db
     .select()
     .from(TeacherStudentTable)
@@ -961,13 +1248,13 @@ async function seedDemo() {
       student_id: student.id,
     }));
     await db.insert(TeacherStudentTable).values(linkData);
-    console.log(`  ✓ Created ${linkData.length} teacher-student links`);
+    console.log(`  Created ${linkData.length} teacher-student links`);
   } else {
-    console.log(`  ✓ Using ${existingTeacherStudentLinks.length} existing links`);
+    console.log(`  Using ${existingTeacherStudentLinks.length} existing links`);
   }
 
-  // Step 9: Create Parent-Student Links (first 3 students linked to parent)
-  console.log("\n👨‍👩‍👧 Setting up parent-student links...");
+  // Step 11: Create Parent-Student Links (first 3 students linked to parent)
+  console.log("\nSetting up parent-student links...");
   const existingParentStudentLinks = await db
     .select()
     .from(ParentStudentLinkTable)
@@ -983,23 +1270,24 @@ async function seedDemo() {
       is_primary: i === 0,
     }));
     await db.insert(ParentStudentLinkTable).values(linkData);
-    console.log(`  ✓ Created ${linkData.length} parent-student links`);
+    console.log(`  Created ${linkData.length} parent-student links`);
   } else {
-    console.log(`  ✓ Using ${existingParentStudentLinks.length} existing links`);
+    console.log(`  Using ${existingParentStudentLinks.length} existing links`);
   }
 
-  // Step 10: Create Attendance Records
-  console.log("\n✅ Setting up attendance records...");
+  // Step 12: Create Attendance Records
+  console.log("\nSetting up attendance records...");
   const existingAttendance = await db.select().from(AttendanceTable);
 
   if (existingAttendance.length === 0) {
-    console.log("  Creating 60 attendance records...");
-    const today = new Date();
+    console.log("  Creating 80 attendance records...");
     const attendanceStatuses = [
       "present",
       "present",
       "present",
       "present",
+      "present",
+      "late",
       "no_show",
       "cancelled",
     ] as const;
@@ -1009,15 +1297,13 @@ async function seedDemo() {
       "transportation",
       "schedule_conflict",
     ] as const;
-
     const enrollments = await db.select().from(EnrollmentTable);
     const attendanceData = [];
 
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
       const enrollment = enrollments[i % enrollments.length]!;
-      const daysAgo = randomInt(1, 45);
-      const sessionDate = new Date(today);
-      sessionDate.setDate(sessionDate.getDate() - daysAgo);
+      const ago = randomInt(1, 30);
+      const sessionDate = daysAgo(ago);
       const status = randomElement(attendanceStatuses);
 
       attendanceData.push({
@@ -1026,27 +1312,60 @@ async function seedDemo() {
         schedule_id: enrollment.schedule_id,
         session_date: formatDate(sessionDate),
         status,
-        reason: status !== "present" ? randomElement(absenceReasons) : null,
+        late_minutes: status === "late" ? randomInt(5, 20) : null,
+        reason: status !== "present" && status !== "late" ? randomElement(absenceReasons) : null,
         reason_text:
-          status !== "present"
+          status === "no_show" || status === "cancelled"
             ? randomElement(["Had a cold", "Family event", "Car trouble", null])
             : null,
         marked_by: teacherUser.id,
       });
     }
     await db.insert(AttendanceTable).values(attendanceData);
-    console.log(`  ✓ Created ${attendanceData.length} attendance records`);
+    console.log(`  Created ${attendanceData.length} attendance records`);
   } else {
-    console.log(`  ✓ Using ${existingAttendance.length} existing records`);
+    console.log(`  Using ${existingAttendance.length} existing records`);
   }
 
-  // Step 11: Create Session Notes
-  console.log("\n📝 Setting up session notes...");
+  // Step 12b: Attendance Sibling Participants
+  console.log("\nSetting up attendance sibling participants...");
+  const existingSiblingParticipants = await db.select().from(AttendanceSiblingParticipantTable);
+
+  if (existingSiblingParticipants.length === 0 && siblings.length > 0) {
+    const allAttendance = await db.select().from(AttendanceTable);
+    // Find attendance records for students that have siblings
+    const studentIdsWithSiblings = [...new Set(siblings.map((s) => s.student_id))];
+    const relevantAttendance = allAttendance.filter(
+      (a) => studentIdsWithSiblings.includes(a.student_id) && a.status === "present",
+    );
+
+    if (relevantAttendance.length > 0) {
+      const participantData = [];
+      for (const att of relevantAttendance.slice(0, 8)) {
+        const studentSiblings = siblings.filter((s) => s.student_id === att.student_id);
+        for (const sib of studentSiblings) {
+          participantData.push({
+            id: randomUUID(),
+            attendance_id: att.id,
+            sibling_id: sib.id,
+          });
+        }
+      }
+      if (participantData.length > 0) {
+        await db.insert(AttendanceSiblingParticipantTable).values(participantData);
+        console.log(`  Created ${participantData.length} sibling participation records`);
+      }
+    }
+  } else {
+    console.log(`  Using ${existingSiblingParticipants.length} existing sibling participants`);
+  }
+
+  // Step 13: Create Session Notes
+  console.log("\nSetting up session notes...");
   const existingNotes = await db.select().from(SessionNoteTable);
 
   if (existingNotes.length === 0) {
     console.log("  Creating 30 session notes...");
-    const today = new Date();
     const enrollments = await db.select().from(EnrollmentTable);
     const noteData = [];
 
@@ -1055,9 +1374,8 @@ async function seedDemo() {
       const enrollment = enrollments.find((e) => e.student_id === student.id);
       if (!enrollment) continue;
 
-      const daysAgo = randomInt(1, 45);
-      const sessionDate = new Date(today);
-      sessionDate.setDate(sessionDate.getDate() - daysAgo);
+      const ago = randomInt(1, 30);
+      const sessionDate = daysAgo(ago);
 
       noteData.push({
         id: randomUUID(),
@@ -1069,78 +1387,329 @@ async function seedDemo() {
       });
     }
     await db.insert(SessionNoteTable).values(noteData);
-    console.log(`  ✓ Created ${noteData.length} session notes`);
+    console.log(`  Created ${noteData.length} session notes`);
   } else {
-    console.log(`  ✓ Using ${existingNotes.length} existing notes`);
+    console.log(`  Using ${existingNotes.length} existing notes`);
   }
 
-  // Step 12: Create Assessments
-  console.log("\n📊 Setting up assessments...");
+  // Step 14: Create Assessments + Assessment Focuses
+  console.log("\nSetting up assessments...");
   const existingAssessments = await db.select().from(AssessmentTable);
 
   if (existingAssessments.length === 0) {
-    console.log("  Creating 20 assessments...");
-    const cycleStart = new Date();
-    cycleStart.setDate(cycleStart.getDate() - (cycleStart.getDay() || 7) + 1);
+    console.log("  Creating 20 assessments with focus breakdowns...");
+    const cycleStart = new Date(session.start_date);
 
     const assessmentData = [];
     for (let i = 0; i < 20; i++) {
       const student = students[i % students.length]!;
+      const isPre = i < 10;
+      const preScore = randomInt(5, 12);
+      const postScore = isPre ? preScore : preScore + randomInt(2, 6); // Post always higher
+
       assessmentData.push({
         id: randomUUID(),
         student_id: student.id,
         teacher_id: teacherProfile!.id,
         cycle_start_date: formatDate(cycleStart),
-        assessment_type: i < 10 ? ("pre" as const) : ("post" as const),
+        assessment_type: isPre ? ("pre" as const) : ("post" as const),
         teaching_focus: generateAssessmentFocus(),
-        score: randomInt(8, 18),
+        score: isPre ? preScore : Math.min(postScore, 20),
         notes: randomElement([
           "Baseline assessment for new cycle",
           "Good progress from previous cycle",
           "Showing consistent improvement",
+          "Strong auditory comprehension skills",
           null,
         ]),
       });
     }
-    await db.insert(AssessmentTable).values(assessmentData);
-    console.log(`  ✓ Created ${assessmentData.length} assessments`);
+    const inserted = await db.insert(AssessmentTable).values(assessmentData).returning();
+    console.log(`  Created ${inserted.length} assessments`);
+
+    // Assessment focuses (2-3 goals per assessment)
+    console.log("  Adding assessment focus breakdowns...");
+    const focusData = [];
+    for (const assessment of inserted) {
+      const numGoals = randomInt(2, 3);
+      const usedGoals = new Set<number>();
+      for (let g = 0; g < numGoals; g++) {
+        let goalIdx: number;
+        do {
+          goalIdx = randomInt(0, FOCUS_GOALS.length - 1);
+        } while (usedGoals.has(goalIdx));
+        usedGoals.add(goalIdx);
+        const goal = FOCUS_GOALS[goalIdx]!;
+        focusData.push({
+          id: randomUUID(),
+          assessment_id: assessment.id,
+          goal: goal.goal,
+          score: randomInt(Math.floor(goal.maxScore * 0.3), goal.maxScore),
+          max_score: goal.maxScore,
+          sort_order: g,
+        });
+      }
+    }
+    await db.insert(AssessmentFocusTable).values(focusData);
+    console.log(`  Created ${focusData.length} assessment focus goals`);
   } else {
-    console.log(`  ✓ Using ${existingAssessments.length} existing assessments`);
+    console.log(`  Using ${existingAssessments.length} existing assessments`);
+    // Check if focuses exist
+    const existingFocuses = await db.select().from(AssessmentFocusTable);
+    if (existingFocuses.length === 0 && existingAssessments.length > 0) {
+      console.log("  Adding missing assessment focus breakdowns...");
+      const focusData = [];
+      for (const assessment of existingAssessments) {
+        const numGoals = randomInt(2, 3);
+        const usedGoals = new Set<number>();
+        for (let g = 0; g < numGoals; g++) {
+          let goalIdx: number;
+          do {
+            goalIdx = randomInt(0, FOCUS_GOALS.length - 1);
+          } while (usedGoals.has(goalIdx));
+          usedGoals.add(goalIdx);
+          const goal = FOCUS_GOALS[goalIdx]!;
+          focusData.push({
+            id: randomUUID(),
+            assessment_id: assessment.id,
+            goal: goal.goal,
+            score: randomInt(Math.floor(goal.maxScore * 0.3), goal.maxScore),
+            max_score: goal.maxScore,
+            sort_order: g,
+          });
+        }
+      }
+      if (focusData.length > 0) {
+        await db.insert(AssessmentFocusTable).values(focusData);
+        console.log(`  Created ${focusData.length} assessment focus goals`);
+      }
+    }
   }
 
-  // Step 13: Create Bulletins
-  console.log("\n📢 Setting up bulletins...");
+  // Step 15: Documents (audiograms, IEPs, graduation speeches)
+  console.log("\nSetting up documents...");
+  const existingDocuments = await db.select().from(DocumentTable);
+
+  if (existingDocuments.length === 0) {
+    console.log("  Creating documents for students...");
+    const documentData = [];
+    const today = new Date();
+
+    for (const student of students) {
+      // Audiogram (most recent)
+      const audiogramDate = daysAgo(randomInt(30, 120));
+      const nextDue = new Date(audiogramDate);
+      nextDue.setMonth(nextDue.getMonth() + 6);
+      const isOverdue = nextDue < today;
+
+      documentData.push({
+        id: randomUUID(),
+        entity_type: "student",
+        entity_id: student.id,
+        document_type: "audiogram" as const,
+        file_url: `https://storage.example.com/documents/${student.id}/audiogram-${formatDate(audiogramDate)}.pdf`,
+        file_name: `audiogram-${formatDate(audiogramDate)}.pdf`,
+        file_size: randomInt(50000, 200000),
+        mime_type: "application/pdf",
+        document_date: formatDate(audiogramDate),
+        next_due_date: formatDate(nextDue),
+        review_status: isOverdue ? ("pending" as const) : ("approved" as const),
+        reviewed_by: isOverdue ? null : adminUser.id,
+        reviewed_at: isOverdue ? null : daysAgo(randomInt(1, 20)),
+        uploaded_by: parentUser.id,
+      });
+
+      // IEP for half the students
+      if (students.indexOf(student) % 2 === 0) {
+        documentData.push({
+          id: randomUUID(),
+          entity_type: "student",
+          entity_id: student.id,
+          document_type: "iep" as const,
+          file_url: `https://storage.example.com/documents/${student.id}/iep-current.pdf`,
+          file_name: `${student.first_name}-IEP-2026.pdf`,
+          file_size: randomInt(100000, 500000),
+          mime_type: "application/pdf",
+          document_date: formatDate(daysAgo(randomInt(30, 90))),
+          next_due_date: null,
+          review_status: "approved" as const,
+          reviewed_by: adminUser.id,
+          reviewed_at: daysAgo(randomInt(1, 15)),
+          uploaded_by: parentUser.id,
+        });
+      }
+    }
+    await db.insert(DocumentTable).values(documentData);
+    console.log(`  Created ${documentData.length} documents`);
+  } else {
+    console.log(`  Using ${existingDocuments.length} existing documents`);
+  }
+
+  // Step 16: Create Bulletins
+  console.log("\nSetting up bulletins...");
   const existingBulletins = await db.select().from(BulletinTable);
 
+  let bulletins: typeof existingBulletins;
   if (existingBulletins.length === 0) {
     console.log("  Creating 10 bulletins...");
-    const bulletinData = BULLETIN_DATA.map((b, i) => ({
+    const bulletinValues = BULLETIN_DATA.map((b, i) => ({
       id: randomUUID(),
       site_id: i % 3 === 0 ? locations[i % locations.length]!.id : null,
-      scope: i % 3 === 0 ? ("site" as const) : ("global" as const),
-      role_target: randomElement(["all", "teacher", "parent"] as const),
+      scope: (i % 3 === 0 ? "site" : "global") as "site" | "global",
+      role_target: b.roleTarget,
+      requires_initials: b.requiresInitials,
       title: b.title,
       body: b.body,
       created_by: adminUser.id,
     }));
-    await db.insert(BulletinTable).values(bulletinData);
-    console.log(`  ✓ Created ${bulletinData.length} bulletins`);
+    await db.insert(BulletinTable).values(bulletinValues);
+    bulletins = await db.select().from(BulletinTable);
+    console.log(`  Created ${bulletins.length} bulletins`);
   } else {
-    console.log(`  ✓ Using ${existingBulletins.length} existing bulletins`);
+    bulletins = existingBulletins;
+    // Ensure some require initials
+    const hasInitials = bulletins.some((b) => b.requires_initials);
+    if (!hasInitials && bulletins.length >= 4) {
+      await db
+        .update(BulletinTable)
+        .set({ requires_initials: true, role_target: "parent" })
+        .where(eq(BulletinTable.id, bulletins[3]!.id));
+      if (bulletins.length >= 7) {
+        await db
+          .update(BulletinTable)
+          .set({ requires_initials: true, role_target: "parent" })
+          .where(eq(BulletinTable.id, bulletins[6]!.id));
+      }
+      console.log(`  Updated bulletins to include requires_initials`);
+    }
+    console.log(`  Using ${bulletins.length} existing bulletins`);
   }
 
-  // Step 14: Create Makeup Requests
-  console.log("\n📋 Setting up makeup requests...");
+  // Step 16b: Bulletin Views
+  console.log("\nSetting up bulletin views...");
+  const existingViews = await db.select().from(BulletinViewTable);
+
+  if (existingViews.length === 0 && bulletins.length > 0) {
+    const viewData = [];
+    // Teacher and admin have viewed most bulletins
+    for (const bulletin of bulletins.slice(0, 7)) {
+      viewData.push({
+        id: randomUUID(),
+        bulletin_id: bulletin.id,
+        user_id: teacherUser.id,
+        viewed_at: daysAgo(randomInt(0, 5)),
+        last_viewed_at: daysAgo(randomInt(0, 2)),
+      });
+      viewData.push({
+        id: randomUUID(),
+        bulletin_id: bulletin.id,
+        user_id: adminUser.id,
+        viewed_at: daysAgo(randomInt(0, 5)),
+        last_viewed_at: daysAgo(randomInt(0, 2)),
+      });
+    }
+    // Parent has viewed a few
+    for (const bulletin of bulletins.slice(0, 4)) {
+      viewData.push({
+        id: randomUUID(),
+        bulletin_id: bulletin.id,
+        user_id: parentUser.id,
+        viewed_at: daysAgo(randomInt(0, 5)),
+        last_viewed_at: daysAgo(randomInt(0, 2)),
+      });
+    }
+    await db.insert(BulletinViewTable).values(viewData);
+    console.log(`  Created ${viewData.length} bulletin views`);
+  } else {
+    console.log(`  Using ${existingViews.length} existing bulletin views`);
+  }
+
+  // Step 16c: Bulletin Acknowledgements
+  console.log("\nSetting up bulletin acknowledgements...");
+  const existingAcks = await db.select().from(BulletinAcknowledgementTable);
+
+  if (existingAcks.length === 0) {
+    // Find bulletins that require initials
+    const initialsRequired = bulletins.filter((b) => b.requires_initials);
+    if (initialsRequired.length > 0) {
+      // Teacher has acknowledged the first one
+      const ackData = [
+        {
+          id: randomUUID(),
+          bulletin_id: initialsRequired[0]!.id,
+          user_id: teacherUser.id,
+          initials: "TT",
+        },
+      ];
+      await db.insert(BulletinAcknowledgementTable).values(ackData);
+      console.log(`  Created ${ackData.length} bulletin acknowledgements`);
+    }
+  } else {
+    console.log(`  Using ${existingAcks.length} existing acknowledgements`);
+  }
+
+  // Step 17: Chat Messages
+  console.log("\nSetting up chat messages...");
+  const existingMessages = await db.select().from(ChatMessageTable);
+
+  if (existingMessages.length === 0) {
+    console.log("  Creating chat messages...");
+    const messageData = CHAT_MESSAGES.map((m, i) => ({
+      id: randomUUID(),
+      channel: "community" as const,
+      message: m.message,
+      is_announcement: m.isAnnouncement || false,
+      created_by: m.fromRole === "admin" ? adminUser.id : teacherUser.id,
+      created_at: daysAgo(7 - i), // Spread over the last week
+    }));
+    await db.insert(ChatMessageTable).values(messageData);
+    console.log(`  Created ${messageData.length} chat messages`);
+  } else {
+    console.log(`  Using ${existingMessages.length} existing messages`);
+  }
+
+  // Step 18: Teacher Sick Day Notice
+  console.log("\nSetting up teacher sick day notices...");
+  const existingSickDays = await db.select().from(TeacherSickDayNoticeTable);
+
+  if (existingSickDays.length === 0) {
+    const sickDayBulletinId = randomUUID();
+    // Create the auto-generated bulletin for the sick day
+    await db.insert(BulletinTable).values({
+      id: sickDayBulletinId,
+      scope: "site",
+      site_id: primarySite.id,
+      role_target: "parent",
+      title: "Teacher Absence Notice",
+      body: `Test Teacher will be absent on ${formatDate(daysAgo(5))} at Downtown LA Education Center. Sessions for that day are cancelled.`,
+      created_by: teacherUser.id,
+    });
+
+    await db.insert(TeacherSickDayNoticeTable).values({
+      id: randomUUID(),
+      teacher_id: teacherProfile.id,
+      site_id: primarySite.id,
+      notice_date: formatDate(daysAgo(5)),
+      note: "Not feeling well, will return next session.",
+      bulletin_id: sickDayBulletinId,
+      created_by: teacherUser.id,
+    });
+    console.log("  Created 1 sick day notice");
+  } else {
+    console.log(`  Using ${existingSickDays.length} existing sick day notices`);
+  }
+
+  // Step 19: Makeup Requests
+  console.log("\nSetting up makeup requests...");
   const existingMakeupRequests = await db.select().from(MakeupRequestTable);
 
+  let makeupRequests: typeof existingMakeupRequests;
   if (existingMakeupRequests.length === 0) {
     console.log("  Creating 5 makeup requests...");
-    const today = new Date();
     const enrollments = await db.select().from(EnrollmentTable);
     const requestStatuses = ["pending", "approved", "denied", "completed"] as const;
     const absenceReasons = ["sick", "family_emergency", "transportation"] as const;
 
-    // Get students linked to parent
     const parentStudentLinks = await db
       .select()
       .from(ParentStudentLinkTable)
@@ -1153,10 +1722,8 @@ async function seedDemo() {
       const enrollment = enrollments.find((e) => e.student_id === studentId);
       if (!enrollment) continue;
 
-      const daysAgo = randomInt(5, 20);
-      const sessionDate = new Date(today);
-      sessionDate.setDate(sessionDate.getDate() - daysAgo);
-
+      const ago = randomInt(5, 20);
+      const sessionDate = daysAgo(ago);
       const status = requestStatuses[i % requestStatuses.length]!;
       const isReviewed = status !== "pending";
 
@@ -1183,15 +1750,69 @@ async function seedDemo() {
     if (makeupData.length > 0) {
       await db.insert(MakeupRequestTable).values(makeupData);
     }
-    console.log(`  ✓ Created ${makeupData.length} makeup requests`);
+    makeupRequests = await db.select().from(MakeupRequestTable);
+    console.log(`  Created ${makeupData.length} makeup requests`);
   } else {
-    console.log(`  ✓ Using ${existingMakeupRequests.length} existing requests`);
+    makeupRequests = existingMakeupRequests;
+    console.log(`  Using ${existingMakeupRequests.length} existing requests`);
   }
 
-  // Step 15: Create Schedule Change Requests
-  console.log("\n🔄 Setting up schedule change requests...");
+  // Step 19b: Makeup Sessions (actual scheduled sessions, not just requests)
+  console.log("\nSetting up makeup sessions...");
+  const existingMakeupSessions = await db.select().from(MakeupSessionTable);
+
+  if (existingMakeupSessions.length === 0) {
+    const approvedRequests = makeupRequests.filter(
+      (r) => r.status === "approved" || r.status === "completed",
+    );
+    const makeupSessionData = [];
+
+    // Create sessions for approved/completed requests
+    for (const req of approvedRequests.slice(0, 2)) {
+      makeupSessionData.push({
+        id: randomUUID(),
+        makeup_request_id: req.id,
+        student_id: req.student_id,
+        teacher_id: teacherProfile.id,
+        site_id: primarySite.id,
+        scheduled_date: formatDate(daysAgo(randomInt(1, 7))),
+        scheduled_time: "10:00:00",
+        attendance_status: req.status === "completed" ? ("present" as const) : null,
+        notes:
+          req.status === "completed" ? "Makeup completed successfully" : "Scheduled for this week",
+        created_by: adminUser.id,
+      });
+    }
+
+    // One standalone makeup (admin-created, no request)
+    if (students.length > 3) {
+      makeupSessionData.push({
+        id: randomUUID(),
+        makeup_request_id: null,
+        student_id: students[3]!.id,
+        teacher_id: teacherProfile.id,
+        site_id: primarySite.id,
+        scheduled_date: formatDate(daysAgo(2)),
+        scheduled_time: "14:00:00",
+        attendance_status: null,
+        notes: "Extra session requested by admin",
+        created_by: adminUser.id,
+      });
+    }
+
+    if (makeupSessionData.length > 0) {
+      await db.insert(MakeupSessionTable).values(makeupSessionData);
+      console.log(`  Created ${makeupSessionData.length} makeup sessions`);
+    }
+  } else {
+    console.log(`  Using ${existingMakeupSessions.length} existing makeup sessions`);
+  }
+
+  // Step 20: Schedule Change Requests
+  console.log("\nSetting up schedule change requests...");
   const existingScheduleChangeRequests = await db.select().from(ScheduleChangeRequestTable);
 
+  let scheduleChangeRequests: typeof existingScheduleChangeRequests;
   if (existingScheduleChangeRequests.length === 0 && schedules.length >= 2) {
     console.log("  Creating 3 schedule change requests...");
     const enrollments = await db.select().from(EnrollmentTable);
@@ -1202,7 +1823,6 @@ async function seedDemo() {
       "Prefer different time slot",
     ];
 
-    // Get students linked to parent
     const parentStudentLinks = await db
       .select()
       .from(ParentStudentLinkTable)
@@ -1215,7 +1835,6 @@ async function seedDemo() {
       const enrollment = enrollments.find((e) => e.student_id === studentId);
       if (!enrollment) continue;
 
-      // Find a different schedule
       const otherSchedule = schedules.find((s) => s.id !== enrollment.schedule_id);
       if (!otherSchedule) continue;
 
@@ -1239,42 +1858,124 @@ async function seedDemo() {
     if (changeData.length > 0) {
       await db.insert(ScheduleChangeRequestTable).values(changeData);
     }
-    console.log(`  ✓ Created ${changeData.length} schedule change requests`);
+    scheduleChangeRequests = await db.select().from(ScheduleChangeRequestTable);
+    console.log(`  Created ${changeData.length} schedule change requests`);
   } else {
-    console.log(`  ✓ Using ${existingScheduleChangeRequests.length} existing requests`);
+    scheduleChangeRequests = existingScheduleChangeRequests;
+    console.log(`  Using ${existingScheduleChangeRequests.length} existing requests`);
+  }
+
+  // Step 20b: Schedule Change Request Events (activity log)
+  console.log("\nSetting up schedule change request events...");
+  const existingEvents = await db.select().from(ScheduleChangeRequestEventTable);
+
+  if (existingEvents.length === 0 && scheduleChangeRequests.length > 0) {
+    const eventData = [];
+    for (const req of scheduleChangeRequests) {
+      // Every request has a "submitted" event
+      eventData.push({
+        id: randomUUID(),
+        schedule_change_request_id: req.id,
+        event_type: "submitted",
+        from_status: null,
+        to_status: "pending",
+        actor_user_id: parentUser.id,
+        notes: "Request submitted by parent",
+        created_at: daysAgo(randomInt(5, 15)),
+      });
+
+      // Reviewed requests have a review event
+      if (req.status !== "pending") {
+        eventData.push({
+          id: randomUUID(),
+          schedule_change_request_id: req.id,
+          event_type: "reviewed",
+          from_status: "pending",
+          to_status: req.status,
+          actor_user_id: adminUser.id,
+          notes: req.review_notes || `Request ${req.status} by admin`,
+          created_at: daysAgo(randomInt(1, 4)),
+        });
+      }
+    }
+    if (eventData.length > 0) {
+      await db.insert(ScheduleChangeRequestEventTable).values(eventData);
+      console.log(`  Created ${eventData.length} schedule change events`);
+    }
+  } else {
+    console.log(`  Using ${existingEvents.length} existing events`);
   }
 
   // ==================== SUMMARY ====================
   console.log("\n" + "=".repeat(50));
-  console.log("✅ Production demo seed completed successfully!");
+  console.log("Production demo seed completed!");
   console.log("=".repeat(50));
-  console.log("\n📊 Summary:");
-  console.log(`  - Locations: ${(await db.select().from(LocationTable)).length}`);
-  console.log(`  - Students: ${(await db.select().from(StudentTable)).length}`);
-  console.log(`  - Schedules: ${(await db.select().from(ScheduleTable)).length}`);
-  console.log(`  - Enrollments: ${(await db.select().from(EnrollmentTable)).length}`);
-  console.log(`  - Teacher-Student Links: ${(await db.select().from(TeacherStudentTable)).length}`);
-  console.log(
-    `  - Parent-Student Links: ${(await db.select().from(ParentStudentLinkTable)).length}`,
-  );
-  console.log(`  - Attendance Records: ${(await db.select().from(AttendanceTable)).length}`);
-  console.log(`  - Session Notes: ${(await db.select().from(SessionNoteTable)).length}`);
-  console.log(`  - Assessments: ${(await db.select().from(AssessmentTable)).length}`);
-  console.log(`  - Bulletins: ${(await db.select().from(BulletinTable)).length}`);
-  console.log(`  - Makeup Requests: ${(await db.select().from(MakeupRequestTable)).length}`);
-  console.log(
-    `  - Schedule Change Requests: ${(await db.select().from(ScheduleChangeRequestTable)).length}`,
-  );
 
-  console.log("\n🔑 Real Users for Testing:");
+  const counts = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(LocationTable),
+    db.select({ count: sql<number>`count(*)` }).from(StudentTable),
+    db.select({ count: sql<number>`count(*)` }).from(SiblingTable),
+    db.select({ count: sql<number>`count(*)` }).from(SessionTable),
+    db.select({ count: sql<number>`count(*)` }).from(ScheduleTable),
+    db.select({ count: sql<number>`count(*)` }).from(EnrollmentTable),
+    db.select({ count: sql<number>`count(*)` }).from(TeacherStudentTable),
+    db.select({ count: sql<number>`count(*)` }).from(ParentStudentLinkTable),
+    db.select({ count: sql<number>`count(*)` }).from(TeacherLocationTable),
+    db.select({ count: sql<number>`count(*)` }).from(AttendanceTable),
+    db.select({ count: sql<number>`count(*)` }).from(SessionNoteTable),
+    db.select({ count: sql<number>`count(*)` }).from(AssessmentTable),
+    db.select({ count: sql<number>`count(*)` }).from(AssessmentFocusTable),
+    db.select({ count: sql<number>`count(*)` }).from(DocumentTable),
+    db.select({ count: sql<number>`count(*)` }).from(BulletinTable),
+    db.select({ count: sql<number>`count(*)` }).from(BulletinViewTable),
+    db.select({ count: sql<number>`count(*)` }).from(ChatMessageTable),
+    db.select({ count: sql<number>`count(*)` }).from(MakeupRequestTable),
+    db.select({ count: sql<number>`count(*)` }).from(MakeupSessionTable),
+    db.select({ count: sql<number>`count(*)` }).from(ScheduleChangeRequestTable),
+  ]);
+
+  const labels = [
+    "Locations",
+    "Students",
+    "Siblings",
+    "Sessions",
+    "Schedules",
+    "Enrollments",
+    "Teacher-Student Links",
+    "Parent-Student Links",
+    "Teacher Locations",
+    "Attendance Records",
+    "Session Notes",
+    "Assessments",
+    "Assessment Focuses",
+    "Documents",
+    "Bulletins",
+    "Bulletin Views",
+    "Chat Messages",
+    "Makeup Requests",
+    "Makeup Sessions",
+    "Schedule Change Requests",
+  ];
+
+  console.log("\nData Summary:");
+  for (let i = 0; i < labels.length; i++) {
+    console.log(`  - ${labels[i]}: ${counts[i]![0]!.count}`);
+  }
+
+  console.log("\nTest Accounts:");
   console.log(`  - Admin: ${TEST_USERS.ADMIN}`);
   console.log(`  - Teacher: ${TEST_USERS.TEACHER}`);
   console.log(`  - Parent: ${TEST_USERS.PARENT}`);
-
-  process.exit(0);
 }
 
-seedDemo().catch((error) => {
-  console.error("❌ Seed failed:", error);
-  process.exit(1);
-});
+// Allow running directly: npm run db:seed-demo
+if (import.meta.url === `file://${process.argv[1]}`) {
+  seedDemo()
+    .then(() => {
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("Seed failed:", error);
+      process.exit(1);
+    });
+}
