@@ -190,7 +190,6 @@ export const theme = createTheme({
           marginBottom: 2,
           "&.Mui-selected": {
             backgroundColor: alpha(brandNavy, 0.1),
-            borderLeft: `3px solid ${brandNavy}`,
             "&:hover": {
               backgroundColor: alpha(brandNavy, 0.15),
             },
