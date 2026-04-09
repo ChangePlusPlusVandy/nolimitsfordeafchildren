@@ -1,5 +1,6 @@
 import {
   Body,
+  CurrentUser,
   Get,
   JsonController,
   Param,
@@ -9,6 +10,7 @@ import {
   Authorized,
   HttpCode,
 } from "routing-controllers";
+import type { UserEntity } from "@/db/schema";
 import { Service } from "typedi";
 import Container from "@/container";
 import { LocationsService } from "../services/LocationsService";
@@ -79,6 +81,20 @@ export class LocationsController {
   @Get("/:siteId/now-next")
   async nowNext(@Param("siteId") siteId: string, @QueryParam("date") date?: string) {
     return await this.locationsService.nowNext(siteId, { date });
+  }
+
+  /**
+   * GET /v1/locations/:siteId/staff
+   * Returns administrators and teachers at a location.
+   * Parents can only view staff at locations where their children are enrolled.
+   */
+  @Get("/:siteId/staff")
+  @Authorized(["parent", "administrator"])
+  async staff(
+    @Param("siteId") siteId: string,
+    @CurrentUser({ required: true }) currentUser: UserEntity,
+  ) {
+    return await this.locationsService.staffByLocation(siteId, currentUser);
   }
 
   /**

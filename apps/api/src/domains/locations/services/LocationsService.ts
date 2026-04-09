@@ -1,12 +1,38 @@
 import { Service } from "typedi";
 import { db } from "@/db";
-import { LocationTable, ScheduleTable } from "@/db/schema";
-import type { LocationEntity, LocationInsert } from "@/db/schema";
+import {
+  LocationTable,
+  ScheduleTable,
+  UserTable,
+  TeacherProfileTable,
+  TeacherLocationTable,
+  ParentProfileTable,
+  ParentStudentLinkTable,
+  StudentTable,
+} from "@/db/schema";
+import type { LocationEntity, LocationInsert, UserEntity } from "@/db/schema";
 import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
-import { eq, and, gte, lte, ilike, or, asc, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, or, asc, desc, sql, isNull } from "drizzle-orm";
+import { ForbiddenError, NotFoundError } from "routing-controllers";
 
 export type CreateLocationDto = Omit<LocationInsert, "id" | "created_at" | "updated_at">;
 export type UpdateLocationDto = Partial<CreateLocationDto>;
+
+export interface LocationStaffMember {
+  id: string;
+  name: string;
+  role: "administrator" | "teacher";
+  email: string;
+  phone: string | null;
+  photo_url: string | null;
+  bio: string | null;
+}
+
+export interface LocationStaffResponse {
+  location_id: string;
+  location_name: string;
+  staff: LocationStaffMember[];
+}
 
 export type LocationMapPin = {
   id: string;
@@ -176,6 +202,108 @@ export class LocationsService {
     return {
       now: nowSchedules,
       next: nextSchedules.slice(0, 5), // Next 5 sessions
+    };
+  }
+
+  /**
+   * Get staff (administrators + teachers) for a specific location.
+   * Parents can only view staff at locations where their children are enrolled.
+   */
+  async staffByLocation(siteId: string, currentUser: UserEntity): Promise<LocationStaffResponse> {
+    // 1. Verify location exists
+    const location = await this.show(siteId);
+    if (!location) {
+      throw new NotFoundError("Location not found");
+    }
+
+    // 2. If parent, verify they have at least one child at this location
+    if (currentUser.role === "parent") {
+      const parentProfile = await db
+        .select({ id: ParentProfileTable.id })
+        .from(ParentProfileTable)
+        .where(eq(ParentProfileTable.user_id, currentUser.id))
+        .limit(1);
+
+      if (parentProfile.length === 0) {
+        throw new ForbiddenError("Parent profile not found");
+      }
+
+      const linkedChildren = await db
+        .select({ id: StudentTable.id })
+        .from(ParentStudentLinkTable)
+        .innerJoin(StudentTable, eq(ParentStudentLinkTable.student_id, StudentTable.id))
+        .where(
+          and(
+            eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
+            isNull(ParentStudentLinkTable.revoked_at),
+            eq(StudentTable.site_id, siteId),
+          ),
+        )
+        .limit(1);
+
+      if (linkedChildren.length === 0) {
+        throw new ForbiddenError("You do not have children enrolled at this location");
+      }
+    }
+
+    // 3. Get all active administrators (they are visible at every location)
+    const admins = await db
+      .select({
+        id: UserTable.id,
+        name: UserTable.name,
+        email: UserTable.email,
+        phone: UserTable.phone,
+        photo_url: UserTable.photo_url,
+      })
+      .from(UserTable)
+      .where(and(eq(UserTable.role, "administrator"), eq(UserTable.is_active, true)))
+      .orderBy(asc(UserTable.name));
+
+    // 4. Get teachers assigned to this location
+    const teachers = await db
+      .select({
+        id: UserTable.id,
+        name: UserTable.name,
+        email: UserTable.email,
+        phone: UserTable.phone,
+        photo_url: UserTable.photo_url,
+        bio: TeacherProfileTable.bio,
+      })
+      .from(TeacherLocationTable)
+      .innerJoin(
+        TeacherProfileTable,
+        eq(TeacherLocationTable.teacher_profile_id, TeacherProfileTable.id),
+      )
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(and(eq(TeacherLocationTable.location_id, siteId), eq(UserTable.is_active, true)))
+      .orderBy(asc(UserTable.name));
+
+    // 5. Combine results
+    const staff: LocationStaffMember[] = [
+      ...admins.map((a) => ({
+        id: a.id,
+        name: a.name,
+        role: "administrator" as const,
+        email: a.email,
+        phone: a.phone,
+        photo_url: a.photo_url,
+        bio: null,
+      })),
+      ...teachers.map((t) => ({
+        id: t.id,
+        name: t.name,
+        role: "teacher" as const,
+        email: t.email,
+        phone: t.phone,
+        photo_url: t.photo_url,
+        bio: t.bio,
+      })),
+    ];
+
+    return {
+      location_id: location.id,
+      location_name: location.name,
+      staff,
     };
   }
 }

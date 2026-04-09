@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import {
   Box,
@@ -7,6 +8,8 @@ import {
   CardActionArea,
   Avatar,
   Chip,
+  Divider,
+  Link,
   Skeleton,
   Stack,
   Badge,
@@ -19,8 +22,14 @@ import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   NotificationsActive as NotificationsIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
 } from "@mui/icons-material";
-import { useParentHttpService, type LinkedChild } from "../services/ParentHttpService";
+import {
+  useParentHttpService,
+  type LinkedChild,
+  type LocationStaffMember,
+} from "../services/ParentHttpService";
 import { useServerTable } from "../../global/hooks/useServerTable";
 import PageContainer from "../../global/components/PageContainer";
 import PageHeader from "../../global/components/PageHeader";
@@ -176,6 +185,103 @@ function LoadingSkeleton() {
   );
 }
 
+function StaffMemberCard({ member }: { member: LocationStaffMember }) {
+  return (
+    <Card variant="outlined" sx={{ height: "100%" }}>
+      <CardContent>
+        <Stack spacing={1.5}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Avatar
+              src={member.photo_url || undefined}
+              sx={{
+                width: 48,
+                height: 48,
+                bgcolor: member.role === "administrator" ? "secondary.main" : "primary.main",
+                fontSize: "1rem",
+                fontWeight: 600,
+              }}
+            >
+              {member.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="subtitle1" noWrap>
+                {member.name}
+              </Typography>
+              <Chip
+                label={member.role === "administrator" ? "Admin" : "Teacher"}
+                size="small"
+                color={member.role === "administrator" ? "secondary" : "primary"}
+                variant="outlined"
+                sx={{ mt: 0.25 }}
+              />
+            </Box>
+          </Stack>
+          {member.bio && (
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+              {member.bio}
+            </Typography>
+          )}
+          <Stack spacing={0.5}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <EmailIcon fontSize="small" color="action" />
+              <Link href={`mailto:${member.email}`} variant="body2" noWrap>
+                {member.email}
+              </Link>
+            </Stack>
+            {member.phone && (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <PhoneIcon fontSize="small" color="action" />
+                <Link href={`tel:${member.phone}`} variant="body2">
+                  {member.phone}
+                </Link>
+              </Stack>
+            )}
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StaffSectionSkeleton() {
+  return (
+    <Box>
+      <Skeleton variant="text" width={200} height={32} sx={{ mb: 1 }} />
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+        {[1, 2, 3].map((i) => (
+          <Box
+            key={i}
+            sx={{
+              flex: "1 1 280px",
+              maxWidth: { xs: "100%", sm: "calc(50% - 8px)", md: "calc(33.33% - 11px)" },
+            }}
+          >
+            <Card variant="outlined">
+              <CardContent>
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Skeleton variant="circular" width={48} height={48} />
+                    <Box sx={{ flex: 1 }}>
+                      <Skeleton variant="text" width="70%" />
+                      <Skeleton variant="rounded" width={60} height={20} />
+                    </Box>
+                  </Stack>
+                  <Skeleton variant="text" width="80%" />
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 export default function MyStudentsPage() {
   const parentHttpService = useParentHttpService();
   const table = useServerTable({ defaultLimit: 12 });
@@ -186,6 +292,28 @@ export default function MyStudentsPage() {
   });
 
   const children = data?.items ?? [];
+
+  // Derive unique location IDs from children
+  const uniqueLocations = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const child of children) {
+      if (!seen.has(child.site.id)) {
+        seen.set(child.site.id, child.site.name);
+      }
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [children]);
+
+  // Fire parallel staff queries for each unique location
+  const staffQueries = useQueries({
+    queries: uniqueLocations.map((loc) => ({
+      queryKey: [parentHttpService.key, "locationStaff", loc.id],
+      queryFn: () => parentHttpService.queries.locationStaff(loc.id),
+      enabled: children.length > 0,
+    })),
+  });
+
+  const staffLoading = staffQueries.some((q) => q.isLoading);
 
   return (
     <PageContainer>
@@ -228,6 +356,50 @@ export default function MyStudentsPage() {
             onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
             onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
           />
+
+          {/* Staff at Your Locations */}
+          <Divider sx={{ my: 4 }} />
+          <Typography variant="h5" gutterBottom>
+            Staff at Your Locations
+          </Typography>
+
+          {staffLoading ? (
+            <StaffSectionSkeleton />
+          ) : (
+            <Stack spacing={3}>
+              {staffQueries.map((query, idx) => {
+                const loc = uniqueLocations[idx]!;
+                if (query.error || !query.data) return null;
+                const { staff } = query.data;
+                if (staff.length === 0) return null;
+
+                return (
+                  <Box key={loc.id}>
+                    <Typography variant="h6" color="text.secondary" sx={{ mb: 1.5 }}>
+                      {loc.name}
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                      {staff.map((member) => (
+                        <Box
+                          key={member.id}
+                          sx={{
+                            flex: "1 1 280px",
+                            maxWidth: {
+                              xs: "100%",
+                              sm: "calc(50% - 8px)",
+                              md: "calc(33.33% - 11px)",
+                            },
+                          }}
+                        >
+                          <StaffMemberCard member={member} />
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
         </>
       )}
     </PageContainer>
