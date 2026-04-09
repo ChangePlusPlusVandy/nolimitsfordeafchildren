@@ -102,6 +102,22 @@ export interface ParentZipReportGroup {
   parents: ParentZipReportItem[];
 }
 
+export interface LocationStaffMember {
+  id: string;
+  name: string;
+  role: "administrator" | "teacher";
+  email: string;
+  phone: string | null;
+  photo_url: string | null;
+  bio: string | null;
+}
+
+export interface LocationStaffResponse {
+  location_id: string;
+  location_name: string;
+  staff: LocationStaffMember[];
+}
+
 export interface ChildDetails {
   id: string;
   first_name: string;
@@ -162,10 +178,20 @@ export interface PaginatedResponse<T> {
 
 export function useParentHttpService(): IHttpService & {
   queries: {
-    myChildren: (params?: { page?: number; limit?: number }) => Promise<PaginatedResponse<LinkedChild>>;
+    myChildren: (params?: {
+      page?: number;
+      limit?: number;
+    }) => Promise<PaginatedResponse<LinkedChild>>;
     childDetails: (studentId: string) => Promise<ChildDetails>;
-    directory: (params?: { page?: number; limit?: number }) => Promise<PaginatedResponse<DirectoryPerson>>;
-    zipReport: (params?: { page?: number; limit?: number }) => Promise<PaginatedResponse<ParentZipReportGroup>>;
+    directory: (params?: {
+      page?: number;
+      limit?: number;
+    }) => Promise<PaginatedResponse<DirectoryPerson>>;
+    zipReport: (params?: {
+      page?: number;
+      limit?: number;
+    }) => Promise<PaginatedResponse<ParentZipReportGroup>>;
+    locationStaff: (siteId: string) => Promise<LocationStaffResponse>;
   };
 } {
   const httpClient = useHttpClient();
@@ -174,9 +200,10 @@ export function useParentHttpService(): IHttpService & {
     key: "parents",
     mutations: {},
     queries: {
-      myChildren: async (
-        params?: { page?: number; limit?: number },
-      ): Promise<PaginatedResponse<LinkedChild>> => {
+      myChildren: async (params?: {
+        page?: number;
+        limit?: number;
+      }): Promise<PaginatedResponse<LinkedChild>> => {
         const response = await httpClient.get(`/v1/parents/me/children`, { params });
         return response.data;
       },
@@ -184,16 +211,22 @@ export function useParentHttpService(): IHttpService & {
         const response = await httpClient.get(`/v1/parents/children/${studentId}`);
         return response.data;
       },
-      directory: async (
-        params?: { page?: number; limit?: number },
-      ): Promise<PaginatedResponse<DirectoryPerson>> => {
+      directory: async (params?: {
+        page?: number;
+        limit?: number;
+      }): Promise<PaginatedResponse<DirectoryPerson>> => {
         const response = await httpClient.get(`/v1/parents/directory`, { params });
         return response.data;
       },
-      zipReport: async (
-        params?: { page?: number; limit?: number },
-      ): Promise<PaginatedResponse<ParentZipReportGroup>> => {
+      zipReport: async (params?: {
+        page?: number;
+        limit?: number;
+      }): Promise<PaginatedResponse<ParentZipReportGroup>> => {
         const response = await httpClient.get(`/v1/parents/zip-report`, { params });
+        return response.data;
+      },
+      locationStaff: async (siteId: string): Promise<LocationStaffResponse> => {
+        const response = await httpClient.get(`/v1/locations/${siteId}/staff`);
         return response.data;
       },
     },
