@@ -123,6 +123,7 @@ const DashboardLayout = () => {
         position="fixed"
         elevation={0}
         sx={{
+          zIndex: (t) => t.zIndex.drawer + 1,
           bgcolor: "background.paper",
           color: "text.primary",
           borderBottom: "1px solid",
@@ -168,7 +169,6 @@ const DashboardLayout = () => {
           flexGrow: 1,
           p: { xs: 2, sm: 3 },
           minHeight: "100vh",
-          overflow: "auto",
           bgcolor: "background.default",
           transition: TRANSITION,
           ...(desktopOpen && {
