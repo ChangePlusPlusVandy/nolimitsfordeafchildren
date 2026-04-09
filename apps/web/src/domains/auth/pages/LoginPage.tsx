@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { authClient, useAuth } from "../../../auth";
+import { authClient, useAuth, setAuthToken } from "../../../auth";
 import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
 export default function LoginPage() {
@@ -63,6 +63,11 @@ export default function LoginPage() {
         if (result.error) {
           throw new Error(result.error.message || "Unable to sign in");
         }
+
+        // Persist the session token for Bearer auth (cross-origin production)
+        if (result.data?.token) {
+          setAuthToken(result.data.token);
+        }
       } else {
         const result = await authClient.signUp.email({
           name: name.trim(),
@@ -72,6 +77,11 @@ export default function LoginPage() {
 
         if (result.error) {
           throw new Error(result.error.message || "Unable to create account");
+        }
+
+        // Persist the session token for Bearer auth (cross-origin production)
+        if (result.data?.token) {
+          setAuthToken(result.data.token);
         }
       }
 
@@ -85,14 +95,30 @@ export default function LoginPage() {
 
   if (isAuthenticated && user) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", bgcolor: "background.default" }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          bgcolor: "background.default",
+        }}
+      >
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", px: 2, py: 5, bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        px: 2,
+        py: 5,
+        bgcolor: "background.default",
+      }}
+    >
       <Card sx={{ width: "100%", maxWidth: 460 }}>
         <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
           <Stack spacing={2.5}>
@@ -155,7 +181,9 @@ export default function LoginPage() {
                   type="submit"
                   variant="contained"
                   size="large"
-                  disabled={submitting || !email || !password || (mode === "signup" && !name.trim())}
+                  disabled={
+                    submitting || !email || !password || (mode === "signup" && !name.trim())
+                  }
                   startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
                 >
                   {submitting ? "Please wait..." : submitLabel}

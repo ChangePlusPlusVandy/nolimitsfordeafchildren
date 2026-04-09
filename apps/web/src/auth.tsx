@@ -51,18 +51,69 @@ type AuthMeResponse = {
   created_at: string;
 };
 
+// ---------------------------------------------------------------------------
+// Token helpers – persist the Better Auth session token in localStorage so it
+// survives page reloads and can be sent as an Authorization header (required
+// when the API and web app are on different origins and cross-origin cookies
+// are blocked, e.g. DigitalOcean App Platform *.ondigitalocean.app).
+// ---------------------------------------------------------------------------
+
+const TOKEN_KEY = "auth_token";
+
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // localStorage may be unavailable (e.g. private browsing quota exceeded)
+  }
+}
+
+export function clearAuthToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth client – sends both cookies (for same-origin / local dev) and
+// the Bearer token header (for cross-origin production).
+// ---------------------------------------------------------------------------
+
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_API_URL,
   fetchOptions: {
     credentials: "include",
+    onRequest(context) {
+      const token = getAuthToken();
+      if (token) {
+        context.headers.set("Authorization", `Bearer ${token}`);
+      }
+    },
   },
 });
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function fetchAppUser(): Promise<AuthMeResponse | null> {
+  const headers: Record<string, string> = {};
+  const token = getAuthToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/auth/me`, {
     credentials: "include",
+    headers,
   });
 
   if (!response.ok) {
@@ -144,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       logout: async () => {
         await authClient.signOut();
+        clearAuthToken();
         setAppUser(null);
         window.location.href = "/login";
       },
