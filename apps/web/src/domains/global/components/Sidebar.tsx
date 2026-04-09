@@ -30,88 +30,103 @@ import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import Diversity3Icon from "@mui/icons-material/Diversity3";
 import { Link, useLocation } from "react-router";
 import { useAuth, type UserRole } from "../../../auth";
+import nolimitsLogo from "../../../assets/nolimitslogo.png";
 
-export const DRAWER_WIDTH = 240;
+export const DRAWER_WIDTH = 256;
 
 type NavItem = {
   text: string;
   to: string;
   icon: React.ReactNode;
   roles?: UserRole[];
-  section?: string;
+  section: string;
 };
 
 const navItems: NavItem[] = [
-  // Admin-only items
+  // ---- Admin: Management ----
   {
     text: "Site Map",
     to: "/locations",
     icon: <LocationOnIcon />,
     roles: ["administrator"],
-    section: "Admin",
+    section: "Management",
   },
   {
     text: "Users",
     to: "/users",
     icon: <PeopleIcon />,
     roles: ["administrator"],
+    section: "Management",
   },
   {
     text: "Students",
     to: "/students",
     icon: <SchoolIcon />,
     roles: ["administrator"],
-  },
-  {
-    text: "Make-Ups",
-    to: "/admin/makeup-requests",
-    icon: <EventRepeatIcon />,
-    roles: ["administrator"],
-  },
-  {
-    text: "Schedule Changes",
-    to: "/admin/schedule-change-requests",
-    icon: <SwapHorizIcon />,
-    roles: ["administrator"],
+    section: "Management",
   },
   {
     text: "Sessions",
     to: "/admin/sessions",
     icon: <CalendarMonthIcon />,
     roles: ["administrator"],
+    section: "Management",
+  },
+
+  // ---- Admin: Requests ----
+  {
+    text: "Make-Ups",
+    to: "/admin/makeup-requests",
+    icon: <EventRepeatIcon />,
+    roles: ["administrator"],
+    section: "Requests",
+  },
+  {
+    text: "Schedule Changes",
+    to: "/admin/schedule-change-requests",
+    icon: <SwapHorizIcon />,
+    roles: ["administrator"],
+    section: "Requests",
   },
   {
     text: "Document Reviews",
     to: "/admin/document-reviews",
     icon: <FactCheckIcon />,
     roles: ["administrator"],
-  },
-  {
-    text: "Parent ZIP Report",
-    to: "/admin/parent-zip-report",
-    icon: <PinDropIcon />,
-    roles: ["administrator"],
-  },
-  {
-    text: "Sibling Participation",
-    to: "/admin/sibling-participation-report",
-    icon: <Diversity3Icon />,
-    roles: ["administrator"],
-  },
-  {
-    text: "Photo Gallery",
-    to: "/admin/photo-gallery",
-    icon: <PhotoLibraryIcon />,
-    roles: ["administrator"],
+    section: "Requests",
   },
   {
     text: "Bulletin Moderation",
     to: "/admin/bulletin-moderation",
     icon: <CampaignIcon />,
     roles: ["administrator"],
+    section: "Requests",
   },
 
-  // Teacher items
+  // ---- Admin: Reports ----
+  {
+    text: "Parent ZIP Report",
+    to: "/admin/parent-zip-report",
+    icon: <PinDropIcon />,
+    roles: ["administrator"],
+    section: "Reports",
+  },
+  {
+    text: "Sibling Participation",
+    to: "/admin/sibling-participation-report",
+    icon: <Diversity3Icon />,
+    roles: ["administrator"],
+    section: "Reports",
+  },
+  {
+    text: "Photo Gallery",
+    to: "/admin/photo-gallery",
+    icon: <PhotoLibraryIcon />,
+    roles: ["administrator"],
+    section: "Reports",
+  },
+
+  // ---- Teacher ----
   {
     text: "My Day",
     to: "/my-day",
@@ -124,21 +139,26 @@ const navItems: NavItem[] = [
     to: "/teachers/makeup-sessions",
     icon: <EventRepeatIcon />,
     roles: ["teacher"],
+    section: "Teacher",
   },
   {
     text: "Schedule Requests",
     to: "/teachers/schedule-change-requests",
     icon: <SwapHorizIcon />,
     roles: ["teacher"],
+    section: "Teacher",
   },
+
+  // ---- Shared: Staff ----
   {
     text: "Staff Chat",
     to: "/chat",
     icon: <ForumIcon />,
     roles: ["teacher", "administrator"],
+    section: "Staff",
   },
 
-  // Parent items
+  // ---- Parent ----
   {
     text: "My Children",
     to: "/my-students",
@@ -151,21 +171,24 @@ const navItems: NavItem[] = [
     to: "/parents/schedule-change",
     icon: <SwapHorizIcon />,
     roles: ["parent"],
+    section: "Parent",
   },
   {
     text: "My Requests",
     to: "/parents/my-requests",
     icon: <ListAltIcon />,
     roles: ["parent"],
+    section: "Parent",
   },
   {
     text: "Directory",
     to: "/parents/directory",
     icon: <BadgeIcon />,
     roles: ["parent"],
+    section: "Parent",
   },
 
-  // Shared items (all roles)
+  // ---- General (all roles) ----
   {
     text: "Bulletin",
     to: "/bulletin",
@@ -194,7 +217,7 @@ export const Sidebar = ({ open, onClose, variant = "temporary" }: SidebarProps) 
 
   const visibleItems = navItems.filter((item) => {
     if (user?.role === "unassigned") {
-      return false; // Unassigned users only see profile (via bottom avatar) and logout
+      return false;
     }
     if (!item.roles) return true;
     return hasRole(...item.roles);
@@ -211,30 +234,82 @@ export const Sidebar = ({ open, onClose, variant = "temporary" }: SidebarProps) 
         "& .MuiDrawer-paper": {
           width: DRAWER_WIDTH,
           boxSizing: "border-box",
+          bgcolor: "#fafbfc",
         },
       }}
     >
-      <Box sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }} role="presentation">
+      <Box
+        sx={{ width: DRAWER_WIDTH, height: "100%", display: "flex", flexDirection: "column" }}
+        role="presentation"
+      >
+        {/* Branding */}
+        <Box
+          component={Link}
+          to="/"
+          onClick={handleNavClick}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            px: 2,
+            py: 2,
+            textDecoration: "none",
+            color: "inherit",
+          }}
+        >
+          <Box
+            component="img"
+            src={nolimitsLogo}
+            alt="No Limits logo"
+            sx={{ height: 36, width: "auto" }}
+          />
+          <Typography
+            variant="subtitle2"
+            sx={{ color: "primary.main", fontSize: "0.8rem", lineHeight: 1.2 }}
+          >
+            No Limits for
+            <br />
+            Deaf Children
+          </Typography>
+        </Box>
+        <Divider />
+
         {/* Navigation items */}
-        <List sx={{ flexGrow: 1, px: 1, pt: 1, overflow: "auto" }} component="nav" aria-label="Main navigation">
+        <List
+          sx={{ flexGrow: 1, pt: 0.5, overflow: "auto" }}
+          component="nav"
+          aria-label="Main navigation"
+        >
           {visibleItems.map((item, index) => {
             const isActive =
               location.pathname === item.to ||
               (item.to !== "/" && location.pathname.startsWith(item.to));
 
-            // Show section header if this item starts a new section
-            const showSection = item.section && (index === 0 || visibleItems[index - 1]?.section !== item.section);
+            const prevSection = index > 0 ? visibleItems[index - 1]?.section : null;
+            const showSection = item.section !== prevSection;
 
             return (
               <Box key={item.text}>
                 {showSection && (
-                  <Typography
-                    variant="overline"
-                    color="text.secondary"
-                    sx={{ px: 2, pt: index === 0 ? 1 : 2, pb: 0.5, display: "block" }}
-                  >
-                    {item.section}
-                  </Typography>
+                  <>
+                    {index > 0 && <Divider sx={{ my: 0.5, mx: 2 }} />}
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        px: 2.5,
+                        pt: index === 0 ? 1 : 1.5,
+                        pb: 0.5,
+                        display: "block",
+                        fontWeight: 700,
+                        fontSize: "0.65rem",
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: "text.secondary",
+                      }}
+                    >
+                      {item.section}
+                    </Typography>
+                  </>
                 )}
                 <ListItem disablePadding>
                   <ListItemButton
@@ -243,10 +318,11 @@ export const Sidebar = ({ open, onClose, variant = "temporary" }: SidebarProps) 
                     selected={isActive}
                     onClick={handleNavClick}
                   >
-                    <ListItemIcon sx={{ minWidth: 40 }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText primary={item.text} />
+                    <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
+                    <ListItemText
+                      primary={item.text}
+                      primaryTypographyProps={{ fontSize: "0.875rem" }}
+                    />
                   </ListItemButton>
                 </ListItem>
               </Box>
@@ -289,16 +365,21 @@ export const Sidebar = ({ open, onClose, variant = "temporary" }: SidebarProps) 
               {user.name?.charAt(0)?.toUpperCase() || "?"}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="subtitle2" noWrap>
+              <Typography variant="subtitle2" noWrap sx={{ fontSize: "0.85rem" }}>
                 {user.name}
               </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap sx={{ textTransform: "capitalize" }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                sx={{ textTransform: "capitalize" }}
+              >
                 {user.role === "unassigned" ? "Pending approval" : user.role}
               </Typography>
             </Box>
           </Box>
         )}
-        <List sx={{ px: 1, pt: 0 }} disablePadding>
+        <List sx={{ px: 1, pt: 0, pb: 1 }} disablePadding>
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => {
@@ -307,10 +388,10 @@ export const Sidebar = ({ open, onClose, variant = "temporary" }: SidebarProps) 
               }}
               aria-label="Logout from application"
             >
-              <ListItemIcon sx={{ minWidth: 40 }}>
+              <ListItemIcon sx={{ minWidth: 36 }}>
                 <LogoutIcon />
               </ListItemIcon>
-              <ListItemText primary="Logout" />
+              <ListItemText primary="Logout" primaryTypographyProps={{ fontSize: "0.875rem" }} />
             </ListItemButton>
           </ListItem>
         </List>

@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
-  Box,
   Button,
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   IconButton,
+  Skeleton,
   Stack,
   Tab,
   TablePagination,
@@ -30,6 +28,7 @@ import PageContainer from "../../global/components/PageContainer";
 import PageHeader from "../../global/components/PageHeader";
 import SectionCard from "../../global/components/SectionCard";
 import ErrorAlert from "../../global/components/ErrorAlert";
+import EmptyState from "../../global/components/EmptyState";
 import ConfirmDialog from "../../global/components/ConfirmDialog";
 
 type ChatChannel = "community" | "teacher";
@@ -143,137 +142,155 @@ export default function TeacherChatPage() {
       <PageHeader title="Staff Chat" breadcrumbs={[{ label: "Staff Chat" }]} />
 
       <Stack spacing={3}>
-      <Tabs
-        value={channel}
-        onChange={(_, next) => {
-          setChannel(next);
-          table.setPage(1);
-        }}
-      >
-        <Tab value="community" label="Community" />
-        <Tab value="teacher" label="Teacher Channel" />
-      </Tabs>
+        <Tabs
+          value={channel}
+          onChange={(_, next) => {
+            setChannel(next);
+            table.setPage(1);
+          }}
+        >
+          <Tab value="community" label="Community" />
+          <Tab value="teacher" label="Teacher Channel" />
+        </Tabs>
 
-      <SectionCard title="Compose" icon={<ChatIcon />}>
-        <Stack spacing={1.5}>
-          <TextField
-            multiline
-            rows={3}
-            label="Share update"
-            value={message}
-            onChange={(event) =>
-              setMessage((event.target as unknown as { value: string }).value)
-            }
-            placeholder="Share announcements, reminders, or coordination notes..."
-          />
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Button
-              variant={markAsAnnouncement ? "contained" : "outlined"}
-              color="info"
-              startIcon={<AnnouncementIcon />}
-              onClick={() => setMarkAsAnnouncement((prev) => !prev)}
-            >
-              {markAsAnnouncement ? "Announcement" : "Mark as Announcement"}
-            </Button>
+        <SectionCard title="Compose" icon={<ChatIcon />}>
+          <Stack spacing={1.5}>
+            <TextField
+              multiline
+              rows={3}
+              label="Share update"
+              value={message}
+              onChange={(event) => setMessage((event.target as unknown as { value: string }).value)}
+              placeholder="Share announcements, reminders, or coordination notes..."
+            />
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Button
+                variant={markAsAnnouncement ? "contained" : "outlined"}
+                color="info"
+                startIcon={<AnnouncementIcon />}
+                onClick={() => setMarkAsAnnouncement((prev) => !prev)}
+              >
+                {markAsAnnouncement ? "Announcement" : "Mark as Announcement"}
+              </Button>
 
-            <Button
-              variant="contained"
-              onClick={() => postMutation.mutate()}
-              disabled={!message.trim() || postMutation.isPending}
-            >
-              {postMutation.isPending ? "Posting..." : "Post"}
-            </Button>
+              <Button
+                variant="contained"
+                onClick={() => postMutation.mutate()}
+                disabled={!message.trim() || postMutation.isPending}
+              >
+                {postMutation.isPending ? "Posting..." : "Post"}
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
-      </SectionCard>
+        </SectionCard>
 
-      {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
+        {isLoading && (
+          <Stack spacing={2}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} variant="outlined">
+                <CardContent>
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Skeleton variant="circular" width={36} height={36} />
+                      <Skeleton variant="text" width="30%" />
+                    </Stack>
+                    <Skeleton variant="text" width="80%" />
+                    <Skeleton variant="text" width="50%" />
+                  </Stack>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        )}
 
-      {error && (
-        <ErrorAlert
-          message="Failed to load chat messages."
-          onRetry={() => queryClient.invalidateQueries({ queryKey: ["chat-messages", channel, table.page, table.limit] })}
-        />
-      )}
+        {error && (
+          <ErrorAlert
+            message="Failed to load chat messages."
+            onRetry={() =>
+              queryClient.invalidateQueries({
+                queryKey: ["chat-messages", channel, table.page, table.limit],
+              })
+            }
+          />
+        )}
 
-      {!isLoading && !error && items.length === 0 && (
-        <Alert severity="info">No messages yet. Start the conversation.</Alert>
-      )}
+        {!isLoading && !error && items.length === 0 && (
+          <EmptyState title="No Messages Yet" description="Start the conversation." />
+        )}
 
-      <Stack spacing={1.5}>
-        {items.map((item) => {
-          const canToggleAnnouncement = isAdmin || item.created_by_user.id === user?.id;
+        <Stack spacing={1.5}>
+          {items.map((item) => {
+            const canToggleAnnouncement = isAdmin || item.created_by_user.id === user?.id;
 
-          return (
-            <Card key={item.id} variant="outlined" sx={{ borderColor: item.is_announcement ? "info.main" : undefined }}>
-              <CardContent>
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="subtitle2">{item.created_by_user.name}</Typography>
-                      <Chip size="small" label={item.created_by_user.role} variant="outlined" />
-                      {item.is_announcement && (
-                        <Chip size="small" color="info" label="Announcement" icon={<PinIcon />} />
+            return (
+              <Card
+                key={item.id}
+                variant="outlined"
+                sx={{ borderColor: item.is_announcement ? "info.main" : undefined }}
+              >
+                <CardContent>
+                  <Stack spacing={1}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle2">{item.created_by_user.name}</Typography>
+                        <Chip size="small" label={item.created_by_user.role} variant="outlined" />
+                        {item.is_announcement && (
+                          <Chip size="small" color="info" label="Announcement" icon={<PinIcon />} />
+                        )}
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTimestamp(item.created_at)}
+                      </Typography>
+                    </Stack>
+
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                      {item.message}
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      {canToggleAnnouncement && (
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            toggleAnnouncementMutation.mutate({
+                              id: item.id,
+                              isAnnouncement: !item.is_announcement,
+                            })
+                          }
+                          disabled={toggleAnnouncementMutation.isPending}
+                        >
+                          {item.is_announcement ? "Unpin" : "Pin as announcement"}
+                        </Button>
+                      )}
+
+                      {isAdmin && (
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setDeleteMessageTarget(item.id)}
+                          disabled={deleteMutation.isPending}
+                          aria-label="Delete message"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
                       )}
                     </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatTimestamp(item.created_at)}
-                    </Typography>
                   </Stack>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </Stack>
 
-                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                    {item.message}
-                  </Typography>
-
-                  <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    {canToggleAnnouncement && (
-                      <Button
-                        size="small"
-                        onClick={() =>
-                          toggleAnnouncementMutation.mutate({
-                            id: item.id,
-                            isAnnouncement: !item.is_announcement,
-                          })
-                        }
-                        disabled={toggleAnnouncementMutation.isPending}
-                      >
-                        {item.is_announcement ? "Unpin" : "Pin as announcement"}
-                      </Button>
-                    )}
-
-                    {isAdmin && (
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setDeleteMessageTarget(item.id)}
-                        disabled={deleteMutation.isPending}
-                        aria-label="Delete message"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    )}
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </Stack>
-
-      <TablePagination
-        rowsPerPageOptions={[25, 50, 100]}
-        component="div"
-        count={data?.total ?? 0}
-        rowsPerPage={table.limit}
-        page={Math.max(table.page - 1, 0)}
-        onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
-        onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
-      />
-
+        <TablePagination
+          rowsPerPageOptions={[25, 50, 100]}
+          component="div"
+          count={data?.total ?? 0}
+          rowsPerPage={table.limit}
+          page={Math.max(table.page - 1, 0)}
+          onPageChange={(_event, nextPage) => table.setPage(nextPage + 1)}
+          onRowsPerPageChange={(event) => table.setLimit(Number(event.target.value))}
+        />
       </Stack>
 
       <ConfirmDialog

@@ -67,7 +67,7 @@ This is a **Monorepo** managed by **TurboRepo** and **npm**.
   - **Structure**: Domain-Driven Design (`src/domains/{domain_name}/...`).
 - **`apps/web`**: The frontend web application.
   - **Framework**: React + Vite + React Router v7.
-  - **UI Library**: Material UI (MUI) + Emotion + Tailwind CSS.
+  - **UI Library**: Material UI (MUI) + Emotion.
   - **State**: React Query (`@tanstack/react-query`).
   - **Structure**: Domain-Driven Design (`src/domains/{domain_name}/...`).
 
@@ -182,7 +182,6 @@ src/
 ```
 src/
 ├── assets/                   # Static assets (logo, images)
-├── styles/                   # Global CSS (Tailwind)
 ├── plugins/
 │   └── axios.ts              # HTTP client with auth token injection
 ├── utils/

@@ -37,7 +37,7 @@ import { divIcon, LatLngBounds } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const createMarkerIcon = (isActive: boolean) => {
-  const color = isActive ? "#22c55e" : "#ef4444";
+  const color = isActive ? "#2e7d32" : "#d32f2f";
   return divIcon({
     className: "custom-marker",
     html: `<div style="
@@ -114,8 +114,10 @@ export default function LocationsIndexPage() {
   const mapCenter: [number, number] =
     validMapPins.length > 0
       ? [
-          validMapPins.reduce((sum, pin) => sum + parseFloat(pin.latitude), 0) / validMapPins.length,
-          validMapPins.reduce((sum, pin) => sum + parseFloat(pin.longitude), 0) / validMapPins.length,
+          validMapPins.reduce((sum, pin) => sum + parseFloat(pin.latitude), 0) /
+            validMapPins.length,
+          validMapPins.reduce((sum, pin) => sum + parseFloat(pin.longitude), 0) /
+            validMapPins.length,
         ]
       : [39.8283, -98.5795];
 
@@ -239,20 +241,35 @@ export default function LocationsIndexPage() {
       {/* Legend */}
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Box sx={{ width: 14, height: 14, borderRadius: "50%", bgcolor: "#22c55e", border: "2px solid white", boxShadow: 1 }} />
+          <Box
+            sx={{
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              bgcolor: "success.main",
+              border: "2px solid white",
+              boxShadow: 1,
+            }}
+          />
           <Typography variant="body2">Active</Typography>
         </Stack>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Box sx={{ width: 14, height: 14, borderRadius: "50%", bgcolor: "#ef4444", border: "2px solid white", boxShadow: 1 }} />
+          <Box
+            sx={{
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              bgcolor: "error.main",
+              border: "2px solid white",
+              boxShadow: 1,
+            }}
+          />
           <Typography variant="body2">Inactive</Typography>
         </Stack>
       </Stack>
 
       {/* Locations List */}
-      <SectionCard
-        title={`All Locations (${locationsData?.total ?? 0})`}
-        noPadding
-      >
+      <SectionCard title={`All Locations (${locationsData?.total ?? 0})`} noPadding>
         {locations.length === 0 ? (
           <EmptyState
             icon={<LocationOnIcon sx={{ fontSize: 48 }} />}
@@ -272,7 +289,11 @@ export default function LocationsIndexPage() {
                     secondary={`${location.city}, ${location.state}`}
                   />
                   <Stack direction="row" spacing={1} sx={{ display: { xs: "none", sm: "flex" } }}>
-                    <Chip label={LOCATION_TYPE_LABEL[location.type]} size="small" variant="outlined" />
+                    <Chip
+                      label={LOCATION_TYPE_LABEL[location.type]}
+                      size="small"
+                      variant="outlined"
+                    />
                     <Chip
                       label={location.is_active ? "Active" : "Inactive"}
                       size="small"
