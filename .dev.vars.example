@@ -1,0 +1,18 @@
+# Local development env vars for `next dev` / `wrangler dev`.
+# Copy to `.dev.vars` (gitignored) and fill in real values.
+# Bindings (DB/BUCKET/EMAIL) come from wrangler.jsonc — do NOT list them here.
+
+# Comma-separated emails that get the administrator role on first sign-in
+BOOTSTRAP_ADMIN_EMAILS=
+
+# CORS origins for better-auth (comma-separated)
+CORS_ORIGINS=http://localhost:3000
+
+# Public URL of the app (used by better-auth)
+BETTER_AUTH_URL=http://localhost:3000
+
+# Email FROM address. Must be verified in the Cloudflare dashboard
+# (Workers & Pages -> Email -> Settings) and match the send_email binding.
+# If unset, src/lib/email.ts falls back to the default and warns.
+EMAIL_FROM_ADDRESS=noreply@nolimits.org
+EMAIL_FROM_NAME=No Limits for Deaf Children

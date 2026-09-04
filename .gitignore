@@ -21,6 +21,14 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .env.test.local
 .env.production.local
 .env.local
+.dev.vars
+.dev.vars.local
+
+# Cloudflare / OpenNext build output
+.next
+.open-next
+.wrangler
+worker-configuration.d.ts
 
 # caches
 .eslintcache

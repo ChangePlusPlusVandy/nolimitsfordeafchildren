@@ -1,6 +1,6 @@
-packages:
-  - "apps/*"
-  - "packages/*"
-
+# Single-package repo (flattened monorepo — no workspaces).
+# No `packages` key: this file exists only for pnpm settings
+# (pnpm 10+ no longer reads the `pnpm` field in package.json).
 allowBuilds:
   esbuild: true
+  workerd: true
