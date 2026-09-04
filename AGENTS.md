@@ -56,248 +56,208 @@ Many families rely solely on smartphones without home internet. The application 
 
 ## Project Overview
 
-This is a **Monorepo** managed by **TurboRepo** and **npm**.
+This is a **single-package Next.js 16 (App Router) application** deployed on **Cloudflare Workers** via **OpenNext**. There is no monorepo, no separate API server, and no Docker — the backend and frontend live in the same package.
 
-### Structure
-- **Root**: Configuration files (`package.json`, `turbo.json`, `biome.json`).
-- **`apps/api`**: The backend REST API.
-  - **Framework**: Express + `routing-controllers` + `typedi` (Dependency Injection).
-  - **Database**: PostgreSQL with `drizzle-orm`.
-  - **Language**: TypeScript (Node.js/Bun).
-  - **Structure**: Domain-Driven Design (`src/domains/{domain_name}/...`).
-- **`apps/web`**: The frontend web application.
-  - **Framework**: React + Vite + React Router v7.
-  - **UI Library**: Material UI (MUI) + Emotion.
-  - **State**: React Query (`@tanstack/react-query`).
-  - **Structure**: Domain-Driven Design (`src/domains/{domain_name}/...`).
+### Key facts
+
+- **Next.js 16** (App Router, React 19, RSC) — server components, server actions, route handlers
+- **MUI 9** + Emotion for the UI; **React Query** for interactive client data
+- **better-auth** (sqlite adapter) for authentication, backed by the app `users` table
+- **drizzle-orm** (sqlite dialect) against **Cloudflare D1** for storage; **R2** for document/file storage
+- **Cloudflare bindings** come from `wrangler.jsonc` and are accessed via `getCloudflareContext()`: `DB` (D1), `BUCKET` (R2), `EMAIL` (send_email). No local Postgres/S3/MinIO — local dev emulates D1/R2 through wrangler (`next.config.ts` calls `initOpenNextCloudflareForDev()`).
+- **Cron** via the `scheduled` handler in `worker.ts` + `triggers.crons` in `wrangler.jsonc`
+- **Package manager**: pnpm (`pnpm-lock.yaml` is the lockfile of record)
+
+---
 
 ## Domain Knowledge
 
-**CRITICAL**: Before making functional changes, read **`docs/WEBPAGES.md`**. It contains the definitive business logic, user roles, and page requirements.
-
-For the target data model, see **`docs/DATA_MODELS.md`**.
-
-For implementation order and work breakdown, see **`docs/PLAN_OF_ATTACK.md`**.
-
 ### Key Concepts
-- **Roles**: 
+
+- **Roles**:
   - `Administrator`: Full access (Users, Locations, Schedules, Students, approve requests).
   - `Teacher`: Manage their daily sessions (`/my-day`), mark attendance, write notes, create assessments.
   - `Parent`: View their linked children's schedules and progress, request make-ups and schedule changes.
-- **Locations**: A Student belongs to exactly **one** Location. Locations are either `education_center` or `pop_up`.
+  - `Unassigned`: Authenticated but pending administrator approval (role gate enforced by `requireRole`).
+- **Locations**: A Student belongs to exactly **one** Location. Locations are `education_center`, `pop_up`, or `remote`.
 - **Schedules**: Created/edited **only** by Admins. Teachers have read-only access.
 - **Attendance**: Teachers mark attendance (Present/No-Show/Cancelled) with reason dropdown for absences.
 - **Assessments**: Pre/post assessments every 10-week cycle, scored 0-20.
-- **Documents**: Audiograms (due every 6 months), IEPs, annual test results stored in S3.
+- **Documents**: Audiograms (due every 6 months), IEPs, annual test results stored in R2 (accessed through authenticated `/api/files/*` routes — no public URLs).
 
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| **Runtime** | Node.js / Bun |
-| **Package Manager** | npm |
-| **Monorepo** | TurboRepo |
-| **Frontend** | React 19, Vite, MUI, React Query, React Router 7 |
-| **Backend** | Express, routing-controllers, TypeDI |
-| **Database** | PostgreSQL (any Postgres host) |
-| **ORM** | Drizzle ORM |
-| **Authentication** | Auth0 |
-| **File Storage** | AWS S3 |
+| **Runtime** | Next.js 16 (App Router) on Cloudflare Workers via OpenNext (`nodejs_compat`) |
+| **Package Manager** | pnpm |
+| **Frontend** | React 19, MUI 9, React Query, Next App Router (RSC) |
+| **Backend** | Server Components + Server Actions + Route Handlers (no Express) |
+| **Database** | Cloudflare D1 (SQLite) via drizzle-orm (sqlite dialect) |
+| **ORM** | Drizzle ORM (+ drizzle-kit for migrations) |
+| **Authentication** | better-auth (sqlite adapter, bearer plugin) |
+| **File Storage** | Cloudflare R2 (via authenticated `BUCKET` route handlers) |
 | **Maps** | react-leaflet + Leaflet (OpenStreetMap) |
-| **Email** | Resend |
-| **Scheduled Jobs** | node-cron |
-| **Deployment** | Docker (platform-agnostic) |
+| **Email** | Cloudflare Email Workers `send_email` binding (`EMAIL`) |
+| **Scheduled Jobs** | Cloudflare Cron Triggers (`worker.ts` `scheduled` handler) |
+| **Validation** | zod (server action input schemas) |
+| **Deployment** | `pnpm build` (opennextjs-cloudflare) + `wrangler deploy` |
 
-> **Deployment Note:** The application is containerized with Docker for platform-agnostic deployment. Can be deployed to any platform supporting Docker containers (Railway, Render, AWS ECS, Google Cloud Run, etc.).
+> **Email note:** The `send_email` binding requires the FROM address to be **verified in the Cloudflare dashboard** (Workers & Pages → Email → Settings). Until then, `src/lib/email.ts` gracefully no-ops with a `console.warn`. Set `EMAIL_FROM_ADDRESS` in `.dev.vars` locally.
+>
+> **Deploy note:** `wrangler deploy` and `--remote` D1 commands require `wrangler login` — **not set up on all machines**. Deployment is manual per project (see the CI note below); CI does not deploy.
 
 ## Codebase Map
 
-This project follows **Vertical Slice Architecture** with **Domain-Driven Design**. Each domain is a self-contained slice with its own endpoints, services, models, and (optionally) repositories.
+This project follows **Vertical Slice Architecture** with **Domain-Driven Design**, adapted to Next.js App Router. Each domain is a self-contained slice with a service (business logic) plus thin server-action/query adapters.
 
-### API Structure (`apps/api/src/`)
+### Server structure (`src/server/{domain}/`)
 
 ```
 src/
 ├── db/
-│   ├── index.ts              # Database connection
-│   └── schema.ts             # Drizzle schema exports
-├── s3/
-│   └── index.ts              # AWS S3 client
-├── domains/
-│   ├── auth/
-│   │   ├── endpoints/AuthController.ts
-│   │   └── services/AuthService.ts
-│   ├── attendance/
-│   │   ├── endpoints/AttendanceController.ts
-│   │   └── services/AttendanceService.ts
-│   ├── bulletin/ & bulletins/
-│   │   ├── models/entities/BulletinTable.ts
-│   │   ├── endpoints/BulletinsController.ts
-│   │   └── services/BulletinsService.ts
-│   ├── enrollments/
-│   │   ├── endpoints/EnrollmentsController.ts
-│   │   └── services/EnrollmentsService.ts
-│   ├── locations/
-│   │   ├── models/entities/LocationTable.ts
-│   │   ├── endpoints/LocationsController.ts
-│   │   ├── endpoints/LocationsMapController.ts
-│   │   └── services/LocationsService.ts
-│   ├── me/
-│   │   ├── endpoints/MeController.ts
-│   │   └── services/MeService.ts
-│   ├── parents/
-│   │   ├── endpoints/ParentsController.ts
-│   │   └── services/ParentsService.ts
-│   ├── profiles/
-│   │   ├── endpoints/ProfilesController.ts
-│   │   └── services/ProfilesService.ts
-│   ├── schedule/ & schedules/
-│   │   ├── models/entities/ScheduleTable.ts
-│   │   ├── endpoints/SchedulesController.ts
-│   │   └── services/SchedulesService.ts
-│   ├── sites/
-│   │   └── endpoints/SitesController.ts
-│   ├── students/
-│   │   ├── endpoints/StudentsController.ts
-│   │   ├── endpoints/StudentParentsAdminController.ts
-│   │   └── services/StudentsService.ts
-│   ├── teachers/
-│   │   ├── endpoints/TeachersController.ts
-│   │   ├── endpoints/TeacherMyDayController.ts
-│   │   ├── endpoints/TeacherSchedulesController.ts
-│   │   └── services/TeachersService.ts
-│   └── users/
-│       ├── models/entities/UserTable.ts
-│       ├── endpoints/UsersController.ts
-│       ├── endpoints/ShowUserEndpoint.ts
-│       ├── services/UsersService.ts
-│       ├── repositories/UserRepository.ts
-│       └── projections/UserProjection.ts
-├── server.ts                 # Express server setup
-└── index.ts                  # Entry point
+│   └── schema.ts             # Drizzle schema (sqlite/D1), all tables + relations
+├── lib/
+│   ├── auth.ts               # better-auth instance (lazy getAuth() — never module top-level)
+│   ├── db.ts                 # D1 → drizzle proxy (getDb/db; lazy getCloudflareContext())
+│   ├── email.ts              # send_email binding wrappers (verified from-address required)
+│   └── r2.ts                 # BUCKET helpers (uploads via /api/files/*, no public URLs)
+├── server/
+│   ├── {domain}/
+│   │   ├── service.ts        # Domain business logic (service classes / pure functions)
+│   │   ├── queries.ts        # Read adapters: "use server" exports for RSC/initial reads
+│   │   ├── actions.ts        # Write adapters: "use server" Server Actions (mutations)
+│   │   └── ...               # (cron jobs, jobs, etc. as needed)
+│   ├── shared/
+│   │   ├── auth-guard.ts     # requireRole / getCurrentUser / helpers
+│   │   └── errors.ts         # HttpError / UnauthorizedError / NotFoundError / ForbiddenError
+│   └── cron/
+│       ├── index.ts          # runScheduledJobs() — dispatched from worker.ts
+│       ├── birthdayJob.ts    # daily birthday notifications
+│       └── audiogramJob.ts   # weekly audiogram due reminders
+└── client/
+    ├── {domain}.ts           # Client data-access layer: wraps server queries/actions
+    ├── components/           # Shared client components (DataTable, modals, skeletons…)
+    ├── hooks/                # Client hooks (e.g. useServerTable)
+    ├── utils/                # Client utils
+    └── auth.tsx              # Client auth provider (session + role-aware redirects)
 ```
 
-### Web Structure (`apps/web/src/`)
+### App structure (`app/`)
 
 ```
-src/
-├── assets/                   # Static assets (logo, images)
-├── plugins/
-│   └── axios.ts              # HTTP client with auth token injection
-├── utils/
-│   └── IHttpService.ts       # HTTP service interface
-├── domains/
-│   ├── global/
-│   │   ├── components/
-│   │   │   ├── AuthGuard.tsx
-│   │   │   └── Sidebar.tsx
-│   │   └── layouts/
-│   │       └── DashboardLayout.tsx
-│   ├── bulletin/
-│   │   ├── pages/BulletinBoardPage.tsx
-│   │   └── services/BulletinHttpService.ts
-│   ├── locations/
-│   │   ├── pages/
-│   │   │   ├── LocationsIndexPage.tsx
-│   │   │   ├── LocationDetailsPage.tsx
-│   │   │   ├── NewLocationPage.tsx
-│   │   │   └── EditLocationPage.tsx
-│   │   └── services/LocationHttpService.ts
-│   ├── parents/
-│   │   ├── pages/
-│   │   │   ├── MyStudentsPage.tsx
-│   │   │   └── ChildDetailsPage.tsx
-│   │   └── services/ParentHttpService.ts
-│   ├── students/
-│   │   ├── pages/
-│   │   │   ├── StudentDetailsPage.tsx
-│   │   │   ├── NewStudentPage.tsx
-│   │   │   ├── LinkTeacherModal.tsx
-│   │   │   └── UploadDocumentModal.tsx
-│   │   └── services/StudentHttpService.ts
-│   ├── teachers/
-│   │   ├── pages/
-│   │   │   ├── MyDayPage.tsx
-│   │   │   ├── TeacherDetailsPage.tsx
-│   │   │   ├── NewTeacherPage.tsx
-│   │   │   ├── TeacherScheduleWizardPage.tsx
-│   │   │   └── TeacherStudentDetailsPage.tsx
-│   │   └── services/TeacherHttpService.ts
-│   └── users/
-│       ├── pages/
-│       │   ├── ManageUsersPage.tsx
-│       │   ├── UserDetailsPage.tsx
-│       │   ├── InviteUserModal.tsx
-│       │   └── MyProfilePage.tsx
-│       └── services/UserHttpService.ts
-├── auth.tsx                  # Auth0 integration
-├── config.ts                 # Environment config
-└── main.tsx                  # App entry with routes
+app/
+├── layout.tsx                # Root layout (fonts, theme, providers)
+├── providers.tsx             # MUI + React Query providers
+├── theme.ts                  # MUI theme
+├── login/page.tsx            # Public login
+├── pending-approval/page.tsx # Unassigned-role landing
+├── (dashboard)/
+│   ├── layout.tsx            # Dashboard shell (sidebar, mobile nav)
+│   ├── page.tsx              # Role-aware home
+│   └── {feature}/…           # Feature pages (locations, students, teachers, my-day, …)
+└── api/
+    ├── auth/[...all]/route.ts        # better-auth handler
+    ├── files/[key]/route.ts          # Authenticated R2 download
+    ├── files/upload/route.ts         # Authenticated R2 upload
+    └── health/route.ts
 ```
+
+Root files: `middleware.ts` (cookie-presence auth guard, role checks stay server-side),
+`worker.ts` (wrangler entry: re-exports OpenNext handler + `scheduled` cron handler),
+`wrangler.jsonc` (bindings: DB/BUCKET/EMAIL + cron triggers), `drizzle.config.ts`,
+`next.config.ts` (also boots `initOpenNextCloudflareForDev()`), `open-next.config.ts`.
 
 ### Adding a New Domain (Vertical Slice)
 
-**API Side:**
-1. Create `src/domains/{domain}/endpoints/{Domain}Controller.ts`
-2. Create `src/domains/{domain}/services/{Domain}Service.ts`
-3. If needed: `src/domains/{domain}/models/entities/{Domain}Table.ts`
-4. Register controller in `server.ts`
+1. **Service**: Create `src/server/{domain}/service.ts` — business logic + DTO types (ported patterns from the legacy Express services).
+2. **Queries**: Create `src/server/{domain}/queries.ts` with `"use server"`, one exported async function per read (e.g. `listX`, `showX`). Gate with `requireRole(...)` where not public.
+3. **Actions**: Create `src/server/{domain}/actions.ts` with `"use server"`, one exported async function per mutation. Validate inputs with a zod schema, then `requireRole(...)` and call the service.
+4. **Client layer**: Create `src/client/{domain}.ts` re-exporting the queries/actions (1:1 names) — client components and React Query hooks import from here, never from `src/server/` directly.
+5. **Pages**: Add `app/(dashboard)/{feature}/...` App Router pages (RSC for initial reads; client components + React Query for interactive parts).
+6. **Schema** (if new tables): add to `src/db/schema.ts`, then `pnpm db:generate` + apply migrations (see Development Workflow).
+7. **Client hooks** (if needed): `src/client/hooks/` (e.g. a `useXTable` React Query hook).
 
-**Web Side:**
-1. Create `src/domains/{domain}/pages/{Feature}Page.tsx`
-2. Create `src/domains/{domain}/services/{Domain}HttpService.ts`
-3. Add route in `main.tsx`
+**Example — adding an "Assessments" domain:**
 
-**Example - Adding "Assessments" domain:**
 ```
-# API
-apps/api/src/domains/assessments/
-├── endpoints/AssessmentsController.ts
-├── services/AssessmentsService.ts
-└── models/entities/AssessmentTable.ts
-
-# Web
-apps/web/src/domains/assessments/
-├── pages/AssessmentFormPage.tsx
-├── pages/AssessmentHistoryPage.tsx
-└── services/AssessmentHttpService.ts
+src/server/assessments/
+├── service.ts          # AssessmentsService: scoring, history queries, DTOs
+├── queries.ts          # "use server" reads: listAssessments, showAssessment
+└── actions.ts          # "use server" writes: createAssessment, updateAssessment
+src/client/assessments.ts   # re-exports for client code
+app/(dashboard)/assessments/ # RSC pages + client components
 ```
 
 ## Development Workflow
 
-### Installation
-```bash
-npm install
-```
+### Prerequisites
+
+- Node.js 20+ and **pnpm** (see `packageManager` in `package.json`)
+- **No Docker, no Postgres, no MinIO** — D1 and R2 are emulated locally by wrangler
+
+### Local environment
+
+Copy `.dev.vars.example` to `.dev.vars` and fill in real values. Bindings (DB/BUCKET/EMAIL) come from `wrangler.jsonc` automatically — do not list them in `.dev.vars`. Wrangler serves a live local D1 + R2 emulation; `initOpenNextCloudflareForDev()` (in `next.config.ts`) wires them into `next dev`.
 
 ### Running Locally
-```bash
-npm run dev
-```
-This starts both the `api` (port 3000) and `web` (port 5173) in parallel.
 
-### Database Operations (in `apps/api`)
-- **Generate Migrations**: `npm run db:generate`
-- **Run Migrations**: `npm run db:migrate`
-- **Studio UI**: `npm run db:studio`
+```bash
+pnpm install
+pnpm dev        # next dev on http://localhost:3000 (D1/R2 emulated via wrangler)
+```
+
+### Preview / Deploy (manual per project)
+
+```bash
+pnpm preview    # opennextjs-cloudflare preview (builds, then wrangler dev)
+pnpm deploy     # wrangler deploy — requires `wrangler login` (NOT set up everywhere); we are NOT deploying
+pnpm build      # opennextjs-cloudflare build (produces .open-next/ for wrangler)
+```
+
+### Database Operations (D1)
+
+```bash
+pnpm db:generate                                   # drizzle-kit generate → migrations/ (sqlite dialect)
+pnpm exec wrangler d1 migrations apply nolimits-db --local   # apply to local emulated D1
+pnpm exec wrangler d1 migrations apply nolimits-db --remote  # apply to production D1 (requires login)
+```
+
+> `drizzle.config.ts` uses `dialect: "sqlite"` and outputs to `./migrations`, matching `migrations_dir` in `wrangler.jsonc`. The `migrations/` directory is created by the first `db:generate`. The D1 `database_id` in `wrangler.jsonc` is a placeholder — replace it after `wrangler d1 create nolimits-db` before any remote work.
+
+### Verification
+
+```bash
+pnpm exec tsc --noEmit   # typecheck (also `pnpm typecheck`)
+pnpm lint                # biome check .
+```
+
+CI (`.github/workflows/ci.yml`) runs install → typecheck → lint → build on push/PR. There is no deploy step.
 
 ## Coding Conventions
 
-1.  **Domain-Driven Design**:
-    - Place feature-specific code in `src/domains/{domain}/`.
-    - Common components go in `src/domains/global/`.
-    - **Do NOT** create top-level `components/` or `utils/` folders unless absolutely necessary.
-2.  **Naming**:
-    - **Files**: `PascalCase.tsx` for components, `camelCase.ts` for logic.
-    - **Classes**: `PascalCase` (e.g., `UsersController`).
-    - **Variables**: `camelCase`.
-3.  **Pathing**:
-    - **ALWAYS** use absolute paths when reading/writing files (e.g., `/home/ryanmccauley/projects/nolimitsfordeafchildren/apps/api/src/...`).
-4.  **Dependencies**:
-    - Check `package.json` in the specific app (`apps/web` or `apps/api`) before importing new libraries.
+1. **Vertical slices**:
+   - Domain code goes in `src/server/{domain}/` (`service.ts`, `queries.ts`, `actions.ts`) and `src/client/{domain}.ts`.
+   - Shared components go in `src/client/components/`; shared server helpers in `src/server/shared/`.
+   - **Do NOT** create top-level `components/` or `utils/` folders.
+2. **RSC vs. React Query**:
+   - **RSC for initial reads**: server components call `queries.ts` directly for first paint.
+   - **React Query for interactive mutations/polling**: client components that mutate or poll use `useMutation`/`useQuery` over the client layer (`src/client/{domain}.ts`), which calls the server actions/queries.
+   - **Server Actions as mutation transport**: mutations are `"use server"` functions in `actions.ts`; never expose raw DB writes to the client.
+3. **Authz**: gate every protected query/action with `requireRole("administrator", ...)` from `src/server/shared/auth-guard.ts` (or `getCurrentUser()` for the explicit public exemptions). Role checks run server-side only.
+4. **Validation**: zod schemas in `actions.ts` validate inputs before any service call.
+5. **Bindings**: access `getCloudflareContext()` **inside handlers/components, never at module top-level** (`src/lib/db.ts` and `src/lib/auth.ts` use lazy access/`Proxy` to enforce this). The `scheduled` cron handler injects the D1 binding via `setDb(env.DB)` because there is no request context.
+6. **Naming**:
+   - **Files**: `PascalCase.tsx` for components, `camelCase.ts` for logic; domain files are lowercase (`service.ts`, `actions.ts`, `queries.ts`).
+   - **Classes**: `PascalCase` (e.g., `LocationsService`).
+   - **Variables**: `camelCase`.
+7. **Pathing**:
+   - Use the `@/*` alias (`@/server/...`, `@/client/...`, `@/db/...`, `@/lib/...`) for imports.
+   - **ALWAYS** use absolute paths when reading/writing files (e.g., `/home/ryan/dev/school/changeplusplus/nolimitsfordeafchildren/src/server/locations/service.ts`).
+8. **Dependencies**: only add packages justified in this repo's environment (Next 16 + Cloudflare Workers). Check `package.json` before importing new libraries.
 
 ## Interaction Guidelines
 
-- **Safety First**: This system stores sensitive student data (PII). Ensure no secrets are logged or exposed.
-- **Verification**: After making changes, try to verify them by checking for build errors (`tsc`, `npm run build` in the respective app).
-- **Context**: If you are unsure about a business rule (e.g., "Can a teacher edit a schedule?"), refer to `docs/WEBPAGES.md`.
+- **Safety First**: This system stores sensitive student data (PII). Ensure no secrets are logged or exposed. R2 files are only served through authenticated `/api/files/*` routes — never hand out public R2 URLs.
+- **Verification**: After making changes, verify by running `pnpm exec tsc --noEmit` and `pnpm lint` (and `pnpm build` for full OpenNext builds).
+- **Context**: If you are unsure about a business rule (e.g., "Can a teacher edit a schedule?"), check the existing pages/services for the authoritative behavior — the old `docs/` folder has been removed.

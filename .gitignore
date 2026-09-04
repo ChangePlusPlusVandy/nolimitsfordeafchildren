@@ -46,9 +46,6 @@ worker-configuration.d.ts
 .vscode
 .idea
 
-# Turbo
-.turbo
-
 # Playwright MCP artifacts
 .playwright-mcp/
 my-students-full-page.png

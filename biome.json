@@ -7,7 +7,15 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**", "app/**", "next.config.ts", "next-env.d.ts", "worker.ts", "open-next.config.ts", "drizzle.config.ts"]
+    "includes": [
+      "src/**",
+      "app/**",
+      "next.config.ts",
+      "worker.ts",
+      "open-next.config.ts",
+      "drizzle.config.ts",
+      "!next-env.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

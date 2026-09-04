@@ -28,10 +28,6 @@
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": [
     "node_modules",
-    // Legacy sources kept only as reference for later porting tasks — they
-    // reference the removed Express/typedi/routing-controllers stack and are
-    // NOT part of the new single-package app.
-    "apps/**",
     ".open-next",
     ".next",
     "dist",
