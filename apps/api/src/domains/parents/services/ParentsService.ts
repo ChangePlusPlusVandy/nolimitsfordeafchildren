@@ -1,6 +1,6 @@
 import { Service } from "typedi";
 import Container from "@/container";
-import { eq, and, sql, desc, isNull, gte, lte, asc } from "drizzle-orm";
+import { eq, and, sql, desc, isNull, gte, lte, gt, asc, or, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   StudentTable,
@@ -233,10 +233,12 @@ export class ParentsService {
         and(
           eq(UserTable.role, "teacher"),
           eq(UserTable.is_active, true),
-          sql`(
-            ${TeacherLocationTable.location_id} = ANY(${linkedSiteIds}::uuid[])
-            OR ${TeacherProfileTable.primary_site_id} = ANY(${linkedSiteIds}::uuid[])
-          )`,
+          // Empty linkedSiteIds is handled by the early return above, so the
+          // inArray() branches below never see an empty list (SQLite `IN ()` is invalid).
+          or(
+            inArray(TeacherLocationTable.location_id, linkedSiteIds),
+            inArray(TeacherProfileTable.primary_site_id, linkedSiteIds),
+          ),
         ),
       );
 
@@ -387,7 +389,7 @@ export class ParentsService {
     }
 
     const countRows = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(ParentStudentLinkTable)
       .innerJoin(StudentTable, eq(ParentStudentLinkTable.student_id, StudentTable.id))
       .where(
@@ -436,7 +438,7 @@ export class ParentsService {
 
       // Get pending requests count
       const pendingMakeups = await db
-        .select({ count: sql<number>`count(*)::int` })
+        .select({ count: sql<number>`count(*)` })
         .from(MakeupRequestTable)
         .where(
           and(
@@ -446,7 +448,7 @@ export class ParentsService {
         );
 
       const pendingScheduleChanges = await db
-        .select({ count: sql<number>`count(*)::int` })
+        .select({ count: sql<number>`count(*)` })
         .from(ScheduleChangeRequestTable)
         .where(
           and(
@@ -555,14 +557,14 @@ export class ParentsService {
 
     // Get pending requests
     const pendingMakeups = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(MakeupRequestTable)
       .where(
         and(eq(MakeupRequestTable.student_id, studentId), eq(MakeupRequestTable.status, "pending")),
       );
 
     const pendingScheduleChanges = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(ScheduleChangeRequestTable)
       .where(
         and(
@@ -587,8 +589,8 @@ export class ParentsService {
         and(
           sql`(${BulletinTable.scope} = 'global' OR ${BulletinTable.site_id} = ${s.site_id})`,
           sql`(${BulletinTable.role_target} = 'all' OR ${BulletinTable.role_target} = 'parent')`,
-          sql`(${BulletinTable.publish_at} IS NULL OR ${BulletinTable.publish_at} <= NOW())`,
-          sql`(${BulletinTable.expire_at} IS NULL OR ${BulletinTable.expire_at} > NOW())`,
+          or(isNull(BulletinTable.publish_at), lte(BulletinTable.publish_at, new Date())),
+          or(isNull(BulletinTable.expire_at), gt(BulletinTable.expire_at, new Date())),
         ),
       )
       .orderBy(desc(BulletinTable.publish_at))

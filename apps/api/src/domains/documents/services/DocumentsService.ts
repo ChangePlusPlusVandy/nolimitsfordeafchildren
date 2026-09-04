@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
   DocumentTable,
@@ -181,7 +181,7 @@ export class DocumentsService {
     );
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(DocumentTable)
       .where(whereClause);
 
@@ -240,7 +240,7 @@ export class DocumentsService {
 
     // Get total count
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(DocumentTable)
       .where(whereClause);
 
@@ -364,11 +364,11 @@ export class DocumentsService {
 
     const whereClause = and(
       eq(DocumentTable.document_type, "audiogram"),
-      sql`${DocumentTable.next_due_date} <= ${checkDate}`,
+      lte(DocumentTable.next_due_date, checkDate),
     );
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(DocumentTable)
       .where(whereClause);
 
@@ -410,12 +410,12 @@ export class DocumentsService {
     const whereClause = and(
       eq(DocumentTable.document_type, "audiogram"),
       eq(DocumentTable.entity_type, "student"),
-      sql`${DocumentTable.next_due_date} >= ${todayStr}`,
-      sql`${DocumentTable.next_due_date} <= ${futureDateStr}`,
+      gte(DocumentTable.next_due_date, todayStr),
+      lte(DocumentTable.next_due_date, futureDateStr),
     );
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(DocumentTable)
       .where(whereClause);
 

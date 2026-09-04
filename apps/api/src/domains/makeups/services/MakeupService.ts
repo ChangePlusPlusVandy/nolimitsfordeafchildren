@@ -142,7 +142,7 @@ export class MakeupService {
       .where(
         and(
           eq(MakeupRequestTable.id, requestId),
-          sql`${MakeupRequestTable.student_id} IN ${studentIds}`,
+          inArray(MakeupRequestTable.student_id, studentIds),
         ),
       )
       .limit(1);
@@ -285,7 +285,7 @@ export class MakeupService {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(MakeupRequestTable)
       .innerJoin(ScheduleTable, eq(MakeupRequestTable.original_schedule_id, ScheduleTable.id))
       .where(whereClause);
@@ -594,7 +594,7 @@ export class MakeupService {
     const whereClause = and(...conditions);
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(MakeupSessionTable)
       .where(whereClause);
 

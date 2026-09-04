@@ -84,7 +84,7 @@ export class SessionNotesService {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(SessionNoteTable)
       .where(eq(SessionNoteTable.student_id, studentId));
 
@@ -138,7 +138,7 @@ export class SessionNotesService {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(SessionNoteTable)
       .where(eq(SessionNoteTable.teacher_id, teacherId));
 

@@ -1066,8 +1066,8 @@ async function seed() {
     state: "CA",
     postal_code: loc.zip,
     country: "USA",
-    latitude: loc.lat,
-    longitude: loc.lng,
+    latitude: Number(loc.lat),
+    longitude: Number(loc.lng),
     timezone: "America/Los_Angeles",
     zoom_link:
       loc.type === "education_center"

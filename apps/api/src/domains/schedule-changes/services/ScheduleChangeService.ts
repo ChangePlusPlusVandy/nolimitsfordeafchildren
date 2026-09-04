@@ -1,5 +1,6 @@
 import { Service } from "typedi";
-import { eq, and, desc, sql, isNull, inArray, asc } from "drizzle-orm";
+import { eq, and, desc, sql, isNull, inArray, asc, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { db } from "@/db";
 import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
@@ -147,7 +148,7 @@ export class ScheduleChangeService {
       .where(
         and(
           eq(ScheduleChangeRequestTable.id, requestId),
-          sql`${ScheduleChangeRequestTable.student_id} IN ${studentIds}`,
+          inArray(ScheduleChangeRequestTable.student_id, studentIds),
         ),
       )
       .limit(1);
@@ -161,20 +162,23 @@ export class ScheduleChangeService {
       return false;
     }
 
+    const requestedSchedule = alias(ScheduleTable, "requested_schedule");
+
     const request = await db
       .select({ id: ScheduleChangeRequestTable.id })
       .from(ScheduleChangeRequestTable)
       .leftJoin(ScheduleTable, eq(ScheduleChangeRequestTable.current_schedule_id, ScheduleTable.id))
-      .leftJoin(sql`"schedules" as requested_schedule`, sql`
-        requested_schedule.id = ${ScheduleChangeRequestTable.requested_schedule_id}
-      `)
+      .leftJoin(
+        requestedSchedule,
+        eq(requestedSchedule.id, ScheduleChangeRequestTable.requested_schedule_id),
+      )
       .where(
         and(
           eq(ScheduleChangeRequestTable.id, requestId),
-          sql`(
-            ${ScheduleTable.teacher_id} = ${teacherProfileId}
-            OR requested_schedule.teacher_id = ${teacherProfileId}
-          )`,
+          or(
+            eq(ScheduleTable.teacher_id, teacherProfileId),
+            eq(requestedSchedule.teacher_id, teacherProfileId),
+          ),
         ),
       )
       .limit(1);
@@ -349,7 +353,7 @@ export class ScheduleChangeService {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(ScheduleChangeRequestTable)
       .innerJoin(ScheduleTable, eq(ScheduleChangeRequestTable.current_schedule_id, ScheduleTable.id))
       .where(whereClause);

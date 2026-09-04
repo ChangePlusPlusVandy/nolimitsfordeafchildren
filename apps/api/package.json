@@ -35,7 +35,7 @@
     "class-validator": "^0.14.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.44.6",
+    "drizzle-orm": "^0.45.2",
     "esbuild": "^0.25.11",
     "express": "^5.1.0",
     "node-cron": "^4.2.1",

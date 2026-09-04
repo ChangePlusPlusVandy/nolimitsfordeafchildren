@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { eq, ilike, or, desc, asc, and, sql } from "drizzle-orm";
+import { eq, like, or, desc, asc, and, sql, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   UserTable,
@@ -74,7 +74,7 @@ export class UsersService {
 
     if (query.search) {
       conditions.push(
-        or(ilike(UserTable.name, `%${query.search}%`), ilike(UserTable.email, `%${query.search}%`)),
+        or(like(UserTable.name, `%${query.search}%`), like(UserTable.email, `%${query.search}%`)),
       );
     }
 
@@ -90,7 +90,7 @@ export class UsersService {
 
     // Get total count
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(UserTable)
       .where(whereClause);
 
@@ -175,7 +175,7 @@ export class UsersService {
       .where(
         and(
           eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
-          sql`${ParentStudentLinkTable.revoked_at} IS NULL`,
+          isNull(ParentStudentLinkTable.revoked_at),
         ),
       )
       .orderBy(asc(StudentTable.last_name), asc(StudentTable.first_name));
@@ -218,7 +218,7 @@ export class UsersService {
         and(
           eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
           eq(ParentStudentLinkTable.student_id, studentId),
-          sql`${ParentStudentLinkTable.revoked_at} IS NULL`,
+          isNull(ParentStudentLinkTable.revoked_at),
         ),
       )
       .limit(1);
@@ -262,7 +262,7 @@ export class UsersService {
         and(
           eq(ParentStudentLinkTable.parent_id, parentProfile[0]!.id),
           eq(ParentStudentLinkTable.student_id, studentId),
-          sql`${ParentStudentLinkTable.revoked_at} IS NULL`,
+          isNull(ParentStudentLinkTable.revoked_at),
         ),
       );
 

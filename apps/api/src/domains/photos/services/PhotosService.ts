@@ -230,7 +230,7 @@ export class PhotosService {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(PhotoTable)
       .where(whereClause);
 

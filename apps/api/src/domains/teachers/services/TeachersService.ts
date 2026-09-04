@@ -1,6 +1,6 @@
 import { Service } from "typedi";
 import Container from "@/container";
-import { eq, ilike, or, desc, asc, and, sql, isNull, gte, lte } from "drizzle-orm";
+import { eq, like, or, desc, asc, and, sql, isNull, gte, lte, ne } from "drizzle-orm";
 import { db } from "@/db";
 import {
   TeacherProfileTable,
@@ -138,7 +138,7 @@ export class TeachersService {
 
     if (query.search) {
       conditions.push(
-        or(ilike(UserTable.name, `%${query.search}%`), ilike(UserTable.email, `%${query.search}%`)),
+        or(like(UserTable.name, `%${query.search}%`), like(UserTable.email, `%${query.search}%`)),
       );
     }
 
@@ -158,7 +158,7 @@ export class TeachersService {
 
     // Get total count
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(TeacherProfileTable)
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .where(whereClause);
@@ -516,7 +516,7 @@ export class TeachersService {
 
     // Count total
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(TeacherStudentTable)
       .where(
         and(eq(TeacherStudentTable.teacher_id, id), isNull(TeacherStudentTable.unassigned_at)),
@@ -758,7 +758,7 @@ export class TeachersService {
     const conditions = [eq(ScheduleTable.teacher_id, teacherId), eq(ScheduleTable.is_active, true)];
 
     if (excludeScheduleId) {
-      conditions.push(sql`${ScheduleTable.id} != ${excludeScheduleId}`);
+      conditions.push(ne(ScheduleTable.id, excludeScheduleId));
     }
 
     const existingSchedules = await db

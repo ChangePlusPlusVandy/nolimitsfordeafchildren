@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import type { LocationEntity, LocationInsert, UserEntity } from "@/db/schema";
 import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
-import { eq, and, gte, lte, ilike, or, asc, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, gte, lte, like, or, asc, desc, sql, isNull } from "drizzle-orm";
 import { ForbiddenError, NotFoundError } from "routing-controllers";
 
 export type CreateLocationDto = Omit<LocationInsert, "id" | "created_at" | "updated_at">;
@@ -66,9 +66,9 @@ export class LocationsService {
       const searchQuery = `%${query.search.trim()}%`;
       conditions.push(
         or(
-          ilike(LocationTable.name, searchQuery),
-          ilike(LocationTable.city, searchQuery),
-          ilike(LocationTable.state, searchQuery),
+          like(LocationTable.name, searchQuery),
+          like(LocationTable.city, searchQuery),
+          like(LocationTable.state, searchQuery),
         ),
       );
     }
@@ -84,7 +84,7 @@ export class LocationsService {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(LocationTable)
       .where(whereClause);
 
@@ -165,7 +165,16 @@ export class LocationsService {
       .from(LocationTable)
       .orderBy(LocationTable.name);
 
-    return results;
+    // `real` columns read back as numbers; the map-pin contract uses strings
+    // (matching the old pg `numeric` driver behavior)
+    return results.map((r) => ({
+      id: r.id,
+      name: r.name,
+      latitude: r.latitude?.toString() ?? null,
+      longitude: r.longitude?.toString() ?? null,
+      type: r.type,
+      is_active: r.is_active,
+    }));
   }
 
   /**

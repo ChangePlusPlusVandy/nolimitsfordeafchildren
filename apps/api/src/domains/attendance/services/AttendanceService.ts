@@ -431,7 +431,7 @@ export class AttendanceService {
 
     // Get total count
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(AttendanceTable)
       .innerJoin(ScheduleTable, eq(AttendanceTable.schedule_id, ScheduleTable.id))
       .where(whereClause);
@@ -514,7 +514,7 @@ export class AttendanceService {
     const result = await db
       .select({
         status: AttendanceTable.status,
-        count: sql<number>`count(*)::int`,
+        count: sql<number>`count(*)`,
       })
       .from(AttendanceTable)
       .where(eq(AttendanceTable.student_id, studentId))
@@ -660,10 +660,7 @@ export class AttendanceService {
       .innerJoin(StudentTable, eq(EnrollmentTable.student_id, StudentTable.id))
       .where(
         and(
-          sql`${EnrollmentTable.schedule_id} IN (${sql.join(
-            scheduleIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
+          inArray(EnrollmentTable.schedule_id, scheduleIds),
           isNull(EnrollmentTable.ended_at),
           eq(StudentTable.is_active, true),
         ),
@@ -675,10 +672,7 @@ export class AttendanceService {
       .from(AttendanceTable)
       .where(
         and(
-          sql`${AttendanceTable.schedule_id} IN (${sql.join(
-            scheduleIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
+          inArray(AttendanceTable.schedule_id, scheduleIds),
           eq(AttendanceTable.session_date, date),
         ),
       );

@@ -1,63 +1,21 @@
-import "dotenv/config";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
-import path from "path";
-import pg from "pg";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 /**
- * Run database migrations
- * This function is safe to call on every app start - it will only run pending migrations
+ * D1 migration bootstrap — replaces the old PostgreSQL migrator.
+ *
+ * D1 schema migrations are applied out-of-band with:
+ *   wrangler d1 migrations apply <database>
+ * (generated via `drizzle-kit generate` with the sqlite dialect).
+ *
+ * There is no runtime migration step anymore. The PostgreSQL extension
+ * bootstrap (`CREATE EXTENSION pgcrypto/citext`) is gone: UUIDs are generated
+ * with `crypto.randomUUID()` via `$defaultFn` in `schema.ts`, and
+ * case-insensitive emails use `COLLATE NOCASE` on the sqlite text columns.
+ *
+ * `runMigrations` is kept as a no-op so the Express boot sequence in
+ * `server.ts` still compiles; the Cloudflare entrypoint task replaces that
+ * boot path entirely.
  */
 export async function runMigrations(): Promise<void> {
-  console.log("Running database migrations...");
-
-  const shouldUseSsl =
-    process.env.POSTGRES_SSL === "true" ||
-    (process.env.POSTGRES_URI?.includes("sslmode=require") ?? false);
-
-  const pool = new pg.Pool({
-    connectionString: process.env.POSTGRES_URI,
-    ...(shouldUseSsl
-      ? {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        }
-      : {}),
-  });
-
-  const db = drizzle(pool);
-
-  try {
-    await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    await pool.query('CREATE EXTENSION IF NOT EXISTS "citext"');
-
-    // The migrations folder path relative to this file
-    const migrationsFolder = path.join(__dirname, "migrations");
-
-    await migrate(db, { migrationsFolder });
-    console.log("Database migrations completed successfully");
-  } catch (error) {
-    console.error("Database migration failed:", error);
-    throw error;
-  } finally {
-    await pool.end();
-  }
-}
-
-// Allow running directly: npx tsx src/db/migrate.ts
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runMigrations()
-    .then(() => {
-      console.log("Migration script completed");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("Migration script failed:", error);
-      process.exit(1);
-    });
+  console.log(
+    "[db/migrate] No-op: D1 migrations are applied via `wrangler d1 migrations apply`. Skipping runtime migrations.",
+  );
 }

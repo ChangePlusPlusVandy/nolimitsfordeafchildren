@@ -423,7 +423,7 @@ export class BulletinsService {
 
     // Get total count
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(BulletinTable)
       .where(whereClause);
 
@@ -468,7 +468,7 @@ export class BulletinsService {
       const viewCounts = await db
         .select({
           bulletin_id: BulletinViewTable.bulletin_id,
-          count: sql<number>`count(*)::int`,
+          count: sql<number>`count(*)`,
         })
         .from(BulletinViewTable)
         .where(inArray(BulletinViewTable.bulletin_id, bulletinIds))
@@ -481,7 +481,7 @@ export class BulletinsService {
       const acknowledgementCounts = await db
         .select({
           bulletin_id: BulletinAcknowledgementTable.bulletin_id,
-          count: sql<number>`count(*)::int`,
+          count: sql<number>`count(*)`,
         })
         .from(BulletinAcknowledgementTable)
         .where(inArray(BulletinAcknowledgementTable.bulletin_id, bulletinIds))
@@ -570,7 +570,7 @@ export class BulletinsService {
       .where(eq(BulletinAttachmentTable.bulletin_id, id));
 
     const acknowledgementCountResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(BulletinAcknowledgementTable)
       .where(eq(BulletinAcknowledgementTable.bulletin_id, id));
 
@@ -830,7 +830,7 @@ export class BulletinsService {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(BulletinTable)
       .where(eq(BulletinTable.approval_status, "pending"));
 

@@ -232,7 +232,7 @@ export class AssessmentsService {
     const { page, limit, offset } = getPagination(query, 10, 100);
 
     const cycleCountResult = await db
-      .select({ count: sql<number>`count(distinct ${AssessmentTable.cycle_start_date})::int` })
+      .select({ count: sql<number>`count(distinct ${AssessmentTable.cycle_start_date})` })
       .from(AssessmentTable)
       .where(eq(AssessmentTable.student_id, studentId));
 

@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { StudentTable, LocationTable, UserTable } from "../db/schema";
-import { eq, and, gte, lte, sql, isNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { sendBirthdayNotification } from "../email";
 
 interface JobResult {
@@ -19,36 +19,33 @@ export async function runBirthdayJob(): Promise<JobResult> {
 
   try {
     const today = new Date();
-    const sevenDaysFromNow = new Date(today);
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
-    // Get current month and day range for birthday matching
-    // We need to handle year-wrap (e.g., if today is Dec 28, next 7 days includes Jan 4)
-    const todayMonth = today.getMonth() + 1;
-    const todayDay = today.getDate();
-    const futureMonth = sevenDaysFromNow.getMonth() + 1;
-    const futureDay = sevenDaysFromNow.getDate();
-
-    // Find active students with upcoming birthdays
-    // Using SQL to extract month and day from DOB
-    const studentsWithBirthdays = await db
+    // Find active students with upcoming birthdays.
+    // SQLite has no EXTRACT(); the dataset is small, so the month/day windowing
+    // (including year-wrap, e.g. today Dec 28 → next 7 days includes Jan 4) is
+    // done in JS here, mirroring the old EXTRACT(MONTH/DAY FROM dob::date) SQL.
+    const allActiveStudents = await db
       .select({
         student: StudentTable,
         site: LocationTable,
       })
       .from(StudentTable)
       .innerJoin(LocationTable, eq(StudentTable.site_id, LocationTable.id))
-      .where(
-        and(
-          eq(StudentTable.is_active, true),
-          // Birthday within next 7 days (handles month/day comparison)
-          sql`(
-            (EXTRACT(MONTH FROM ${StudentTable.dob}::date) = ${todayMonth} AND EXTRACT(DAY FROM ${StudentTable.dob}::date) >= ${todayDay})
-            OR (EXTRACT(MONTH FROM ${StudentTable.dob}::date) = ${futureMonth} AND EXTRACT(DAY FROM ${StudentTable.dob}::date) <= ${futureDay})
-            ${todayMonth !== futureMonth ? sql`OR (EXTRACT(MONTH FROM ${StudentTable.dob}::date) > ${todayMonth} AND EXTRACT(MONTH FROM ${StudentTable.dob}::date) < ${futureMonth})` : sql``}
-          )`,
-        ),
-      );
+      .where(eq(StudentTable.is_active, true));
+
+    // Birthday within the next 7 days (inclusive), handling year-wrap
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfWindow = new Date(todayStart);
+    endOfWindow.setDate(endOfWindow.getDate() + 7);
+
+    const studentsWithBirthdays = allActiveStudents.filter(({ student }) => {
+      const dob = new Date(student.dob);
+      let nextBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+      if (nextBirthday < todayStart) {
+        nextBirthday = new Date(today.getFullYear() + 1, dob.getMonth(), dob.getDate());
+      }
+      return nextBirthday >= todayStart && nextBirthday <= endOfWindow;
+    });
 
     if (studentsWithBirthdays.length === 0) {
       console.log("[Birthday Job] No upcoming birthdays found");

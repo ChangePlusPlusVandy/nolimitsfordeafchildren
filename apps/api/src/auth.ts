@@ -112,7 +112,7 @@ export const auth = betterAuth({
     .map((origin) => origin.trim())
     .filter(Boolean),
   database: drizzleAdapter(db, {
-    provider: "pg",
+    provider: "sqlite",
     schema: {
       ...schema,
       auth_users: schema.AuthUserTable,

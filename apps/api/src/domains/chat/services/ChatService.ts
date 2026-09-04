@@ -34,7 +34,7 @@ export class ChatService {
     const whereClause = and(eq(ChatMessageTable.channel, input.channel), isNull(ChatMessageTable.deleted_at));
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(ChatMessageTable)
       .where(whereClause);
 

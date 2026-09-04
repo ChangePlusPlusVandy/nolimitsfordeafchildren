@@ -18,7 +18,7 @@ import {
   type StudentEntity,
   type SiblingEntity,
 } from "../../../db/schema";
-import { eq, and, isNull, ilike, or, sql, desc, asc } from "drizzle-orm";
+import { eq, and, isNull, like, or, sql, desc, asc } from "drizzle-orm";
 
 // Types
 export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
@@ -149,9 +149,9 @@ export class StudentsService {
       const searchQuery = `%${filters.search.trim()}%`;
       conditions.push(
         or(
-          ilike(StudentTable.initials, searchQuery),
-          ilike(StudentTable.first_name, searchQuery),
-          ilike(StudentTable.last_name, searchQuery),
+          like(StudentTable.initials, searchQuery),
+          like(StudentTable.first_name, searchQuery),
+          like(StudentTable.last_name, searchQuery),
         ),
       );
     }
@@ -201,7 +201,7 @@ export class StudentsService {
     if (userRole === "administrator") {
       // Admins see all students
       const countResult = await db
-        .select({ count: sql<number>`count(*)::int` })
+        .select({ count: sql<number>`count(*)` })
         .from(StudentTable)
         .where(whereClause);
 
@@ -235,7 +235,7 @@ export class StudentsService {
       const teacherWhereClause = whereClause ? and(teacherScope, whereClause) : teacherScope;
 
       const countResult = await db
-        .select({ count: sql<number>`count(*)::int` })
+        .select({ count: sql<number>`count(*)` })
         .from(StudentTable)
         .innerJoin(TeacherStudentTable, eq(TeacherStudentTable.student_id, StudentTable.id))
         .where(teacherWhereClause);
@@ -288,7 +288,7 @@ export class StudentsService {
       const parentWhereClause = whereClause ? and(parentScope, whereClause) : parentScope;
 
       const countResult = await db
-        .select({ count: sql<number>`count(*)::int` })
+        .select({ count: sql<number>`count(*)` })
         .from(StudentTable)
         .innerJoin(ParentStudentLinkTable, eq(ParentStudentLinkTable.student_id, StudentTable.id))
         .where(parentWhereClause);
@@ -745,7 +745,7 @@ export class StudentsService {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(TeacherStudentTable)
       .where(
         and(
@@ -856,7 +856,7 @@ export class StudentsService {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(ParentStudentLinkTable)
       .where(
         and(

@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { eq, and, sql, desc, asc, gte, lte, isNull } from "drizzle-orm";
+import { eq, and, sql, desc, asc, gte, lte, isNull, ne } from "drizzle-orm";
 import { db } from "@/db";
 import {
   ScheduleTable,
@@ -114,7 +114,7 @@ export class SchedulesService {
 
     // Count total
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(ScheduleTable)
       .where(whereClause);
 
@@ -330,14 +330,14 @@ export class SchedulesService {
     }
 
     if (query.exclude_current_schedule_id) {
-      conditions.push(sql`${ScheduleTable.id} != ${query.exclude_current_schedule_id}`);
+      conditions.push(ne(ScheduleTable.id, query.exclude_current_schedule_id));
     }
 
     const whereClause = and(...conditions);
 
     // Count total
     const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(ScheduleTable)
       .where(whereClause);
 
@@ -428,7 +428,7 @@ export class SchedulesService {
     ];
 
     if (input.exclude_schedule_id) {
-      conditions.push(sql`${ScheduleTable.id} != ${input.exclude_schedule_id}`);
+      conditions.push(ne(ScheduleTable.id, input.exclude_schedule_id));
     }
 
     const existingSchedules = await db

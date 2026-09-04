@@ -1,150 +1,133 @@
 import {
-  pgTable,
+  sqliteTable,
   text,
-  uuid,
-  boolean,
-  timestamp,
-  varchar,
-  date,
-  time,
   integer,
-  numeric,
-  pgEnum,
-  uniqueIndex,
+  real,
   index,
-} from "drizzle-orm/pg-core";
+  uniqueIndex,
+  customType,
+} from "drizzle-orm/sqlite-core";
 import { relations, sql } from "drizzle-orm";
 
 // ==================== CUSTOM TYPES ====================
-
-import { customType } from "drizzle-orm/pg-core";
+// SQLite has no citext type. `text collate nocase` preserves the PostgreSQL
+// citext semantics (case-insensitive equality/uniqueness) on the email
+// columns. NOTE: drizzle-orm 0.45 removed the sqlite `.collate()` builder
+// method, hence the customType.
 
 export const citext = customType<{ data: string }>({
   dataType() {
-    return "citext";
+    return "text collate nocase";
   },
 });
 
-// ==================== ENUMS ====================
+// ==================== ENUM TYPES ====================
+// The 13 PostgreSQL pgEnums became text columns + TypeScript union types
+// for Cloudflare D1 (SQLite). Values are unchanged.
 
-export const userRoleEnum = pgEnum("user_role", [
-  "administrator",
-  "teacher",
-  "parent",
-  "unassigned",
-]);
+export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
 
-export const locationTypeEnum = pgEnum("location_type", ["education_center", "pop_up", "remote"]);
+export type LocationType = "education_center" | "pop_up" | "remote";
 
-export const attendanceStatusEnum = pgEnum("attendance_status", [
-  "present",
-  "late",
-  "no_show",
-  "cancelled",
-]);
+export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
 
-export const absenceReasonEnum = pgEnum("absence_reason", [
-  "sick",
-  "family_emergency",
-  "transportation",
-  "schedule_conflict",
-  "no_show_unknown",
-  "other",
-]);
+export type AbsenceReason =
+  | "sick"
+  | "family_emergency"
+  | "transportation"
+  | "schedule_conflict"
+  | "no_show_unknown"
+  | "other";
 
-export const documentTypeEnum = pgEnum("document_type", [
-  "audiogram",
-  "iep",
-  "cv",
-  "annual_test_result",
-  "pre_report",
-  "graduation_speech",
-  "other",
-]);
+export type DocumentType =
+  | "audiogram"
+  | "iep"
+  | "cv"
+  | "annual_test_result"
+  | "pre_report"
+  | "graduation_speech"
+  | "other";
 
-export const documentReviewStatusEnum = pgEnum("document_review_status", [
-  "approved",
-  "pending",
-  "rejected",
-]);
+export type DocumentReviewStatus = "approved" | "pending" | "rejected";
 
-export const assessmentTypeEnum = pgEnum("assessment_type", ["pre", "post"]);
+export type AssessmentType = "pre" | "post";
 
-export const hearingLossTypeEnum = pgEnum("hearing_loss_type", [
-  "mild",
-  "moderate",
-  "moderately_severe",
-  "severe",
-  "profound",
-  "unknown",
-]);
+export type HearingLossType =
+  | "mild"
+  | "moderate"
+  | "moderately_severe"
+  | "severe"
+  | "profound"
+  | "unknown";
 
-export const ageGroupSpecialtyEnum = pgEnum("age_group_specialty", [
-  "infant",
-  "toddler",
-  "preschool",
-  "elementary",
-  "middle_school",
-  "high_school",
-  "young_adult",
-  "all_ages",
-]);
+export type AgeGroupSpecialty =
+  | "infant"
+  | "toddler"
+  | "preschool"
+  | "elementary"
+  | "middle_school"
+  | "high_school"
+  | "young_adult"
+  | "all_ages";
 
-export const requestStatusEnum = pgEnum("request_status", [
-  "pending",
-  "negotiating",
-  "approved",
-  "denied",
-  "completed",
-]);
+export type RequestStatus = "pending" | "negotiating" | "approved" | "denied" | "completed";
 
-export const bulletinScopeEnum = pgEnum("bulletin_scope", ["global", "site"]);
+export type BulletinScope = "global" | "site";
 
-export const bulletinRoleTargetEnum = pgEnum("bulletin_role_target", [
-  "all",
-  "administrator",
-  "teacher",
-  "parent",
-]);
+export type BulletinRoleTarget = "all" | "administrator" | "teacher" | "parent";
 
-export const chatChannelEnum = pgEnum("chat_channel", ["community", "teacher"]);
+export type ChatChannel = "community" | "teacher";
 
 // ==================== CORE TABLES ====================
 
 /* ---------------- USER ---------------- */
 
-export const UserTable = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const UserTable = sqliteTable("users", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   authUserId: text("auth_user_id").unique(),
   email: citext("email").notNull().unique(),
   name: text("name").notNull(),
   phone: text("phone"),
   photo_url: text("photo_url"),
   locale: text("locale").notNull().default("en-US"),
-  role: userRoleEnum("role").notNull(),
-  is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  role: text("role", {
+    enum: ["administrator", "teacher", "parent", "unassigned"] as const,
+  }).notNull(),
+  is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- BETTER AUTH TABLES ---------------- */
 
-export const AuthUserTable = pgTable("auth_users", {
+export const AuthUserTable = sqliteTable("auth_users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: citext("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
   image: text("image"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
-export const AuthSessionTable = pgTable("auth_sessions", {
+export const AuthSessionTable = sqliteTable("auth_sessions", {
   id: text("id").primaryKey(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
   token: text("token").notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   userId: text("user_id")
@@ -152,7 +135,7 @@ export const AuthSessionTable = pgTable("auth_sessions", {
     .references(() => AuthUserTable.id, { onDelete: "cascade" }),
 });
 
-export const AuthAccountTable = pgTable(
+export const AuthAccountTable = sqliteTable(
   "auth_accounts",
   {
     id: text("id").primaryKey(),
@@ -164,12 +147,16 @@ export const AuthAccountTable = pgTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }),
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }),
     scope: text("scope"),
     password: text("password"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     providerAccountUnique: uniqueIndex("auth_accounts_provider_account_unique").on(
@@ -179,36 +166,44 @@ export const AuthAccountTable = pgTable(
   }),
 );
 
-export const AuthVerificationTable = pgTable("auth_verifications", {
+export const AuthVerificationTable = sqliteTable("auth_verifications", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- LOCATION ---------------- */
 
-export const LocationTable = pgTable(
+export const LocationTable = sqliteTable(
   "locations",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
-    type: locationTypeEnum("type").notNull(),
+    type: text("type", { enum: ["education_center", "pop_up", "remote"] as const }).notNull(),
     address_line1: text("address_line1").notNull(),
     address_line2: text("address_line2"),
     city: text("city").notNull(),
     state: text("state").notNull(),
     postal_code: text("postal_code").notNull(),
     country: text("country").notNull().default("USA"),
-    latitude: numeric("latitude", { precision: 9, scale: 6 }),
-    longitude: numeric("longitude", { precision: 9, scale: 6 }),
+    latitude: real("latitude"),
+    longitude: real("longitude"),
     timezone: text("timezone").notNull().default("America/Los_Angeles"),
     zoom_link: text("zoom_link"),
-    is_active: boolean("is_active").notNull().default(true),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     activeNameIdx: index("locations_active_name_idx").on(table.is_active, table.name),
@@ -219,27 +214,42 @@ export const LocationTable = pgTable(
 
 /* ---------------- TEACHER PROFILE ---------------- */
 
-export const TeacherProfileTable = pgTable("teacher_profiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  user_id: uuid("user_id")
+export const TeacherProfileTable = sqliteTable("teacher_profiles", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  user_id: text("user_id")
     .notNull()
     .references(() => UserTable.id)
     .unique(),
-  primary_site_id: uuid("primary_site_id").references(() => LocationTable.id),
+  primary_site_id: text("primary_site_id").references(() => LocationTable.id),
   bio: text("bio"),
   photo_url: text("photo_url"),
   qualifications: text("qualifications"),
   credentials: text("credentials"),
-  age_group_specialty: ageGroupSpecialtyEnum("age_group_specialty").default("all_ages"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  age_group_specialty: text("age_group_specialty", {
+    enum: [
+      "infant",
+      "toddler",
+      "preschool",
+      "elementary",
+      "middle_school",
+      "high_school",
+      "young_adult",
+      "all_ages",
+    ] as const,
+  }).default("all_ages"),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- PARENT PROFILE ---------------- */
 
-export const ParentProfileTable = pgTable("parent_profiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  user_id: uuid("user_id")
+export const ParentProfileTable = sqliteTable("parent_profiles", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  user_id: text("user_id")
     .notNull()
     .references(() => UserTable.id)
     .unique(),
@@ -250,32 +260,45 @@ export const ParentProfileTable = pgTable("parent_profiles", {
   postal_code: text("postal_code"),
   household_notes: text("household_notes"),
   preferred_contact_method: text("preferred_contact_method").notNull().default("email"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- STUDENT ---------------- */
 
-export const StudentTable = pgTable(
+export const StudentTable = sqliteTable(
   "students",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    site_id: uuid("site_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    site_id: text("site_id")
       .notNull()
       .references(() => LocationTable.id),
     first_name: text("first_name").notNull(),
     last_name: text("last_name").notNull(),
-    initials: varchar("initials", { length: 8 }).notNull(),
+    initials: text("initials").notNull(),
     photo_url: text("photo_url"),
-    dob: date("dob").notNull(),
+    dob: text("dob").notNull(),
     current_school: text("current_school"),
     preferred_language: text("preferred_language").notNull().default("English"),
-    hearing_devices: text("hearing_devices").array().notNull().default(sql`'{}'::text[]`),
-    hearing_loss_type: hearingLossTypeEnum("hearing_loss_type"),
+    hearing_devices: text("hearing_devices", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    hearing_loss_type: text("hearing_loss_type", {
+      enum: ["mild", "moderate", "moderately_severe", "severe", "profound", "unknown"] as const,
+    }),
     guardian_summary: text("guardian_summary"),
-    is_active: boolean("is_active").notNull().default(true),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     siteActiveInitialsIdx: index("students_site_active_initials_idx").on(
@@ -289,119 +312,143 @@ export const StudentTable = pgTable(
 
 /* ---------------- SIBLING ---------------- */
 
-export const SiblingTable = pgTable("siblings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  student_id: uuid("student_id")
+export const SiblingTable = sqliteTable("siblings", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  student_id: text("student_id")
     .notNull()
     .references(() => StudentTable.id),
   name: text("name").notNull(),
   age: integer("age"),
   relationship: text("relationship").notNull(),
-  is_participant: boolean("is_participant").notNull().default(true),
-  has_hearing_loss: boolean("has_hearing_loss").notNull().default(false),
+  is_participant: integer("is_participant", { mode: "boolean" }).notNull().default(true),
+  has_hearing_loss: integer("has_hearing_loss", { mode: "boolean" }).notNull().default(false),
   photo_url: text("photo_url"),
   notes: text("notes"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 // ==================== SCHEDULING TABLES ====================
 
 /* ---------------- SESSION ---------------- */
 
-export const SessionTable = pgTable("sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const SessionTable = sqliteTable("sessions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
-  start_date: date("start_date").notNull(),
-  end_date: date("end_date").notNull(),
-  is_active: boolean("is_active").notNull().default(true),
-  is_archived: boolean("is_archived").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  start_date: text("start_date").notNull(),
+  end_date: text("end_date").notNull(),
+  is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  is_archived: integer("is_archived", { mode: "boolean" }).notNull().default(false),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- SCHEDULE ---------------- */
 
-export const ScheduleTable = pgTable("schedules", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  teacher_id: uuid("teacher_id")
+export const ScheduleTable = sqliteTable("schedules", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  teacher_id: text("teacher_id")
     .notNull()
     .references(() => TeacherProfileTable.id),
-  site_id: uuid("site_id")
+  site_id: text("site_id")
     .notNull()
     .references(() => LocationTable.id),
-  session_id: uuid("session_id").references(() => SessionTable.id),
+  session_id: text("session_id").references(() => SessionTable.id),
   day_of_week_mask: integer("day_of_week_mask").notNull(),
-  start_time: time("start_time").notNull(),
-  end_time: time("end_time").notNull(),
-  cycle_start_date: date("cycle_start_date").notNull(),
-  cycle_end_date: date("cycle_end_date").notNull(),
-  is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  start_time: text("start_time").notNull(),
+  end_time: text("end_time").notNull(),
+  cycle_start_date: text("cycle_start_date").notNull(),
+  cycle_end_date: text("cycle_end_date").notNull(),
+  is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- ENROLLMENT ---------------- */
 
-export const EnrollmentTable = pgTable("enrollments", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  student_id: uuid("student_id")
+export const EnrollmentTable = sqliteTable("enrollments", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  student_id: text("student_id")
     .notNull()
     .references(() => StudentTable.id),
-  schedule_id: uuid("schedule_id")
+  schedule_id: text("schedule_id")
     .notNull()
     .references(() => ScheduleTable.id),
-  enrolled_at: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
-  ended_at: timestamp("ended_at", { withTimezone: true }),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  enrolled_at: integer("enrolled_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  ended_at: integer("ended_at", { mode: "timestamp_ms" }),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 // ==================== JUNCTION TABLES ====================
 
 /* ---------------- TEACHER-STUDENT LINK ---------------- */
 
-export const TeacherStudentTable = pgTable("teacher_student", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  teacher_id: uuid("teacher_id")
+export const TeacherStudentTable = sqliteTable("teacher_student", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  teacher_id: text("teacher_id")
     .notNull()
     .references(() => TeacherProfileTable.id),
-  student_id: uuid("student_id")
+  student_id: text("student_id")
     .notNull()
     .references(() => StudentTable.id),
-  assigned_at: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
-  unassigned_at: timestamp("unassigned_at", { withTimezone: true }),
+  assigned_at: integer("assigned_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  unassigned_at: integer("unassigned_at", { mode: "timestamp_ms" }),
 });
 
 /* ---------------- PARENT-STUDENT LINK ---------------- */
 
-export const ParentStudentLinkTable = pgTable("parent_student_link", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  parent_id: uuid("parent_id")
+export const ParentStudentLinkTable = sqliteTable("parent_student_link", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  parent_id: text("parent_id")
     .notNull()
     .references(() => ParentProfileTable.id),
-  student_id: uuid("student_id")
+  student_id: text("student_id")
     .notNull()
     .references(() => StudentTable.id),
   relationship: text("relationship"),
-  is_primary: boolean("is_primary").notNull().default(false),
-  linked_at: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
-  revoked_at: timestamp("revoked_at", { withTimezone: true }),
+  is_primary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+  linked_at: integer("linked_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  revoked_at: integer("revoked_at", { mode: "timestamp_ms" }),
 });
 
 /* ---------------- TEACHER-LOCATION LINK ---------------- */
 
-export const TeacherLocationTable = pgTable(
+export const TeacherLocationTable = sqliteTable(
   "teacher_locations",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    teacher_profile_id: uuid("teacher_profile_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    teacher_profile_id: text("teacher_profile_id")
       .notNull()
       .references(() => TeacherProfileTable.id),
-    location_id: uuid("location_id")
+    location_id: text("location_id")
       .notNull()
       .references(() => LocationTable.id),
-    assigned_at: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+    assigned_at: integer("assigned_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     teacherLocationUnique: uniqueIndex("teacher_locations_teacher_profile_id_location_id_idx").on(
@@ -416,38 +463,57 @@ export const TeacherLocationTable = pgTable(
 
 /* ---------------- ATTENDANCE ---------------- */
 
-export const AttendanceTable = pgTable("attendance", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  student_id: uuid("student_id")
+export const AttendanceTable = sqliteTable("attendance", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  student_id: text("student_id")
     .notNull()
     .references(() => StudentTable.id),
-  schedule_id: uuid("schedule_id")
+  schedule_id: text("schedule_id")
     .notNull()
     .references(() => ScheduleTable.id),
-  session_date: date("session_date").notNull(),
-  status: attendanceStatusEnum("status").notNull(),
+  session_date: text("session_date").notNull(),
+  status: text("status", {
+    enum: ["present", "late", "no_show", "cancelled"] as const,
+  }).notNull(),
   late_minutes: integer("late_minutes"),
-  reason: absenceReasonEnum("reason"),
+  reason: text("reason", {
+    enum: [
+      "sick",
+      "family_emergency",
+      "transportation",
+      "schedule_conflict",
+      "no_show_unknown",
+      "other",
+    ] as const,
+  }),
   reason_text: text("reason_text"),
-  marked_by: uuid("marked_by")
+  marked_by: text("marked_by")
     .notNull()
     .references(() => UserTable.id),
-  marked_at: timestamp("marked_at", { withTimezone: true }).notNull().defaultNow(),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  marked_at: integer("marked_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
-export const AttendanceSiblingParticipantTable = pgTable(
+export const AttendanceSiblingParticipantTable = sqliteTable(
   "attendance_sibling_participants",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    attendance_id: uuid("attendance_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    attendance_id: text("attendance_id")
       .notNull()
       .references(() => AttendanceTable.id),
-    sibling_id: uuid("sibling_id")
+    sibling_id: text("sibling_id")
       .notNull()
       .references(() => SiblingTable.id),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     attendanceSiblingParticipantUnique: uniqueIndex(
@@ -459,21 +525,25 @@ export const AttendanceSiblingParticipantTable = pgTable(
 
 /* ---------------- SESSION NOTES ---------------- */
 
-export const SessionNoteTable = pgTable(
+export const SessionNoteTable = sqliteTable(
   "session_notes",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    student_id: uuid("student_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    student_id: text("student_id")
       .notNull()
       .references(() => StudentTable.id),
-    teacher_id: uuid("teacher_id")
+    teacher_id: text("teacher_id")
       .notNull()
       .references(() => TeacherProfileTable.id),
-    schedule_id: uuid("schedule_id").references(() => ScheduleTable.id),
-    session_date: date("session_date"),
+    schedule_id: text("schedule_id").references(() => ScheduleTable.id),
+    session_date: text("session_date"),
     note: text("note").notNull(),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     studentCreatedAtIdx: index("session_notes_student_created_at_idx").on(
@@ -489,25 +559,33 @@ export const SessionNoteTable = pgTable(
 
 /* ---------------- ASSESSMENT ---------------- */
 
-export const AssessmentTable = pgTable(
+export const AssessmentTable = sqliteTable(
   "assessments",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    student_id: uuid("student_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    student_id: text("student_id")
       .notNull()
       .references(() => StudentTable.id),
-    teacher_id: uuid("teacher_id")
+    teacher_id: text("teacher_id")
       .notNull()
       .references(() => TeacherProfileTable.id),
-    cycle_start_date: date("cycle_start_date").notNull(),
-    assessment_type: assessmentTypeEnum("assessment_type").notNull(),
+    cycle_start_date: text("cycle_start_date").notNull(),
+    assessment_type: text("assessment_type", {
+      enum: ["pre", "post"] as const,
+    }).notNull(),
     teaching_focus: text("teaching_focus").notNull(),
     summary: text("summary"),
     score: integer("score").notNull(),
     notes: text("notes"),
-    assessed_at: timestamp("assessed_at", { withTimezone: true }).notNull().defaultNow(),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    assessed_at: integer("assessed_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     studentCycleTypeIdx: index("assessments_student_cycle_type_idx").on(
@@ -522,73 +600,107 @@ export const AssessmentTable = pgTable(
   }),
 );
 
-export const AssessmentFocusTable = pgTable("assessment_focuses", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  assessment_id: uuid("assessment_id")
+export const AssessmentFocusTable = sqliteTable("assessment_focuses", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  assessment_id: text("assessment_id")
     .notNull()
     .references(() => AssessmentTable.id),
   goal: text("goal").notNull(),
   score: integer("score").notNull(),
   max_score: integer("max_score").notNull(),
   sort_order: integer("sort_order").notNull().default(0),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 // ==================== DOCUMENTS ====================
 
 /* ---------------- DOCUMENT ---------------- */
 
-export const DocumentTable = pgTable("documents", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const DocumentTable = sqliteTable("documents", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   entity_type: text("entity_type").notNull(), // 'student' or 'teacher'
-  entity_id: uuid("entity_id").notNull(),
-  document_type: documentTypeEnum("document_type").notNull(),
+  entity_id: text("entity_id").notNull(),
+  document_type: text("document_type", {
+    enum: [
+      "audiogram",
+      "iep",
+      "cv",
+      "annual_test_result",
+      "pre_report",
+      "graduation_speech",
+      "other",
+    ] as const,
+  }).notNull(),
   file_url: text("file_url").notNull(),
   file_name: text("file_name").notNull(),
   file_size: integer("file_size"),
   mime_type: text("mime_type"),
-  document_date: date("document_date"),
-  next_due_date: date("next_due_date"),
-  review_status: documentReviewStatusEnum("review_status").notNull().default("approved"),
-  reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
-  reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+  document_date: text("document_date"),
+  next_due_date: text("next_due_date"),
+  review_status: text("review_status", {
+    enum: ["approved", "pending", "rejected"] as const,
+  })
+    .notNull()
+    .default("approved"),
+  reviewed_by: text("reviewed_by").references(() => UserTable.id),
+  reviewed_at: integer("reviewed_at", { mode: "timestamp_ms" }),
   review_notes: text("review_notes"),
-  session_date: date("session_date"),
+  session_date: text("session_date"),
   session_type: text("session_type"),
-  uploaded_by: uuid("uploaded_by")
+  uploaded_by: text("uploaded_by")
     .notNull()
     .references(() => UserTable.id),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 // ==================== BULLETINS ====================
 
 /* ---------------- BULLETIN ---------------- */
 
-export const BulletinTable = pgTable(
+export const BulletinTable = sqliteTable(
   "bulletins",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    site_id: uuid("site_id").references(() => LocationTable.id),
-    scope: bulletinScopeEnum("scope").notNull().default("global"),
-    role_target: bulletinRoleTargetEnum("role_target").notNull().default("all"),
-    requires_approval: boolean("requires_approval").notNull().default(false),
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    site_id: text("site_id").references(() => LocationTable.id),
+    scope: text("scope", { enum: ["global", "site"] as const }).notNull().default("global"),
+    role_target: text("role_target", {
+      enum: ["all", "administrator", "teacher", "parent"] as const,
+    })
+      .notNull()
+      .default("all"),
+    requires_approval: integer("requires_approval", { mode: "boolean" })
+      .notNull()
+      .default(false),
     approval_status: text("approval_status").notNull().default("approved"),
     title: text("title").notNull(),
     body: text("body"),
-    requires_initials: boolean("requires_initials").notNull().default(false),
-    publish_at: timestamp("publish_at", { withTimezone: true }),
-    expire_at: timestamp("expire_at", { withTimezone: true }),
-    reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
-    reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+    requires_initials: integer("requires_initials", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    publish_at: integer("publish_at", { mode: "timestamp_ms" }),
+    expire_at: integer("expire_at", { mode: "timestamp_ms" }),
+    reviewed_by: text("reviewed_by").references(() => UserTable.id),
+    reviewed_at: integer("reviewed_at", { mode: "timestamp_ms" }),
     review_notes: text("review_notes"),
-    created_by: uuid("created_by")
+    created_by: text("created_by")
       .notNull()
       .references(() => UserTable.id),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     approvalStatusCreatedAtIdx: index("bulletins_approval_status_created_at_idx").on(
@@ -600,34 +712,44 @@ export const BulletinTable = pgTable(
 
 /* ---------------- BULLETIN ATTACHMENT ---------------- */
 
-export const BulletinAttachmentTable = pgTable("bulletin_attachments", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  bulletin_id: uuid("bulletin_id")
+export const BulletinAttachmentTable = sqliteTable("bulletin_attachments", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  bulletin_id: text("bulletin_id")
     .notNull()
     .references(() => BulletinTable.id),
   file_url: text("file_url").notNull(),
   file_name: text("file_name").notNull(),
   file_size: integer("file_size"),
   mime_type: text("mime_type"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- BULLETIN VIEW ---------------- */
 
-export const BulletinViewTable = pgTable(
+export const BulletinViewTable = sqliteTable(
   "bulletin_views",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    bulletin_id: uuid("bulletin_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    bulletin_id: text("bulletin_id")
       .notNull()
       .references(() => BulletinTable.id),
-    user_id: uuid("user_id")
+    user_id: text("user_id")
       .notNull()
       .references(() => UserTable.id),
-    viewed_at: timestamp("viewed_at", { withTimezone: true }).notNull().defaultNow(),
-    last_viewed_at: timestamp("last_viewed_at", { withTimezone: true }).notNull().defaultNow(),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    viewed_at: integer("viewed_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    last_viewed_at: integer("last_viewed_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     bulletinViewUnique: uniqueIndex("bulletin_views_bulletin_id_user_id_idx").on(
@@ -639,20 +761,26 @@ export const BulletinViewTable = pgTable(
 
 /* ---------------- BULLETIN ACKNOWLEDGEMENT ---------------- */
 
-export const BulletinAcknowledgementTable = pgTable(
+export const BulletinAcknowledgementTable = sqliteTable(
   "bulletin_acknowledgements",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    bulletin_id: uuid("bulletin_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    bulletin_id: text("bulletin_id")
       .notNull()
       .references(() => BulletinTable.id),
-    user_id: uuid("user_id")
+    user_id: text("user_id")
       .notNull()
       .references(() => UserTable.id),
-    initials: varchar("initials", { length: 8 }).notNull(),
-    acknowledged_at: timestamp("acknowledged_at", { withTimezone: true }).notNull().defaultNow(),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    initials: text("initials").notNull(),
+    acknowledged_at: integer("acknowledged_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     bulletinAcknowledgementUnique: uniqueIndex("bulletin_acknowledgements_bulletin_id_user_id_idx").on(
@@ -664,24 +792,28 @@ export const BulletinAcknowledgementTable = pgTable(
 
 /* ---------------- TEACHER SICK DAY NOTICE ---------------- */
 
-export const TeacherSickDayNoticeTable = pgTable(
+export const TeacherSickDayNoticeTable = sqliteTable(
   "teacher_sick_day_notices",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    teacher_id: uuid("teacher_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    teacher_id: text("teacher_id")
       .notNull()
       .references(() => TeacherProfileTable.id),
-    site_id: uuid("site_id")
+    site_id: text("site_id")
       .notNull()
       .references(() => LocationTable.id),
-    notice_date: date("notice_date").notNull(),
+    notice_date: text("notice_date").notNull(),
     note: text("note"),
-    bulletin_id: uuid("bulletin_id").references(() => BulletinTable.id),
-    created_by: uuid("created_by")
+    bulletin_id: text("bulletin_id").references(() => BulletinTable.id),
+    created_by: text("created_by")
       .notNull()
       .references(() => UserTable.id),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     teacherDateIdx: index("teacher_sick_day_notices_teacher_date_idx").on(
@@ -697,41 +829,51 @@ export const TeacherSickDayNoticeTable = pgTable(
 
 /* ---------------- CHAT MESSAGE ---------------- */
 
-export const ChatMessageTable = pgTable("chat_messages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  channel: chatChannelEnum("channel").notNull().default("community"),
+export const ChatMessageTable = sqliteTable("chat_messages", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  channel: text("channel", { enum: ["community", "teacher"] as const })
+    .notNull()
+    .default("community"),
   message: text("message").notNull(),
-  is_announcement: boolean("is_announcement").notNull().default(false),
-  created_by: uuid("created_by")
+  is_announcement: integer("is_announcement", { mode: "boolean" }).notNull().default(false),
+  created_by: text("created_by")
     .notNull()
     .references(() => UserTable.id),
-  deleted_at: timestamp("deleted_at", { withTimezone: true }),
-  deleted_by: uuid("deleted_by").references(() => UserTable.id),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  deleted_at: integer("deleted_at", { mode: "timestamp_ms" }),
+  deleted_by: text("deleted_by").references(() => UserTable.id),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ---------------- SESSION PHOTO ---------------- */
 
-export const PhotoTable = pgTable(
+export const PhotoTable = sqliteTable(
   "photos",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    location_id: uuid("location_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    location_id: text("location_id")
       .notNull()
       .references(() => LocationTable.id),
-    student_id: uuid("student_id").references(() => StudentTable.id),
-    session_date: date("session_date").notNull(),
+    student_id: text("student_id").references(() => StudentTable.id),
+    session_date: text("session_date").notNull(),
     caption: text("caption"),
     file_url: text("file_url").notNull(),
     file_name: text("file_name").notNull(),
     file_size: integer("file_size"),
     mime_type: text("mime_type"),
-    uploaded_by: uuid("uploaded_by")
+    uploaded_by: text("uploaded_by")
       .notNull()
       .references(() => UserTable.id),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     locationSessionCreatedIdx: index("photos_location_session_created_idx").on(
@@ -751,30 +893,49 @@ export const PhotoTable = pgTable(
 
 /* ---------------- MAKEUP REQUEST ---------------- */
 
-export const MakeupRequestTable = pgTable(
+export const MakeupRequestTable = sqliteTable(
   "makeup_requests",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    student_id: uuid("student_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    student_id: text("student_id")
       .notNull()
       .references(() => StudentTable.id),
-    original_session_date: date("original_session_date").notNull(),
-    original_schedule_id: uuid("original_schedule_id")
+    original_session_date: text("original_session_date").notNull(),
+    original_schedule_id: text("original_schedule_id")
       .notNull()
       .references(() => ScheduleTable.id),
-    reason: absenceReasonEnum("reason").notNull(),
+    reason: text("reason", {
+      enum: [
+        "sick",
+        "family_emergency",
+        "transportation",
+        "schedule_conflict",
+        "no_show_unknown",
+        "other",
+      ] as const,
+    }).notNull(),
     reason_text: text("reason_text"),
     preferred_dates: text("preferred_dates"),
-    status: requestStatusEnum("status").notNull().default("pending"),
-    requested_by: uuid("requested_by")
+    status: text("status", {
+      enum: ["pending", "negotiating", "approved", "denied", "completed"] as const,
+    })
+      .notNull()
+      .default("pending"),
+    requested_by: text("requested_by")
       .notNull()
       .references(() => UserTable.id),
-    requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-    reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
-    reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+    requested_at: integer("requested_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    reviewed_by: text("reviewed_by").references(() => UserTable.id),
+    reviewed_at: integer("reviewed_at", { mode: "timestamp_ms" }),
     review_notes: text("review_notes"),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     statusRequestedAtIdx: index("makeup_requests_status_requested_at_idx").on(
@@ -790,29 +951,35 @@ export const MakeupRequestTable = pgTable(
 
 /* ---------------- MAKEUP SESSION ---------------- */
 
-export const MakeupSessionTable = pgTable(
+export const MakeupSessionTable = sqliteTable(
   "makeup_sessions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    makeup_request_id: uuid("makeup_request_id").references(() => MakeupRequestTable.id),
-    student_id: uuid("student_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    makeup_request_id: text("makeup_request_id").references(() => MakeupRequestTable.id),
+    student_id: text("student_id")
       .notNull()
       .references(() => StudentTable.id),
-    teacher_id: uuid("teacher_id")
+    teacher_id: text("teacher_id")
       .notNull()
       .references(() => TeacherProfileTable.id),
-    site_id: uuid("site_id")
+    site_id: text("site_id")
       .notNull()
       .references(() => LocationTable.id),
-    scheduled_date: date("scheduled_date").notNull(),
-    scheduled_time: time("scheduled_time").notNull(),
-    attendance_status: attendanceStatusEnum("attendance_status"),
+    scheduled_date: text("scheduled_date").notNull(),
+    scheduled_time: text("scheduled_time").notNull(),
+    attendance_status: text("attendance_status", {
+      enum: ["present", "late", "no_show", "cancelled"] as const,
+    }),
     notes: text("notes"),
-    created_by: uuid("created_by")
+    created_by: text("created_by")
       .notNull()
       .references(() => UserTable.id),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     makeupRequestCreatedAtIdx: index("makeup_sessions_makeup_request_id_created_at_idx").on(
@@ -830,34 +997,44 @@ export const MakeupSessionTable = pgTable(
 
 /* ---------------- SCHEDULE CHANGE REQUEST ---------------- */
 
-export const ScheduleChangeRequestTable = pgTable(
+export const ScheduleChangeRequestTable = sqliteTable(
   "schedule_change_requests",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    student_id: uuid("student_id")
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    student_id: text("student_id")
       .notNull()
       .references(() => StudentTable.id),
-    current_schedule_id: uuid("current_schedule_id")
+    current_schedule_id: text("current_schedule_id")
       .notNull()
       .references(() => ScheduleTable.id),
-    requested_schedule_id: uuid("requested_schedule_id").references(() => ScheduleTable.id),
+    requested_schedule_id: text("requested_schedule_id").references(() => ScheduleTable.id),
     preferred_times: text("preferred_times"),
     flexibility_notes: text("flexibility_notes"),
     reason: text("reason").notNull(),
-    status: requestStatusEnum("status").notNull().default("pending"),
-    requested_by: uuid("requested_by")
+    status: text("status", {
+      enum: ["pending", "negotiating", "approved", "denied", "completed"] as const,
+    })
+      .notNull()
+      .default("pending"),
+    requested_by: text("requested_by")
       .notNull()
       .references(() => UserTable.id),
     teacher_response_status: text("teacher_response_status"),
     teacher_response_notes: text("teacher_response_notes"),
-    teacher_responded_by: uuid("teacher_responded_by").references(() => UserTable.id),
-    teacher_responded_at: timestamp("teacher_responded_at", { withTimezone: true }),
-    requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-    reviewed_by: uuid("reviewed_by").references(() => UserTable.id),
-    reviewed_at: timestamp("reviewed_at", { withTimezone: true }),
+    teacher_responded_by: text("teacher_responded_by").references(() => UserTable.id),
+    teacher_responded_at: integer("teacher_responded_at", { mode: "timestamp_ms" }),
+    requested_at: integer("requested_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    reviewed_by: text("reviewed_by").references(() => UserTable.id),
+    reviewed_at: integer("reviewed_at", { mode: "timestamp_ms" }),
     review_notes: text("review_notes"),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     statusRequestedAtIdx: index("schedule_change_requests_status_requested_at_idx").on(
@@ -874,19 +1051,21 @@ export const ScheduleChangeRequestTable = pgTable(
   }),
 );
 
-export const ScheduleChangeRequestEventTable = pgTable("schedule_change_request_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  schedule_change_request_id: uuid("schedule_change_request_id")
+export const ScheduleChangeRequestEventTable = sqliteTable("schedule_change_request_events", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  schedule_change_request_id: text("schedule_change_request_id")
     .notNull()
     .references(() => ScheduleChangeRequestTable.id),
   event_type: text("event_type").notNull(),
   from_status: text("from_status"),
   to_status: text("to_status"),
-  actor_user_id: uuid("actor_user_id")
+  actor_user_id: text("actor_user_id")
     .notNull()
     .references(() => UserTable.id),
   notes: text("notes"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 // ==================== RELATIONS ====================

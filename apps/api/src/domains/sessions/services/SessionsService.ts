@@ -160,7 +160,7 @@ export class SessionsService {
           gte(SessionTable.end_date, today),
         ),
       )
-      .orderBy(sql`abs(extract(epoch from (${SessionTable.start_date}::timestamp - now())))`)
+      .orderBy(sql`abs(unixepoch(${SessionTable.start_date}) - unixepoch())`)
       .limit(1);
 
     return rows[0] ?? null;
