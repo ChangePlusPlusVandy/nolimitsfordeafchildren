@@ -1,22 +1,22 @@
-import { eq, and, sql, desc, isNull, gte, lte, gt, asc, or, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
-  StudentTable,
-  SiblingTable,
-  ParentProfileTable,
-  ParentStudentLinkTable,
-  ScheduleTable,
-  EnrollmentTable,
   AttendanceTable,
-  LocationTable,
-  TeacherProfileTable,
-  TeacherLocationTable,
-  UserTable,
   BulletinTable,
   DocumentTable,
+  EnrollmentTable,
+  LocationTable,
   MakeupRequestTable,
+  ParentProfileTable,
+  ParentStudentLinkTable,
   ScheduleChangeRequestTable,
+  ScheduleTable,
+  SiblingTable,
+  StudentTable,
+  TeacherLocationTable,
+  TeacherProfileTable,
+  UserTable,
 } from "@/db/schema";
+import { db } from "@/lib/db";
 import { AttendanceService } from "@/server/attendance/service";
 import {
   buildPaginatedResponse,
@@ -717,7 +717,7 @@ export class ParentsService {
       const scheduleEnd = new Date(enrollment.cycle_end_date);
 
       // Start from today
-      let checkDate = new Date(Math.max(today.getTime(), scheduleStart.getTime()));
+      const checkDate = new Date(Math.max(today.getTime(), scheduleStart.getTime()));
 
       // Check next 30 days
       for (let i = 0; i < 30; i++) {
@@ -803,7 +803,7 @@ export class ParentsService {
       const scheduleStart = new Date(enrollment.cycle_start_date);
       const scheduleEnd = new Date(enrollment.cycle_end_date);
 
-      let checkDate = new Date(Math.max(startDate.getTime(), scheduleStart.getTime()));
+      const checkDate = new Date(Math.max(startDate.getTime(), scheduleStart.getTime()));
       const finalDate = new Date(Math.min(endDate.getTime(), scheduleEnd.getTime()));
 
       while (checkDate <= finalDate) {
@@ -856,6 +856,14 @@ export class ParentsService {
     });
 
     return sessions.slice(0, 10); // Limit to 10 sessions
+  }
+
+  /**
+   * Public accessor for the makeup-request composer (parents pick from
+   * missed sessions that don't already have a makeup request).
+   */
+  async getMissedSessionsForStudent(studentId: string): Promise<ChildDetails["missed_sessions"]> {
+    return await this.getMissedSessions(studentId);
   }
 
   /**

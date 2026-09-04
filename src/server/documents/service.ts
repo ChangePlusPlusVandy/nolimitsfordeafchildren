@@ -1,20 +1,14 @@
-import { eq, and, sql, desc, gte, lte } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { randomUUID } from "crypto";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
+  type DocumentEntity,
+  type DocumentInsert,
   DocumentTable,
   StudentTable,
   TeacherProfileTable,
-  type DocumentEntity,
-  type DocumentInsert,
 } from "@/db/schema";
-import {
-  getPresignedUploadUrl,
-  getPresignedDownloadUrl,
-  deleteFile,
-  extractKeyFromUrl,
-  getPublicUrl,
-} from "@/lib/r2";
-import { randomUUID } from "crypto";
+import { db } from "@/lib/db";
+import { deleteFile, extractKeyFromUrl, getPublicUrl, getUploadUrl } from "@/lib/r2";
 import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export type DocumentType =
@@ -95,8 +89,9 @@ export class DocumentsService {
     const uniqueId = randomUUID();
     const fileKey = `documents/${input.entity_type}/${input.entity_id}/${input.document_type}/${uniqueId}.${fileExtension}`;
 
-    // Get presigned upload URL
-    const uploadUrl = await getPresignedUploadUrl(fileKey, input.content_type);
+    // Upload target is the authenticated /api/files/upload route (R2 has no
+    // S3 presigning); the file_url is the auth-checked download route.
+    const uploadUrl = getUploadUrl(fileKey, input.content_type);
     const fileUrl = getPublicUrl(fileKey);
 
     return {
@@ -288,12 +283,12 @@ export class DocumentsService {
 
     const fileKey = extractKeyFromUrl(document.file_url);
     if (!fileKey) {
-      // File URL is not from our S3, return as-is
+      // File URL is not from our R2, return as-is
       return { download_url: document.file_url };
     }
 
-    const downloadUrl = await getPresignedDownloadUrl(fileKey);
-    return { download_url: downloadUrl };
+    // The download URL is the auth-checked /api/files/<key> route.
+    return { download_url: getPublicUrl(fileKey) };
   }
 
   /**

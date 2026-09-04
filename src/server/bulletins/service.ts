@@ -1,28 +1,28 @@
 import { randomUUID } from "crypto";
-import { eq, and, or, lte, gte, desc, isNull, sql, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
-  BulletinTable,
-  BulletinAttachmentTable,
-  BulletinAcknowledgementTable,
-  BulletinViewTable,
-  UserTable,
-  LocationTable,
-  TeacherProfileTable,
-  TeacherLocationTable,
-  ParentProfileTable,
-  StudentTable,
-  ParentStudentLinkTable,
-  type BulletinEntity,
-  type BulletinInsert,
-  type BulletinAttachmentEntity,
-  type BulletinAttachmentInsert,
   type BulletinAcknowledgementEntity,
   type BulletinAcknowledgementInsert,
+  BulletinAcknowledgementTable,
+  type BulletinAttachmentEntity,
+  type BulletinAttachmentInsert,
+  BulletinAttachmentTable,
+  type BulletinEntity,
+  type BulletinInsert,
+  BulletinTable,
   type BulletinViewEntity,
+  BulletinViewTable,
+  LocationTable,
+  ParentProfileTable,
+  ParentStudentLinkTable,
+  StudentTable,
+  TeacherLocationTable,
+  TeacherProfileTable,
+  UserTable,
 } from "@/db/schema";
-import { getPresignedUploadUrl, getPublicUrl } from "@/lib/r2";
+import { db } from "@/lib/db";
+import { getPublicUrl, getUploadUrl } from "@/lib/r2";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export type BulletinScope = "global" | "site";
 export type BulletinRoleTarget = "all" | "administrator" | "teacher" | "parent";
@@ -447,10 +447,10 @@ export class BulletinsService {
     // Get attachments for all bulletins
     const bulletinIds = bulletins.map((b) => b.bulletin.id);
 
-    let attachmentsMap: Map<string, BulletinAttachmentEntity[]> = new Map();
-    let viewCountMap: Map<string, number> = new Map();
-    let acknowledgementCountMap: Map<string, number> = new Map();
-    let acknowledgedMap: Map<string, { acknowledged_at: Date; initials: string }> = new Map();
+    const attachmentsMap: Map<string, BulletinAttachmentEntity[]> = new Map();
+    const viewCountMap: Map<string, number> = new Map();
+    const acknowledgementCountMap: Map<string, number> = new Map();
+    const acknowledgedMap: Map<string, { acknowledged_at: Date; initials: string }> = new Map();
 
     if (bulletinIds.length > 0) {
       const attachments = await db
@@ -753,7 +753,7 @@ export class BulletinsService {
   ): Promise<{ upload_url: string; file_key: string; file_url: string }> {
     const extension = input.file_name.split(".").pop() || "bin";
     const fileKey = `bulletins/attachments/${randomUUID()}.${extension}`;
-    const uploadUrl = await getPresignedUploadUrl(fileKey, input.content_type);
+    const uploadUrl = getUploadUrl(fileKey, input.content_type);
     const fileUrl = getPublicUrl(fileKey);
 
     return {

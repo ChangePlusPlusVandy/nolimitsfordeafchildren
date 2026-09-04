@@ -1,15 +1,15 @@
-import { eq, and, desc, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
+  ScheduleTable,
+  type SessionNoteEntity,
+  type SessionNoteInsert,
   SessionNoteTable,
   StudentTable,
   TeacherProfileTable,
   UserTable,
-  ScheduleTable,
-  type SessionNoteEntity,
-  type SessionNoteInsert,
 } from "@/db/schema";
+import { db } from "@/lib/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export interface CreateSessionNoteInput {
   student_id: string;

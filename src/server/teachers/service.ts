@@ -1,21 +1,21 @@
-import { eq, like, or, desc, asc, and, sql, isNull, gte, lte, ne } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, asc, desc, eq, gte, isNull, like, lte, ne, or, sql } from "drizzle-orm";
 import {
-  TeacherProfileTable,
-  TeacherLocationTable,
-  UserTable,
-  ScheduleTable,
-  TeacherStudentTable,
-  StudentTable,
-  LocationTable,
-  SessionTable,
-  EnrollmentTable,
   AttendanceTable,
-  type TeacherProfileEntity,
-  type TeacherProfileInsert,
+  EnrollmentTable,
+  LocationTable,
   type ScheduleEntity,
   type ScheduleInsert,
+  ScheduleTable,
+  SessionTable,
+  StudentTable,
+  TeacherLocationTable,
+  type TeacherProfileEntity,
+  type TeacherProfileInsert,
+  TeacherProfileTable,
+  TeacherStudentTable,
+  UserTable,
 } from "@/db/schema";
+import { db } from "@/lib/db";
 import { AttendanceService, type SessionForDay } from "@/server/attendance/service";
 
 export type AgeGroupSpecialty =

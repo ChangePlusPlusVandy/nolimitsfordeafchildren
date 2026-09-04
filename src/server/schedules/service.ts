@@ -1,15 +1,15 @@
-import { eq, and, sql, desc, asc, gte, lte, isNull, ne } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, asc, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
 import {
-  ScheduleTable,
-  TeacherProfileTable,
-  LocationTable,
-  SessionTable,
-  UserTable,
   EnrollmentTable,
-  StudentTable,
+  LocationTable,
   type ScheduleEntity,
+  ScheduleTable,
+  SessionTable,
+  StudentTable,
+  TeacherProfileTable,
+  UserTable,
 } from "@/db/schema";
+import { db } from "@/lib/db";
 
 export interface ListSchedulesQuery {
   teacher_id?: string;

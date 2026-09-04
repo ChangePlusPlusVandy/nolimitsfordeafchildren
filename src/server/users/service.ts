@@ -1,14 +1,14 @@
-import { eq, like, or, desc, asc, and, sql, isNull } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, asc, desc, eq, isNull, like, or, sql } from "drizzle-orm";
 import {
-  UserTable,
-  TeacherProfileTable,
   ParentProfileTable,
   ParentStudentLinkTable,
   StudentTable,
+  TeacherProfileTable,
   type UserEntity,
   type UserInsert,
+  UserTable,
 } from "@/db/schema";
+import { db } from "@/lib/db";
 
 export interface ListUsersQuery {
   search?: string;

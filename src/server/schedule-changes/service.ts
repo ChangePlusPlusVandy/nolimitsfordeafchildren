@@ -1,21 +1,21 @@
-import { eq, and, desc, sql, isNull, inArray, asc, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 import {
-  ScheduleChangeRequestTable,
-  ScheduleChangeRequestEventTable,
-  StudentTable,
-  ScheduleTable,
-  TeacherProfileTable,
-  UserTable,
-  LocationTable,
   EnrollmentTable,
+  LocationTable,
   ParentProfileTable,
   ParentStudentLinkTable,
   type ScheduleChangeRequestEntity,
+  ScheduleChangeRequestEventTable,
   type ScheduleChangeRequestInsert,
+  ScheduleChangeRequestTable,
+  ScheduleTable,
+  StudentTable,
+  TeacherProfileTable,
+  UserTable,
 } from "@/db/schema";
+import { db } from "@/lib/db";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export type RequestStatus = "pending" | "negotiating" | "approved" | "denied" | "completed";
 

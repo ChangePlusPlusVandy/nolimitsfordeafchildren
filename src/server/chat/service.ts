@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { type ChatMessageEntity, ChatMessageTable, UserTable } from "@/db/schema";
 import { db } from "@/lib/db";
-import { ChatMessageTable, UserTable, type ChatMessageEntity } from "@/db/schema";
 import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export type ChatChannel = "community" | "teacher";

@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { type SessionEntity, type SessionInsert, SessionTable } from "@/db/schema";
 import { db } from "@/lib/db";
-import { SessionTable, type SessionEntity, type SessionInsert } from "@/db/schema";
 import {
   buildPaginatedResponse,
   getPagination,

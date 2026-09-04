@@ -1,22 +1,22 @@
-import { AttendanceService } from "@/server/attendance/service";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
-import { db } from "@/lib/db";
+import { and, asc, desc, eq, isNull, like, or, sql } from "drizzle-orm";
 import {
-  StudentTable,
-  SiblingTable,
-  TeacherStudentTable,
-  ParentStudentLinkTable,
   EnrollmentTable,
   LocationTable,
+  ParentProfileTable,
+  ParentStudentLinkTable,
   ScheduleTable,
   SessionTable,
-  TeacherProfileTable,
-  UserTable,
-  ParentProfileTable,
-  type StudentEntity,
   type SiblingEntity,
+  SiblingTable,
+  type StudentEntity,
+  StudentTable,
+  TeacherProfileTable,
+  TeacherStudentTable,
+  UserTable,
 } from "@/db/schema";
-import { eq, and, isNull, like, or, sql, desc, asc } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { AttendanceService } from "@/server/attendance/service";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 // Types
 export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";

@@ -1,21 +1,21 @@
 import { randomUUID } from "crypto";
-import { and, desc, eq, inArray, isNull, or, sql, asc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   LocationTable,
   ParentProfileTable,
   ParentStudentLinkTable,
+  type PhotoEntity,
+  type PhotoInsert,
   PhotoTable,
   StudentTable,
   TeacherLocationTable,
   TeacherProfileTable,
-  UserTable,
-  type PhotoEntity,
-  type PhotoInsert,
   type UserEntity,
+  UserTable,
 } from "@/db/schema";
-import { deleteFile, extractKeyFromUrl, getPresignedUploadUrl, getPublicUrl } from "@/lib/r2";
+import { db } from "@/lib/db";
+import { deleteFile, extractKeyFromUrl, getPublicUrl, getUploadUrl } from "@/lib/r2";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export interface GetPhotoUploadUrlInput {
   location_id: string;
@@ -147,7 +147,7 @@ export class PhotosService {
 
     const extension = input.file_name.split(".").pop() || "jpg";
     const fileKey = `photos/location/${input.location_id}/${input.session_date}/${randomUUID()}.${extension}`;
-    const uploadUrl = await getPresignedUploadUrl(fileKey, input.content_type);
+    const uploadUrl = getUploadUrl(fileKey, input.content_type);
 
     return {
       upload_url: uploadUrl,

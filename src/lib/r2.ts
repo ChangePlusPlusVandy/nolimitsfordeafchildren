@@ -5,12 +5,15 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  * the Express app). All binding access happens inside functions — never at
  * module top-level.
  *
- * NOTE: R2 has no presigned-URL flow like S3. Uploads should use the
- * Workers runtime directly (`BUCKET.put`) or a direct-to-R2 upload via the
- * `wrangler r2 object put`/presigned URLs through a service binding. The
- * presigned helpers below are kept as explicit stubs so ported services
- * typecheck; the upload flow is replaced by direct `put` calls in the
- * documents/photos route-handler porting task.
+ * R2 has NO S3-style presigned URLs (no public S3-compatible endpoint is
+ * configured). Uploads/downloads go through the app's own route handlers
+ * instead, so every object access is authenticated:
+ *
+ * - Upload:    `POST /api/files/upload?key=...&purpose=...` (route handler),
+ *              which validates the session and `BUCKET.put`s the file.
+ * - Download:  `GET /api/files/<key>` (route handler), which validates the
+ *              session and streams the object body. No public r2.dev URLs
+ *              are ever handed to clients (PII safety).
  */
 
 function getBucket(): R2Bucket {
@@ -21,7 +24,7 @@ function getBucket(): R2Bucket {
   return bucket;
 }
 
-/** Upload a file to R2. Returns the object key (see getPublicUrl). */
+/** Upload a file to R2. Returns the object key's app URL (see getPublicUrl). */
 export async function uploadFile(
   key: string,
   body: ReadableStream | ArrayBuffer | ArrayBufferView | Blob | string,
@@ -58,16 +61,42 @@ export async function deleteFile(key: string): Promise<void> {
 }
 
 /**
- * Public URL for an object. R2 buckets in workers.dev/public access mode are
- * served from `https://pub-<hash>.r2.dev/<key>`; the token/URL must be
- * configured per bucket. For private buckets use getFile() / a route that
- * streams the body.
- *
- * TODO(r2): configure a custom public domain for the bucket and replace the
- * placeholder below, or serve downloads through a route handler.
+ * App-relative URL for a stored object. The `/api/files/<key>` route handler
+ * authenticates the session before streaming the object — this replaces
+ * `getPresignedDownloadUrl`/`getPublicUrl` (r2.dev public URLs) for PII
+ * safety. Relative so it works on any deployment origin.
  */
 export function getPublicUrl(key: string): string {
-  return `https://${getBucketName()}.r2.dev/${key}`;
+  return `/api/files/${key}`;
+}
+
+/**
+ * Upload target for a file. The client `POST`s the file (multipart field
+ * `file`) to this URL after obtaining it from the upload-url action; the
+ * route handler authenticates and validates the key prefix, then returns
+ * `{ key, file_url }`.
+ */
+export function getUploadUrl(key: string, contentType?: string): string {
+  const params = new URLSearchParams({ key });
+  if (contentType) params.set("contentType", contentType);
+  return `/api/files/upload?${params.toString()}`;
+}
+
+/** Extract the key from a stored URL (route URL or legacy r2.dev prefix). */
+export function extractKeyFromUrl(url: string): string | null {
+  const routePrefix = "/api/files/";
+  if (url.startsWith(routePrefix)) {
+    const withoutPrefix = url.slice(routePrefix.length);
+    return withoutPrefix.split("?")[0].split("#")[0];
+  }
+  const prefixes = [`https://${getBucketName()}.r2.dev/`, `https://pub-${getBucketName()}.r2.dev/`];
+  for (const prefix of prefixes) {
+    if (url.startsWith(prefix)) {
+      const withoutPrefix = url.slice(prefix.length);
+      return withoutPrefix.split("?")[0].split("#")[0];
+    }
+  }
+  return null;
 }
 
 function getBucketName(): string {
@@ -76,21 +105,9 @@ function getBucketName(): string {
   return "nolimits-bucket";
 }
 
-/** Extract the key from an R2 public URL (mirrors the S3 helper). */
-export function extractKeyFromUrl(url: string): string | null {
-  const prefixes = [`https://${getBucketName()}.r2.dev/`, `https://pub-${getBucketName()}.r2.dev/`];
-  for (const prefix of prefixes) {
-    if (url.startsWith(prefix)) {
-      return url.slice(prefix.length);
-    }
-  }
-  return null;
-}
-
 /**
- * NOT SUPPORTED on R2 (there is no S3-style presigning without a public
- * S3-compatible endpoint configured). Route handlers should upload directly
- * via uploadFile() instead.
+ * NOT SUPPORTED on R2 (no S3-style presigning without a public S3-compatible
+ * endpoint). Use `getUploadUrl` (authenticated direct-upload route) instead.
  */
 export async function getPresignedUploadUrl(
   _key: string,
@@ -98,16 +115,16 @@ export async function getPresignedUploadUrl(
   _expiresIn: number = 900,
 ): Promise<string> {
   throw new Error(
-    "[r2] getPresignedUploadUrl is not supported on R2. Use uploadFile() (direct Workers upload) instead.",
+    "[r2] getPresignedUploadUrl is not supported on R2. Use getUploadUrl() (authenticated upload route) instead.",
   );
 }
 
-/** NOT SUPPORTED on R2 — see getPresignedUploadUrl. */
+/** NOT SUPPORTED on R2 — see getPresignedUploadUrl. Use getPublicUrl() instead. */
 export async function getPresignedDownloadUrl(
   _key: string,
   _expiresIn: number = 3600,
 ): Promise<string> {
   throw new Error(
-    "[r2] getPresignedDownloadUrl is not supported on R2. Use getFile() or a download route instead.",
+    "[r2] getPresignedDownloadUrl is not supported on R2. Use the /api/files/<key> download route instead.",
   );
 }

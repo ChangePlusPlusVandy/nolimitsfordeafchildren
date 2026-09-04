@@ -1,18 +1,18 @@
-import { eq, and, sql, desc, gte, lte, isNull, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import {
-  AttendanceTable,
-  AttendanceSiblingParticipantTable,
-  StudentTable,
-  ScheduleTable,
-  EnrollmentTable,
-  TeacherProfileTable,
-  UserTable,
-  LocationTable,
-  SiblingTable,
   type AttendanceEntity,
   type AttendanceInsert,
+  AttendanceSiblingParticipantTable,
+  AttendanceTable,
+  EnrollmentTable,
+  LocationTable,
+  ScheduleTable,
+  SiblingTable,
+  StudentTable,
+  TeacherProfileTable,
+  UserTable,
 } from "@/db/schema";
+import { db } from "@/lib/db";
 import { sendMissedSessionAlert } from "@/lib/email";
 
 export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";

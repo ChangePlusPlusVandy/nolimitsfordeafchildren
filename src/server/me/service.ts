@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
 import {
-  UserTable,
-  TeacherProfileTable,
   ParentProfileTable,
+  TeacherProfileTable,
   type UserEntity,
   type UserInsert,
+  UserTable,
 } from "@/db/schema";
+import { db } from "@/lib/db";
 
 export interface UpdateMeInput {
   name?: string;

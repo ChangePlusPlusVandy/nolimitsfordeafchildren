@@ -1,18 +1,18 @@
-import { db } from "@/lib/db";
+import { and, asc, desc, eq, gte, isNull, like, lte, or, sql } from "drizzle-orm";
+import type { LocationEntity, LocationInsert, UserEntity } from "@/db/schema";
 import {
   LocationTable,
-  ScheduleTable,
-  UserTable,
-  TeacherProfileTable,
-  TeacherLocationTable,
   ParentProfileTable,
   ParentStudentLinkTable,
+  ScheduleTable,
   StudentTable,
+  TeacherLocationTable,
+  TeacherProfileTable,
+  UserTable,
 } from "@/db/schema";
-import type { LocationEntity, LocationInsert, UserEntity } from "@/db/schema";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
-import { eq, and, gte, lte, like, or, asc, desc, sql, isNull } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
+import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
 
 export type CreateLocationDto = Omit<LocationInsert, "id" | "created_at" | "updated_at">;
 export type UpdateLocationDto = Partial<CreateLocationDto>;

@@ -1,11 +1,11 @@
-import { eq } from "drizzle-orm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { bearer } from "better-auth/plugins/bearer";
+import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { bearer } from "better-auth/plugins/bearer";
+import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
-import { db } from "@/lib/db";
 import { ParentProfileTable, TeacherProfileTable, UserTable } from "@/db/schema";
+import { db } from "@/lib/db";
 
 /**
  * better-auth for the Cloudflare runtime.
