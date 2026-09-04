@@ -1,0 +1,328 @@
+"use client";
+
+import {
+  Assignment as AssignmentIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  Description as DescriptionIcon,
+  Download as DownloadIcon,
+  InsertDriveFile as FileIcon,
+  Hearing as HearingIcon,
+  School as SchoolIcon,
+  Warning as WarningIcon,
+} from "@mui/icons-material";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  IconButton,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Pagination,
+  Paper,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import ConfirmDialog from "@/client/components/ConfirmDialog";
+import { useToast } from "@/client/components/ToastProvider";
+import {
+  type Document,
+  type DocumentType,
+  deleteDocument,
+  getDownloadUrl,
+  listDocumentsForStudent,
+} from "@/client/documents";
+import { formatDate } from "@/client/utils/formatDate";
+
+interface DocumentListProps {
+  studentId: string;
+  canDelete?: boolean;
+  reviewStatusFilter?: "approved" | "pending" | "rejected";
+  onUploadClick?: () => void;
+}
+
+const DOCUMENT_TYPE_CONFIG: Record<DocumentType, { label: string; icon: React.ReactNode }> = {
+  audiogram: { label: "Audiogram", icon: <HearingIcon /> },
+  iep: { label: "IEP", icon: <AssignmentIcon /> },
+  cv: { label: "CV", icon: <DescriptionIcon /> },
+  annual_test_result: { label: "Annual Test", icon: <SchoolIcon /> },
+  pre_report: { label: "Pre-Report", icon: <DescriptionIcon /> },
+  graduation_speech: { label: "Graduation Speech", icon: <SchoolIcon /> },
+  other: { label: "Other", icon: <FileIcon /> },
+};
+
+function formatFileSize(bytes: number | null): string {
+  if (bytes === null) return "Unknown size";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getDaysOverdue(nextDueDate: string | null): number | null {
+  if (!nextDueDate) return null;
+  const dueDate = new Date(nextDueDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  dueDate.setHours(0, 0, 0, 0);
+  const diffTime = today.getTime() - dueDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
+export default function DocumentList({
+  studentId,
+  canDelete = false,
+  reviewStatusFilter,
+  onUploadClick,
+}: DocumentListProps) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const documentsPerPage = 10;
+
+  // Fetch documents
+  const {
+    data: documentsResponse,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["documents", "student", studentId, page, documentsPerPage],
+    queryFn: () => listDocumentsForStudent(studentId, page, documentsPerPage, reviewStatusFilter),
+    enabled: !!studentId,
+  });
+
+  const documents = documentsResponse?.items ?? [];
+  const totalPages = documentsResponse?.totalPages ?? 1;
+  const totalDocuments = documentsResponse?.total ?? documents.length;
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (documentId: string) => deleteDocument(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents", "student", studentId] });
+      toast.success("Document deleted successfully");
+      setDeleteTarget(null);
+
+      if (documents.length === 1 && page > 1) {
+        setPage((prev) => prev - 1);
+      }
+    },
+    onError: () => {
+      toast.error("Failed to delete document. Please try again.");
+    },
+  });
+
+  const handleDownload = async (doc: Document) => {
+    setDownloadingId(doc.id);
+    try {
+      const { download_url, file_name } = await getDownloadUrl(doc.id);
+
+      // Force download by fetching and creating a blob
+      const response = await fetch(download_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = file_name || doc.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Download started");
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to download document. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Typography color="error" sx={{ py: 2, textAlign: "center" }}>
+        Failed to load documents
+      </Typography>
+    );
+  }
+
+  if (documents.length === 0) {
+    return (
+      <Box sx={{ py: 3, textAlign: "center" }}>
+        <CloudUploadIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+        <Typography color="text.secondary" gutterBottom>
+          No documents uploaded yet
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Click Upload to add audiograms, IEPs, or other documents.
+        </Typography>
+        {onUploadClick && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<CloudUploadIcon />}
+            onClick={onUploadClick}
+          >
+            Upload Document
+          </Button>
+        )}
+      </Box>
+    );
+  }
+
+  return (
+    <>
+      <List disablePadding>
+        {documents.map((doc) => {
+          const config = DOCUMENT_TYPE_CONFIG[doc.document_type] || DOCUMENT_TYPE_CONFIG.other;
+          const daysOverdue = getDaysOverdue(doc.next_due_date);
+          const isOverdue = daysOverdue !== null && daysOverdue > 0;
+          const isDueSoon = daysOverdue !== null && daysOverdue <= 0 && daysOverdue > -30;
+
+          return (
+            <Paper
+              key={doc.id}
+              variant="outlined"
+              sx={{
+                mb: 1.5,
+                borderColor: isOverdue ? "error.main" : "divider",
+                borderWidth: isOverdue ? 2 : 1,
+              }}
+            >
+              <ListItem
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  bgcolor: isOverdue ? "error.50" : "transparent",
+                }}
+                secondaryAction={
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Tooltip title="Download">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDownload(doc)}
+                        disabled={downloadingId === doc.id}
+                        aria-label={`Download ${doc.file_name}`}
+                      >
+                        {downloadingId === doc.id ? (
+                          <CircularProgress size={18} />
+                        ) : (
+                          <DownloadIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                    {canDelete && (
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setDeleteTarget(doc)}
+                          aria-label={`Delete ${doc.file_name}`}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                }
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <Box sx={{ color: "text.secondary" }}>{config.icon}</Box>
+                </ListItemIcon>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {config.label}
+                      </Typography>
+                      {isOverdue && (
+                        <Chip
+                          icon={<WarningIcon sx={{ fontSize: 14 }} />}
+                          label={`${daysOverdue} days overdue`}
+                          size="small"
+                          color="error"
+                          sx={{ height: 22, fontSize: "0.7rem" }}
+                        />
+                      )}
+                      {isDueSoon && !isOverdue && (
+                        <Chip
+                          label={`Due in ${Math.abs(daysOverdue ?? 0)} days`}
+                          size="small"
+                          color="warning"
+                          sx={{ height: 22, fontSize: "0.7rem" }}
+                        />
+                      )}
+                    </Box>
+                  }
+                  secondary={
+                    <Box
+                      component="span"
+                      sx={{ display: "flex", flexDirection: "column", gap: 0.25, mt: 0.5 }}
+                    >
+                      <Typography variant="caption" color="text.secondary" component="span">
+                        {doc.file_name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" component="span">
+                        Uploaded: {formatDate(doc.created_at)} &bull;{" "}
+                        {formatFileSize(doc.file_size)}
+                        {doc.next_due_date && (
+                          <> &bull; Next due: {formatDate(doc.next_due_date)}</>
+                        )}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </ListItem>
+            </Paper>
+          );
+        })}
+      </List>
+
+      {totalPages > 1 && (
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="caption" color="text.secondary">
+            Showing {documents.length} of {totalDocuments} documents
+          </Typography>
+          <Pagination
+            page={page}
+            count={totalPages}
+            onChange={(_, value) => setPage(value)}
+            size="small"
+            color="primary"
+          />
+        </Box>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete document?"
+        message={`Are you sure you want to delete "${deleteTarget?.file_name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmColor="error"
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
+  );
+}
