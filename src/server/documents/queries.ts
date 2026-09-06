@@ -1,3 +1,4 @@
+"use server";
 import {
   type DocumentReviewStatus,
   DocumentsService,

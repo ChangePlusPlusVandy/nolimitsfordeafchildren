@@ -1,3 +1,4 @@
+"use server";
 import { BulletinsService, type ListBulletinsQuery } from "@/server/bulletins/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";

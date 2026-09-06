@@ -1,3 +1,4 @@
+"use server";
 import { MeService } from "@/server/me/service";
 import { getCurrentUser } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";

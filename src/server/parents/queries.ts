@@ -1,3 +1,5 @@
+"use server";
+import { staffByLocation } from "@/server/locations/queries";
 import { ParentsService } from "@/server/parents/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
@@ -57,4 +59,6 @@ export async function getZipReport(query: { page?: number; limit?: number } = {}
   return await zipReport(query);
 }
 
-export { staffByLocation as getLocationStaff } from "@/server/locations/queries";
+export async function getLocationStaff(siteId: string) {
+  return staffByLocation(siteId);
+}

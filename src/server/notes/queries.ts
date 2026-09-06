@@ -1,3 +1,4 @@
+"use server";
 import { SessionNotesService } from "@/server/notes/service";
 import { requireRole } from "@/server/shared/auth-guard";
 

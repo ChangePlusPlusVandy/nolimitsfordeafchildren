@@ -1,3 +1,4 @@
+"use server";
 import {
   type AvailableSchedulesQuery,
   type ListSchedulesQuery,

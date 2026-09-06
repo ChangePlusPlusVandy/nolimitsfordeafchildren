@@ -1,3 +1,4 @@
+"use server";
 import { EnrollmentsService } from "@/server/enrollments/service";
 import { requireRole } from "@/server/shared/auth-guard";
 

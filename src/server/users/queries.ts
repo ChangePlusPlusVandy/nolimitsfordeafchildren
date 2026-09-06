@@ -1,3 +1,4 @@
+"use server";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 import { StudentsService } from "@/server/students/service";

@@ -1,3 +1,4 @@
+"use server";
 import {
   AttendanceService,
   type AttendanceStatus,

@@ -1,3 +1,4 @@
+"use server";
 import { MakeupService, type RequestStatus } from "@/server/makeups/service";
 import { ParentsService } from "@/server/parents/service";
 import { requireRole } from "@/server/shared/auth-guard";

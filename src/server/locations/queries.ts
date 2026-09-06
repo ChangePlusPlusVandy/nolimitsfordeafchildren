@@ -1,3 +1,4 @@
+"use server";
 import { type ListLocationsQuery, LocationsService } from "@/server/locations/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";

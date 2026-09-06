@@ -1,3 +1,4 @@
+"use server";
 import { getCurrentUser } from "@/server/shared/auth-guard";
 
 /**

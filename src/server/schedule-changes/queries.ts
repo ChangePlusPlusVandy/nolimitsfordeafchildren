@@ -1,3 +1,4 @@
+"use server";
 import { type RequestStatus, ScheduleChangeService } from "@/server/schedule-changes/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { HttpError } from "@/server/shared/errors";

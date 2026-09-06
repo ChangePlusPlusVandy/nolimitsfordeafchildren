@@ -1,3 +1,4 @@
+"use server";
 import { type ListPhotosQuery, PhotosService } from "@/server/photos/service";
 import { requireRole } from "@/server/shared/auth-guard";
 

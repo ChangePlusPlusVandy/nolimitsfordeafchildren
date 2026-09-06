@@ -1,3 +1,4 @@
+"use server";
 import { type ListSessionsQuery, SessionsService } from "@/server/sessions/service";
 import { requireRole } from "@/server/shared/auth-guard";
 

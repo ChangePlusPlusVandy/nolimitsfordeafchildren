@@ -1,3 +1,4 @@
+"use server";
 import { ProfilesService } from "@/server/profiles/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { ForbiddenError } from "@/server/shared/errors";

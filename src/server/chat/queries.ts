@@ -1,3 +1,4 @@
+"use server";
 import { type ChatChannel, ChatService } from "@/server/chat/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { HttpError } from "@/server/shared/errors";
