@@ -1,6 +1,6 @@
+import { and, eq, gte, lte } from "drizzle-orm";
+import { DocumentTable, LocationTable, StudentTable, UserTable } from "@/db/schema";
 import { db } from "@/lib/db";
-import { DocumentTable, StudentTable, LocationTable, UserTable } from "@/db/schema";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { sendAudiogramReminder } from "@/lib/email";
 
 interface JobResult {

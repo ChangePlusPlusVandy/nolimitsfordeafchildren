@@ -1,8 +1,8 @@
-import { runBirthdayJob } from "./birthdayJob";
 import { runAudiogramJob } from "./audiogramJob";
+import { runBirthdayJob } from "./birthdayJob";
 
-export { runBirthdayJob } from "./birthdayJob";
 export { runAudiogramJob } from "./audiogramJob";
+export { runBirthdayJob } from "./birthdayJob";
 
 export interface CronJobSummary {
   birthday: { sent: number; errors: number };

@@ -1,13 +1,13 @@
+import { relations, sql } from "drizzle-orm";
 import {
-  sqliteTable,
-  text,
+  customType,
+  index,
   integer,
   real,
-  index,
+  sqliteTable,
+  text,
   uniqueIndex,
-  customType,
 } from "drizzle-orm/sqlite-core";
-import { relations, sql } from "drizzle-orm";
 
 // ==================== CUSTOM TYPES ====================
 // SQLite has no citext type. `text collate nocase` preserves the PostgreSQL

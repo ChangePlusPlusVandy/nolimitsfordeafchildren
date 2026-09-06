@@ -131,10 +131,12 @@ export class StudentsService {
     filters: StudentFilters,
     userRole: UserRole,
     userId?: string,
+    // biome-ignore lint/suspicious/noExplicitAny: student list rows are shaped by caller-specific filters (ported legacy signature)
   ): Promise<PaginatedResponse<any>> {
     const { page, limit, offset } = getPagination(filters, 20, 100);
 
     // Build base query conditions
+    // biome-ignore lint/suspicious/noExplicitAny: drizzle where-condition array (ported legacy pattern)
     const conditions: any[] = [];
 
     // Apply search filter (on initials only for privacy in list view)
@@ -334,6 +336,7 @@ export class StudentsService {
   async show(
     id: string,
     user?: { id: string; role: "administrator" | "teacher" | "parent" | "unassigned" },
+    // biome-ignore lint/suspicious/noExplicitAny: detail payload varies by role context (ported legacy signature)
   ): Promise<any> {
     // Get student
     const [student] = await db.select().from(StudentTable).where(eq(StudentTable.id, id)).limit(1);
@@ -730,6 +733,7 @@ export class StudentsService {
   async teachers(
     studentId: string,
     query: { page?: number; limit?: number },
+    // biome-ignore lint/suspicious/noExplicitAny: joined teacher rows returned as paginated payload (ported legacy signature)
   ): Promise<PaginatedResponse<any>> {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
@@ -841,6 +845,7 @@ export class StudentsService {
   async parents(
     studentId: string,
     query: { page?: number; limit?: number } = {},
+    // biome-ignore lint/suspicious/noExplicitAny: joined parent rows returned as paginated payload (ported legacy signature)
   ): Promise<PaginatedResponse<any>> {
     const { page, limit, offset } = getPagination(query, 20, 100);
 

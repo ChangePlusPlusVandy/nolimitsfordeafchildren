@@ -3,7 +3,7 @@ export class ProfilesService {
     return { userId };
   }
 
-  async updateTeacher(_userId: string, _body: any) {
+  async updateTeacher(_userId: string, _body: unknown) {
     return { ok: true };
   }
 
@@ -11,7 +11,7 @@ export class ProfilesService {
     return { userId };
   }
 
-  async updateParent(_userId: string, _body: any) {
+  async updateParent(_userId: string, _body: unknown) {
     return { ok: true };
   }
 }

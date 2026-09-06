@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   LocationTable,
@@ -185,6 +185,7 @@ export class PhotosService {
   async listPhotos(
     query: ListPhotosQuery,
     currentUser: UserEntity,
+    // biome-ignore lint/suspicious/noExplicitAny: joined photo payload shape varies per row (ported legacy signature)
   ): Promise<PaginatedResponse<any>> {
     const conditions = [];
     const { page, limit, offset } = getPagination(query, 40, 100);

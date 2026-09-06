@@ -1,6 +1,6 @@
+import { and, eq } from "drizzle-orm";
+import { LocationTable, StudentTable, UserTable } from "@/db/schema";
 import { db } from "@/lib/db";
-import { StudentTable, LocationTable, UserTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
 import { sendBirthdayNotification } from "@/lib/email";
 
 interface JobResult {

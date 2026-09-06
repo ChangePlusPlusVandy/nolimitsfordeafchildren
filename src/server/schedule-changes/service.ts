@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import {
   EnrollmentTable,
@@ -322,6 +322,7 @@ export class ScheduleChangeService {
     filters: ListRequestsFilters,
   ): Promise<PaginatedResponse<ScheduleChangeRequestWithDetails>> {
     const { page, limit, offset } = getPagination(filters, 20, 100);
+    // biome-ignore lint/suspicious/noExplicitAny: drizzle where-condition array (ported legacy pattern)
     const conditions: any[] = [];
 
     if (filters.status) {

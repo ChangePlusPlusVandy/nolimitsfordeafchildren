@@ -1,6 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import {
-  ScheduleTable,
   type SessionNoteEntity,
   type SessionNoteInsert,
   SessionNoteTable,

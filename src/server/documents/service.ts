@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
   type DocumentEntity,

@@ -610,7 +610,7 @@ export class AttendanceService {
    */
   async getTeacherDaySessions(teacherProfileId: string, date: string): Promise<SessionForDay[]> {
     // Get the day of week (0 = Sunday, 1 = Monday, etc.)
-    const dateObj = new Date(date + "T00:00:00");
+    const dateObj = new Date(`${date}T00:00:00`);
     const dayOfWeek = dateObj.getDay();
     const dayMask = 1 << dayOfWeek; // Convert to bitmask
 

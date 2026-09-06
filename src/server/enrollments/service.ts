@@ -12,11 +12,11 @@ export class EnrollmentsService {
     return buildPaginatedResponse([], 0, page, limit);
   }
 
-  async create(_body: any) {
+  async create(_body: unknown) {
     return { id: "new-enrollment" };
   }
 
-  async update(_id: string, _body: any) {
+  async update(_id: string, _body: unknown) {
     return { ok: true };
   }
 }

@@ -166,32 +166,6 @@ export class MakeupService {
     return profile.length > 0;
   }
 
-  private async getMakeupSessionForRequest(requestId: string): Promise<{
-    id: string;
-    scheduled_date: string;
-    scheduled_time: string;
-    teacher_name: string;
-    site_name: string;
-  } | null> {
-    const rows = await db
-      .select({
-        id: MakeupSessionTable.id,
-        scheduled_date: MakeupSessionTable.scheduled_date,
-        scheduled_time: MakeupSessionTable.scheduled_time,
-        teacher_name: UserTable.name,
-        site_name: LocationTable.name,
-      })
-      .from(MakeupSessionTable)
-      .innerJoin(TeacherProfileTable, eq(MakeupSessionTable.teacher_id, TeacherProfileTable.id))
-      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
-      .innerJoin(LocationTable, eq(MakeupSessionTable.site_id, LocationTable.id))
-      .where(eq(MakeupSessionTable.makeup_request_id, requestId))
-      .orderBy(desc(MakeupSessionTable.created_at))
-      .limit(1);
-
-    return rows[0] ?? null;
-  }
-
   /**
    * Create a makeup request (parent)
    */
@@ -259,6 +233,7 @@ export class MakeupService {
     filters: ListMakeupRequestsFilters,
   ): Promise<PaginatedResponse<MakeupRequestWithDetails>> {
     const { page, limit, offset } = getPagination(filters, 20, 100);
+    // biome-ignore lint/suspicious/noExplicitAny: drizzle where-condition array (ported legacy pattern)
     const conditions: any[] = [];
 
     if (filters.status) {

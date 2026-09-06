@@ -388,7 +388,7 @@ export class UsersService {
   /**
    * Handle profile table changes when role changes
    */
-  private async handleRoleChange(userId: string, oldRole: string, newRole: string): Promise<void> {
+  private async handleRoleChange(userId: string, _oldRole: string, newRole: string): Promise<void> {
     // If becoming a teacher, create teacher profile if not exists
     if (newRole === "teacher") {
       const existing = await db

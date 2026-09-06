@@ -766,8 +766,6 @@ export class ParentsService {
 
     const startDate = direction === "future" ? today : rangeDate;
     const endDate = direction === "future" ? rangeDate : today;
-    const startDateStr = startDate.toISOString().split("T")[0]!;
-    const endDateStr = endDate.toISOString().split("T")[0]!;
 
     // Get enrollments
     const enrollments = await db

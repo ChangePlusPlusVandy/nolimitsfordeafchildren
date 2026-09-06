@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, ne, sql } from "drizzle-orm";
 import {
   EnrollmentTable,
   LocationTable,

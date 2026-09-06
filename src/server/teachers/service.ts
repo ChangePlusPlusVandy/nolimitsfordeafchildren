@@ -1,7 +1,5 @@
-import { and, asc, desc, eq, gte, isNull, like, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, like, ne, or, sql } from "drizzle-orm";
 import {
-  AttendanceTable,
-  EnrollmentTable,
   LocationTable,
   type ScheduleEntity,
   type ScheduleInsert,
