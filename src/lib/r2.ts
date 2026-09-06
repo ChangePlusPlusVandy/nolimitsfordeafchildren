@@ -102,7 +102,7 @@ export function extractKeyFromUrl(url: string): string | null {
 function getBucketName(): string {
   // R2Bucket does not expose its name at runtime; read it from the wrangler
   // config convention until a public domain is configured.
-  return "nolimits-bucket";
+  return "nolimits-r2-staging";
 }
 
 /**

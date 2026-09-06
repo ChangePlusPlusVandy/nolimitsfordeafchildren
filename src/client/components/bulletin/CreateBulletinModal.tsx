@@ -165,12 +165,11 @@ export default function CreateBulletinModal({
           content_type: file.type || "application/octet-stream",
         });
 
+        const attachmentFormData = new FormData();
+        attachmentFormData.append("file", file);
         const uploadResponse = await fetch(uploadUrlResult.upload_url, {
-          method: "PUT",
-          body: file,
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-          },
+          method: "POST",
+          body: attachmentFormData,
         });
 
         if (!uploadResponse.ok) {

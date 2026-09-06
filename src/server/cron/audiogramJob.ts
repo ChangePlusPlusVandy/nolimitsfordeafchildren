@@ -19,10 +19,15 @@ export async function runAudiogramJob(): Promise<JobResult> {
 
   try {
     const today = new Date();
-    const thirtyDaysFromNow = new Date(today);
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    // UTC day boundaries (see birthdayJob.ts: keeps dev-machine behavior
+    // identical to the UTC Cloudflare Workers runtime).
+    const todayStart = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+    const thirtyDaysFromNow = new Date(todayStart);
+    thirtyDaysFromNow.setUTCDate(thirtyDaysFromNow.getUTCDate() + 30);
 
-    const todayStr = today.toISOString().split("T")[0] ?? "";
+    const todayStr = todayStart.toISOString().split("T")[0] ?? "";
     const thirtyDaysStr = thirtyDaysFromNow.toISOString().split("T")[0] ?? "";
 
     // Find audiograms due in the next 30 days
@@ -91,9 +96,9 @@ export async function runAudiogramJob(): Promise<JobResult> {
 
     // Send notifications
     for (const { student, site, dueDate } of studentMap.values()) {
-      const dueDateObj = new Date(dueDate);
+      const dueDateObj = new Date(`${dueDate}T00:00:00Z`);
       const daysUntilDue = Math.ceil(
-        (dueDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+        (dueDateObj.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       // Send to all administrators

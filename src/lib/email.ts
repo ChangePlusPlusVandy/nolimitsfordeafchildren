@@ -5,13 +5,21 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  * wrangler.jsonc). Replaces the old Resend client from the Express app;
  * the inline HTML templates are ported verbatim.
  *
- * The FROM address must be verified in the Cloudflare dashboard
- * (Workers & Pages -> Email -> Settings -> Destination addresses). Until a
- * binding or a verified from-address is configured, every sender gracefully
- * no-ops with a console.warn and returns `{ success: false }`.
+ * EMAIL IS EXPLICITLY DISABLED UNTIL CONFIGURED — it never fakes a
+ * successful send:
+ *  - The `send_email` binding must exist in wrangler.jsonc AND
+ *  - `EMAIL_FROM_ADDRESS` must be set to a from-address VERIFIED in the
+ *    Cloudflare dashboard (Workers & Pages -> Email -> Settings ->
+ *    Destination addresses).
+ * Until both are true every sender returns `{ success: false }` with a
+ * console.warn and no email is attempted, so callers (cron jobs, alerts)
+ * fail loudly instead of pretending delivery.
  *
- * NOTE: Cloudflare requires `from` to be exactly the verified address
- * (display-name form "Name <addr>" is not supported by send_email).
+ * NOTE: Cloudflare requires `from` to be exactly the verified address and
+ * uses the structured Send Email builder
+ * ({ from, to, subject, html|text }) — the old MIME-style
+ * `personalizations`/`content` payload is not part of the current binding
+ * contract (see the generated SendEmail types in cloudflare-env.d.ts).
  */
 
 export interface EmailResult {
@@ -19,8 +27,6 @@ export interface EmailResult {
   id?: string;
   error?: string;
 }
-
-const DEFAULT_FROM_ADDRESS = "noreply@nolimits.org";
 
 function getConfig(key: string): string | undefined {
   // Bindings/vars live in the worker env; `process.env` is a fallback for
@@ -36,17 +42,19 @@ function getConfig(key: string): string | undefined {
 }
 
 function getFromAddress(): string | null {
-  const from = getConfig("EMAIL_FROM_ADDRESS") || DEFAULT_FROM_ADDRESS;
-  return from || null;
+  // No default fallback on purpose: sending from a non-verified address
+  // fails (or worse, could be spoofed); email stays disabled until the
+  // operator sets a verified EMAIL_FROM_ADDRESS.
+  return getConfig("EMAIL_FROM_ADDRESS") || null;
 }
 
 function getEmailBinding(): SendEmail | null {
-  const binding = getCloudflareContext().env.EMAIL;
-  if (!binding) {
-    console.warn("[Email] EMAIL binding not configured (see wrangler.jsonc send_email)");
+  try {
+    const binding = getCloudflareContext().env.EMAIL as SendEmail | undefined;
+    return binding ?? null;
+  } catch {
     return null;
   }
-  return binding;
 }
 
 async function sendEmail(input: {
@@ -55,25 +63,34 @@ async function sendEmail(input: {
   html: string;
 }): Promise<EmailResult> {
   const email = getEmailBinding();
-  if (!email) {
-    return { success: false, error: "Email not configured" };
-  }
   const from = getFromAddress();
-  if (!from) {
-    console.warn("[Email] No from-address configured (EMAIL_FROM_ADDRESS)");
-    return { success: false, error: "Email not configured" };
+
+  if (!email || !from) {
+    console.warn(
+      `[Email] DISABLED — email not configured (need send_email binding AND verified EMAIL_FROM_ADDRESS). Dropping "${input.subject}" without sending.`,
+    );
+    return {
+      success: false,
+      error: "Email disabled: EMAIL_FROM_ADDRESS must be set to a verified Cloudflare from-address",
+    };
   }
 
   try {
+    const recipients = (Array.isArray(input.to) ? input.to : [input.to]).filter(Boolean);
+    if (recipients.length === 0) {
+      console.warn(`[Email] Skipping "${input.subject}": no recipient address`);
+      return { success: false, error: "No recipient address" };
+    }
+
+    // Structured Send Email binding message:
+    // https://developers.cloudflare.com/email-service/api/send-emails/workers-api/
     await email.send({
       from,
-      to: input.to,
+      to: recipients,
       subject: input.subject,
       html: input.html,
     });
-    console.log(
-      `[Email] Sent "${input.subject}" to ${Array.isArray(input.to) ? input.to.join(", ") : input.to}`,
-    );
+    console.log(`[Email] Sent "${input.subject}" to ${recipients.join(", ")}`);
     return { success: true, id: `send-email:${from}` };
   } catch (error) {
     console.error("[Email] Error sending:", error);

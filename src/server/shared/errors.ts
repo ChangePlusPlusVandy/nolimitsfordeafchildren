@@ -46,6 +46,13 @@ export class BadRequestError extends HttpError {
   }
 }
 
+export class PayloadTooLargeError extends HttpError {
+  constructor(message: string = "Payload too large") {
+    super(413, "PAYLOAD_TOO_LARGE", message);
+    this.name = "PayloadTooLargeError";
+  }
+}
+
 /** Map a thrown error to an HTTP status (used by route handlers later). */
 export function isHttpError(error: unknown): error is HttpError {
   return error instanceof HttpError;

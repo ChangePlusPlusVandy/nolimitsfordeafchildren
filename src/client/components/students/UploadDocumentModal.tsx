@@ -111,14 +111,14 @@ export default function UploadDocumentModal({
           content_type: file.type || "application/octet-stream",
         });
 
-        // Step 2: Upload file directly to storage (R2/S3)
+        // Step 2: Upload file directly to storage (R2).
+        // The /api/files/upload route accepts multipart POST with field `file`.
         setUploadProgress(stepMid);
+        const formData = new FormData();
+        formData.append("file", file);
         const uploadResponse = await fetch(upload_url, {
-          method: "PUT",
-          body: file,
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-          },
+          method: "POST",
+          body: formData,
         });
 
         if (!uploadResponse.ok) {

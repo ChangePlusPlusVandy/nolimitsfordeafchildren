@@ -321,12 +321,11 @@ export default function MyDayPage() {
         content_type: photoFile.type || "image/jpeg",
       });
 
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", photoFile);
       const uploadResult = await fetch(upload_url, {
-        method: "PUT",
-        headers: {
-          "Content-Type": photoFile.type || "image/jpeg",
-        },
-        body: photoFile,
+        method: "POST",
+        body: uploadFormData,
       });
 
       if (!uploadResult.ok) {

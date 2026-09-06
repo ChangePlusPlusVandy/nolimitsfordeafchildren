@@ -12,6 +12,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE = "better-auth.session_token";
 
+// `/login` is public and should not be shown to signed-in users.
+// `/pending-approval` is ALSO public, but the role gates live client-side
+// (the middleware only sees an opaque session cookie, never the app role):
+// the pending-approval page redirects non-unassigned users to `/` itself,
+// and the home page redirects unassigned users to `/pending-approval`.
+// Bouncing authenticated users off `/pending-approval` here would create an
+// infinite redirect loop for unassigned accounts (page -> `/` -> page).
 const PUBLIC_PATHS = new Set(["/login", "/pending-approval"]);
 
 function isPublicPath(pathname: string): boolean {
@@ -35,8 +42,9 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authenticated = hasSessionCookie(request);
 
-  // Authed users shouldn't see the login/pending screens.
-  if (authenticated && PUBLIC_PATHS.has(pathname)) {
+  // Signed-in users shouldn't see the login screen. (Pending-approval is
+  // left alone: the page component applies the role-aware redirect.)
+  if (authenticated && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

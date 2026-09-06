@@ -8,7 +8,9 @@
 	"main": "./worker.ts",
 	"compatibility_date": "2026-07-01",
 	// nodejs runtime is required (edge is deprecated/broken in Next 16 + OpenNext).
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
@@ -16,25 +18,29 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "nolimits-db",
-			// Replace with the real D1 database id (`wrangler d1 create nolimits-db`)
-			"database_id": "REPLACE_WITH_D1_DATABASE_ID",
+			// Staging D1 database created by the user; local dev uses wrangler's
+			// emulated D1 (remote=false) — remote migrations are never applied
+			// automatically, only via `wrangler d1 migrations apply --remote`.
+			"database_name": "nolimits-d1-staging",
+			"database_id": "dfbcb92f-3dc5-45e3-ba81-4067ce11cc32",
 			"migrations_dir": "migrations"
 		}
 	],
 	"r2_buckets": [
 		{
 			"binding": "BUCKET",
-			// Create the bucket first: wrangler r2 bucket create nolimits-bucket
-			"bucket_name": "nolimits-bucket"
+			// Staging R2 bucket created by the user
+			// (account endpoint cd0db0257b50e56cf8b1d020ffbfff0e).
+			"bucket_name": "nolimits-r2-staging"
 		}
 	],
 	"send_email": [
 		{
 			// Cloudflare Email Workers binding.
-			// The FROM-address must be verified in the Cloudflare dashboard
-			// (Workers & Pages -> Email) before emails can be sent; until then
-			// `src/lib/email.ts` gracefully no-ops with a console.warn.
+			// Email stays EXPLICITLY DISABLED until EMAIL_FROM_ADDRESS is set
+			// to a from-address VERIFIED in the Cloudflare dashboard
+			// (Workers & Pages -> Email -> Settings); until then
+			// `src/lib/email.ts` returns failure loudly (never fakes success).
 			"name": "EMAIL"
 		}
 	],
@@ -44,6 +50,9 @@
 	// Cloudflare crons cannot express TZ-aware schedules; acceptable for
 	// daily/weekly notification jobs.
 	"triggers": {
-		"crons": ["0 16 * * *", "0 17 * * 1"]
+		"crons": [
+			"0 16 * * *",
+			"0 17 * * 1"
+		]
 	}
 }
