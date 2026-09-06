@@ -52,17 +52,30 @@ export async function GET(
       throw new NotFoundError("File not found");
     }
 
-    if (!object.body) {
-      throw new NotFoundError("File not found");
-    }
+    // Buffer the object: the OpenNext DEV proxy cannot serialize a raw
+    // ReadableStream body ("Cannot stringify arbitrary non-POJOs"), while an
+    // ArrayBuffer body works identically in `next dev` and in the deployed
+    // Workers runtime. Object sizes are bounded by the upload route's 25 MiB
+    // cap, so buffering is negligible at this scale.
+    // NOTE: do not touch `object.body` before this — the dev emulation's
+    // body getter consumes the stream (one-shot), which breaks arrayBuffer().
+    const body = await object.arrayBuffer();
 
     const responseHeaders = new Headers();
-    object.writeHttpMetadata(responseHeaders);
+    try {
+      object.writeHttpMetadata(responseHeaders);
+    } catch {
+      // OpenNext dev proxy cannot serialize a Headers instance across the RPC boundary
+      // ("Cannot stringify arbitrary non-POJOs"). Fall back to reading httpMetadata directly.
+      if (object.httpMetadata?.contentType) {
+        responseHeaders.set("Content-Type", object.httpMetadata.contentType);
+      }
+    }
     responseHeaders.set("Content-Length", String(object.size));
     responseHeaders.set("Content-Disposition", `inline; filename="${filenameFromKey(key)}"`);
     responseHeaders.set("Cache-Control", "private, no-store");
 
-    return new NextResponse(object.body as Readonly<ReadableStream<Uint8Array>>, {
+    return new NextResponse(body, {
       status: 200,
       headers: responseHeaders,
     });
