@@ -206,6 +206,11 @@ export async function POST() {
     .set({ role: "parent", updated_at: new Date() })
     .where(eq(UserTable.id, strangerUser.id));
 
+  // Keep the summary map in sync with the role updates above.
+  users.set("teacher@nolimits.test", { ...teacherUser, role: "teacher" });
+  users.set("parent@nolimits.test", { ...parentUser, role: "parent" });
+  users.set("stranger@nolimits.test", { ...strangerUser, role: "parent" });
+
   const [teacherProfile] = await db
     .insert(TeacherProfileTable)
     .values({ user_id: teacherUser.id, age_group_specialty: "all_ages" })

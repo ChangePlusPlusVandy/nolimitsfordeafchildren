@@ -149,6 +149,8 @@ export const AuthAccountTable = sqliteTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
+    // Required by better-auth 1.7's account model (OAuth account linking).
+    issuer: text("issuer"),
     accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }),
     refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }),
     scope: text("scope"),

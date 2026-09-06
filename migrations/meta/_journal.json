@@ -8,6 +8,13 @@
       "when": 1788658139273,
       "tag": "0000_military_stature",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788658586364,
+      "tag": "0001_omniscient_wasp",
+      "breakpoints": true
     }
   ]
 }
