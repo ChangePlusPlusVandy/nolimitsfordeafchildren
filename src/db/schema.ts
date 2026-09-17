@@ -324,139 +324,190 @@ export const StudentTable = sqliteTable(
 
 /* ---------------- SIBLING ---------------- */
 
-export const SiblingTable = sqliteTable("siblings", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  student_id: text("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  name: text("name").notNull(),
-  age: integer("age"),
-  relationship: text("relationship").notNull(),
-  is_participant: integer("is_participant", { mode: "boolean" }).notNull().default(true),
-  has_hearing_loss: integer("has_hearing_loss", { mode: "boolean" }).notNull().default(false),
-  photo_url: text("photo_url"),
-  notes: text("notes"),
-  created_at: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated_at: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const SiblingTable = sqliteTable(
+  "siblings",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    student_id: text("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    name: text("name").notNull(),
+    age: integer("age"),
+    relationship: text("relationship").notNull(),
+    is_participant: integer("is_participant", { mode: "boolean" }).notNull().default(true),
+    has_hearing_loss: integer("has_hearing_loss", { mode: "boolean" }).notNull().default(false),
+    photo_url: text("photo_url"),
+    notes: text("notes"),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    studentIdIdx: index("siblings_student_id_idx").on(table.student_id),
+  }),
+);
 
 // ==================== SCHEDULING TABLES ====================
 
 /* ---------------- SESSION ---------------- */
 
-export const SessionTable = sqliteTable("sessions", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  start_date: text("start_date").notNull(),
-  end_date: text("end_date").notNull(),
-  is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  is_archived: integer("is_archived", { mode: "boolean" }).notNull().default(false),
-  created_at: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated_at: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const SessionTable = sqliteTable(
+  "sessions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    start_date: text("start_date").notNull(),
+    end_date: text("end_date").notNull(),
+    is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    is_archived: integer("is_archived", { mode: "boolean" }).notNull().default(false),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    activeStartDateIdx: index("sessions_active_start_date_idx").on(
+      table.is_active,
+      table.start_date,
+    ),
+  }),
+);
 
 /* ---------------- SCHEDULE ---------------- */
 
-export const ScheduleTable = sqliteTable("schedules", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  teacher_id: text("teacher_id")
-    .notNull()
-    .references(() => TeacherProfileTable.id),
-  site_id: text("site_id")
-    .notNull()
-    .references(() => LocationTable.id),
-  session_id: text("session_id").references(() => SessionTable.id),
-  day_of_week_mask: integer("day_of_week_mask").notNull(),
-  start_time: text("start_time").notNull(),
-  end_time: text("end_time").notNull(),
-  cycle_start_date: text("cycle_start_date").notNull(),
-  cycle_end_date: text("cycle_end_date").notNull(),
-  is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  created_at: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated_at: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const ScheduleTable = sqliteTable(
+  "schedules",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    teacher_id: text("teacher_id")
+      .notNull()
+      .references(() => TeacherProfileTable.id),
+    site_id: text("site_id")
+      .notNull()
+      .references(() => LocationTable.id),
+    session_id: text("session_id").references(() => SessionTable.id),
+    day_of_week_mask: integer("day_of_week_mask").notNull(),
+    start_time: text("start_time").notNull(),
+    end_time: text("end_time").notNull(),
+    cycle_start_date: text("cycle_start_date").notNull(),
+    cycle_end_date: text("cycle_end_date").notNull(),
+    is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    teacherActiveIdx: index("schedules_teacher_active_idx").on(table.teacher_id, table.is_active),
+    siteIdIdx: index("schedules_site_id_idx").on(table.site_id),
+    sessionIdIdx: index("schedules_session_id_idx").on(table.session_id),
+  }),
+);
 
 /* ---------------- ENROLLMENT ---------------- */
+// No unique on (student_id, schedule_id): schedule changes end the current row
+// (set ended_at) and insert a new one; re-enrollment in the same schedule is allowed.
+// Partial unique WHERE ended_at IS NULL is not emitted by drizzle-kit for SQLite.
 
-export const EnrollmentTable = sqliteTable("enrollments", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  student_id: text("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  schedule_id: text("schedule_id")
-    .notNull()
-    .references(() => ScheduleTable.id),
-  enrolled_at: integer("enrolled_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  ended_at: integer("ended_at", { mode: "timestamp_ms" }),
-  created_at: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated_at: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const EnrollmentTable = sqliteTable(
+  "enrollments",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    student_id: text("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    schedule_id: text("schedule_id")
+      .notNull()
+      .references(() => ScheduleTable.id),
+    enrolled_at: integer("enrolled_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    ended_at: integer("ended_at", { mode: "timestamp_ms" }),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    studentIdIdx: index("enrollments_student_id_idx").on(table.student_id),
+    scheduleIdIdx: index("enrollments_schedule_id_idx").on(table.schedule_id),
+  }),
+);
 
 // ==================== JUNCTION TABLES ====================
 
 /* ---------------- TEACHER-STUDENT LINK ---------------- */
+// No unique on (teacher_id, student_id): unlink sets unassigned_at in place; re-link
+// inserts a new row, preserving assignment history.
 
-export const TeacherStudentTable = sqliteTable("teacher_student", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  teacher_id: text("teacher_id")
-    .notNull()
-    .references(() => TeacherProfileTable.id),
-  student_id: text("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  assigned_at: integer("assigned_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  unassigned_at: integer("unassigned_at", { mode: "timestamp_ms" }),
-});
+export const TeacherStudentTable = sqliteTable(
+  "teacher_student",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    teacher_id: text("teacher_id")
+      .notNull()
+      .references(() => TeacherProfileTable.id),
+    student_id: text("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    assigned_at: integer("assigned_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    unassigned_at: integer("unassigned_at", { mode: "timestamp_ms" }),
+  },
+  (table) => ({
+    teacherIdIdx: index("teacher_student_teacher_id_idx").on(table.teacher_id),
+    studentIdIdx: index("teacher_student_student_id_idx").on(table.student_id),
+  }),
+);
 
 /* ---------------- PARENT-STUDENT LINK ---------------- */
+// No unique on (parent_id, student_id): revoke sets revoked_at in place; re-link
+// inserts a new row, preserving link history.
 
-export const ParentStudentLinkTable = sqliteTable("parent_student_link", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  parent_id: text("parent_id")
-    .notNull()
-    .references(() => ParentProfileTable.id),
-  student_id: text("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  relationship: text("relationship"),
-  is_primary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
-  linked_at: integer("linked_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  revoked_at: integer("revoked_at", { mode: "timestamp_ms" }),
-});
+export const ParentStudentLinkTable = sqliteTable(
+  "parent_student_link",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    parent_id: text("parent_id")
+      .notNull()
+      .references(() => ParentProfileTable.id),
+    student_id: text("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    relationship: text("relationship"),
+    is_primary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+    linked_at: integer("linked_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    revoked_at: integer("revoked_at", { mode: "timestamp_ms" }),
+  },
+  (table) => ({
+    parentIdIdx: index("parent_student_link_parent_id_idx").on(table.parent_id),
+    studentIdIdx: index("parent_student_link_student_id_idx").on(table.student_id),
+  }),
+);
 
 /* ---------------- TEACHER-LOCATION LINK ---------------- */
 
@@ -489,45 +540,60 @@ export const TeacherLocationTable = sqliteTable(
 
 /* ---------------- ATTENDANCE ---------------- */
 
-export const AttendanceTable = sqliteTable("attendance", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  student_id: text("student_id")
-    .notNull()
-    .references(() => StudentTable.id),
-  schedule_id: text("schedule_id")
-    .notNull()
-    .references(() => ScheduleTable.id),
-  session_date: text("session_date").notNull(),
-  status: text("status", {
-    enum: ["present", "late", "no_show", "cancelled"] as const,
-  }).notNull(),
-  late_minutes: integer("late_minutes"),
-  reason: text("reason", {
-    enum: [
-      "sick",
-      "family_emergency",
-      "transportation",
-      "schedule_conflict",
-      "no_show_unknown",
-      "other",
-    ] as const,
+export const AttendanceTable = sqliteTable(
+  "attendance",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    student_id: text("student_id")
+      .notNull()
+      .references(() => StudentTable.id),
+    schedule_id: text("schedule_id")
+      .notNull()
+      .references(() => ScheduleTable.id),
+    session_date: text("session_date").notNull(),
+    status: text("status", {
+      enum: ["present", "late", "no_show", "cancelled"] as const,
+    }).notNull(),
+    late_minutes: integer("late_minutes"),
+    reason: text("reason", {
+      enum: [
+        "sick",
+        "family_emergency",
+        "transportation",
+        "schedule_conflict",
+        "no_show_unknown",
+        "other",
+      ] as const,
+    }),
+    reason_text: text("reason_text"),
+    marked_by: text("marked_by")
+      .notNull()
+      .references(() => UserTable.id),
+    marked_at: integer("marked_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    studentScheduleDateUnique: uniqueIndex("attendance_student_schedule_date_unique").on(
+      table.student_id,
+      table.schedule_id,
+      table.session_date,
+    ),
+    scheduleDateIdx: index("attendance_schedule_date_idx").on(
+      table.schedule_id,
+      table.session_date,
+    ),
+    studentDateIdx: index("attendance_student_date_idx").on(table.student_id, table.session_date),
   }),
-  reason_text: text("reason_text"),
-  marked_by: text("marked_by")
-    .notNull()
-    .references(() => UserTable.id),
-  marked_at: integer("marked_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  created_at: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated_at: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+);
 
 export const AttendanceSiblingParticipantTable = sqliteTable(
   "attendance_sibling_participants",
@@ -657,49 +723,60 @@ export const AssessmentFocusTable = sqliteTable("assessment_focuses", {
 
 /* ---------------- DOCUMENT ---------------- */
 
-export const DocumentTable = sqliteTable("documents", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  entity_type: text("entity_type").notNull(), // 'student' or 'teacher'
-  entity_id: text("entity_id").notNull(),
-  document_type: text("document_type", {
-    enum: [
-      "audiogram",
-      "iep",
-      "cv",
-      "annual_test_result",
-      "pre_report",
-      "graduation_speech",
-      "other",
-    ] as const,
-  }).notNull(),
-  file_url: text("file_url").notNull(),
-  file_name: text("file_name").notNull(),
-  file_size: integer("file_size"),
-  mime_type: text("mime_type"),
-  document_date: text("document_date"),
-  next_due_date: text("next_due_date"),
-  review_status: text("review_status", {
-    enum: ["approved", "pending", "rejected"] as const,
-  })
-    .notNull()
-    .default("approved"),
-  reviewed_by: text("reviewed_by").references(() => UserTable.id),
-  reviewed_at: integer("reviewed_at", { mode: "timestamp_ms" }),
-  review_notes: text("review_notes"),
-  session_date: text("session_date"),
-  session_type: text("session_type"),
-  uploaded_by: text("uploaded_by")
-    .notNull()
-    .references(() => UserTable.id),
-  created_at: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated_at: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const DocumentTable = sqliteTable(
+  "documents",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    entity_type: text("entity_type").notNull(), // 'student' or 'teacher'
+    entity_id: text("entity_id").notNull(),
+    document_type: text("document_type", {
+      enum: [
+        "audiogram",
+        "iep",
+        "cv",
+        "annual_test_result",
+        "pre_report",
+        "graduation_speech",
+        "other",
+      ] as const,
+    }).notNull(),
+    file_url: text("file_url").notNull(),
+    file_name: text("file_name").notNull(),
+    file_size: integer("file_size"),
+    mime_type: text("mime_type"),
+    document_date: text("document_date"),
+    next_due_date: text("next_due_date"),
+    review_status: text("review_status", {
+      enum: ["approved", "pending", "rejected"] as const,
+    })
+      .notNull()
+      .default("approved"),
+    reviewed_by: text("reviewed_by").references(() => UserTable.id),
+    reviewed_at: integer("reviewed_at", { mode: "timestamp_ms" }),
+    review_notes: text("review_notes"),
+    session_date: text("session_date"),
+    session_type: text("session_type"),
+    uploaded_by: text("uploaded_by")
+      .notNull()
+      .references(() => UserTable.id),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    entityIdx: index("documents_entity_idx").on(table.entity_type, table.entity_id),
+    reviewStatusIdx: index("documents_review_status_idx").on(table.review_status),
+    typeDueDateIdx: index("documents_type_due_date_idx").on(
+      table.document_type,
+      table.next_due_date,
+    ),
+  }),
+);
 
 // ==================== BULLETINS ====================
 
@@ -874,27 +951,36 @@ export const TeacherSickDayNoticeTable = sqliteTable(
 
 /* ---------------- CHAT MESSAGE ---------------- */
 
-export const ChatMessageTable = sqliteTable("chat_messages", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  channel: text("channel", { enum: ["community", "teacher"] as const })
-    .notNull()
-    .default("community"),
-  message: text("message").notNull(),
-  is_announcement: integer("is_announcement", { mode: "boolean" }).notNull().default(false),
-  created_by: text("created_by")
-    .notNull()
-    .references(() => UserTable.id),
-  deleted_at: integer("deleted_at", { mode: "timestamp_ms" }),
-  deleted_by: text("deleted_by").references(() => UserTable.id),
-  created_at: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated_at: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const ChatMessageTable = sqliteTable(
+  "chat_messages",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    channel: text("channel", { enum: ["community", "teacher"] as const })
+      .notNull()
+      .default("community"),
+    message: text("message").notNull(),
+    is_announcement: integer("is_announcement", { mode: "boolean" }).notNull().default(false),
+    created_by: text("created_by")
+      .notNull()
+      .references(() => UserTable.id),
+    deleted_at: integer("deleted_at", { mode: "timestamp_ms" }),
+    deleted_by: text("deleted_by").references(() => UserTable.id),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    channelCreatedAtIdx: index("chat_messages_channel_created_at_idx").on(
+      table.channel,
+      table.created_at,
+    ),
+  }),
+);
 
 /* ---------------- SESSION PHOTO ---------------- */
 
