@@ -28,6 +28,7 @@ import EmptyState from "@/client/components/EmptyState";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import PageContainer from "@/client/components/PageContainer";
 import PageHeader from "@/client/components/PageHeader";
+import RequireRole from "@/client/components/RequireRole";
 import SectionCard from "@/client/components/SectionCard";
 import { useServerTable } from "@/client/hooks/useServerTable";
 import { getMapData, type LocationMapPin, listLocations } from "@/client/locations";
@@ -257,8 +258,10 @@ export default function LocationsPage() {
   // useServerTable reads the URL search params, which requires a Suspense
   // boundary during static/prerender rendering in Next.js.
   return (
-    <Suspense fallback={<Skeleton variant="rectangular" height={350} animation="pulse" />}>
-      <LocationsIndexPage />
-    </Suspense>
+    <RequireRole roles={["administrator", "teacher"]} redirectTo="/my-students">
+      <Suspense fallback={<Skeleton variant="rectangular" height={350} animation="pulse" />}>
+        <LocationsIndexPage />
+      </Suspense>
+    </RequireRole>
   );
 }

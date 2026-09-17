@@ -4,14 +4,16 @@ import MenuIcon from "@mui/icons-material/Menu";
 import {
   AppBar,
   Box,
+  CircularProgress,
   IconButton,
   Toolbar,
   Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { useAuth } from "@/client/auth";
 import MobileBottomNav from "@/client/components/MobileBottomNav";
 import { DRAWER_WIDTH, Sidebar } from "@/client/components/Sidebar";
 
@@ -77,9 +79,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const pathname = usePathname();
+  const router = useRouter();
+  const { isLoading, isUnassigned } = useAuth();
   const contentId = useId();
   const [drawerOpen, setDrawerOpen] = useState(() => (isMobile ? false : readSidebarOpen()));
   const prevMobile = useRef(isMobile);
+
+  useEffect(() => {
+    if (!isLoading && isUnassigned) {
+      router.replace("/pending-approval");
+    }
+  }, [isLoading, isUnassigned, router]);
 
   useEffect(() => {
     if (prevMobile.current === isMobile) return;
@@ -102,6 +112,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const desktopOpen = !isMobile && drawerOpen;
   const pageTitle = resolveTitle(pathname);
+
+  if (isLoading || isUnassigned) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          bgcolor: "background.default",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>

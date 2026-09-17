@@ -12,6 +12,7 @@ import { useAuth } from "@/client/auth";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import PageContainer from "@/client/components/PageContainer";
 import PageHeader from "@/client/components/PageHeader";
+import RequireRole from "@/client/components/RequireRole";
 import SectionCard from "@/client/components/SectionCard";
 import { DetailPageSkeleton } from "@/client/components/skeletons";
 import { getLocation, type LocationType } from "@/client/locations";
@@ -23,8 +24,7 @@ const LOCATION_TYPE_LABEL: Record<LocationType, string> = {
   remote: "Remote",
 };
 
-export default function LocationDetailsPage({ params }: { params: Promise<{ siteId: string }> }) {
-  const { siteId } = use(params);
+function LocationDetailsContent({ siteId }: { siteId: string }) {
   const router = useRouter();
   const { isAdmin } = useAuth();
 
@@ -173,5 +173,15 @@ export default function LocationDetailsPage({ params }: { params: Promise<{ site
         )}
       </Box>
     </PageContainer>
+  );
+}
+
+export default function LocationDetailsPage({ params }: { params: Promise<{ siteId: string }> }) {
+  const { siteId } = use(params);
+
+  return (
+    <RequireRole roles={["administrator", "teacher"]} redirectTo="/my-students">
+      <LocationDetailsContent siteId={siteId} />
+    </RequireRole>
   );
 }

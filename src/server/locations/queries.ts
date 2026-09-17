@@ -3,40 +3,36 @@ import { type ListLocationsQuery, locationsService } from "@/server/locations/se
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 
-/**
- * GET /v1/locations — public (no auth gate; the Express middleware ran but
- * never blocked public routes).
- */
+/** GET /v1/locations — administrator | teacher. */
 export async function listLocations(query: ListLocationsQuery = {}) {
+  await requireRole("administrator", "teacher");
   return await locationsService.index(query);
 }
 
-/**
- * GET /v1/locations/map-summary — public.
- */
+/** GET /v1/locations/map-summary — administrator | teacher. */
 export async function mapSummary() {
+  await requireRole("administrator", "teacher");
   return await locationsService.mapSummary();
 }
 
-/**
- * GET /v1/locations/:siteId/now-next — public.
- */
+/** GET /v1/locations/:siteId/now-next — administrator | teacher. */
 export async function nowNext(siteId: string, query?: { date?: string }) {
+  await requireRole("administrator", "teacher");
   return await locationsService.nowNext(siteId, query);
 }
 
 /**
- * GET /v1/sites/:siteId/now-next — public (SitesController reuses
- * LocationsService.nowNext; the sites domain maps into src/server/locations/).
+ * GET /v1/sites/:siteId/now-next — administrator | teacher (SitesController
+ * reuses LocationsService.nowNext; the sites domain maps into src/server/locations/).
  */
 export async function getSiteNowNext(siteId: string, query?: { date?: string }) {
+  await requireRole("administrator", "teacher");
   return await locationsService.nowNext(siteId, query);
 }
 
-/**
- * GET /v1/locations/:siteId — public.
- */
+/** GET /v1/locations/:siteId — administrator | teacher. */
 export async function showLocation(siteId: string) {
+  await requireRole("administrator", "teacher");
   const location = await locationsService.show(siteId);
   if (!location) {
     throw new NotFoundError("Location not found");

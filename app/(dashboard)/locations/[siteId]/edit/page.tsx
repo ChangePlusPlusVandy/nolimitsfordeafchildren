@@ -32,6 +32,7 @@ import {
   type UpdateLocationPayload,
   updateLocation,
 } from "@/client/locations";
+import RequireAdmin from "../../../teachers/RequireAdmin";
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern Time (ET)" },
@@ -112,8 +113,7 @@ type FormData = {
   is_active: boolean;
 };
 
-export default function EditLocationPage({ params }: { params: Promise<{ siteId: string }> }) {
-  const { siteId } = use(params);
+function EditLocationForm({ siteId }: { siteId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -457,5 +457,15 @@ export default function EditLocationPage({ params }: { params: Promise<{ siteId:
         </Stack>
       </form>
     </PageContainer>
+  );
+}
+
+export default function EditLocationPage({ params }: { params: Promise<{ siteId: string }> }) {
+  const { siteId } = use(params);
+
+  return (
+    <RequireAdmin redirectTo="/locations">
+      <EditLocationForm siteId={siteId} />
+    </RequireAdmin>
   );
 }

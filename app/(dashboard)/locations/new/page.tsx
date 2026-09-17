@@ -25,6 +25,7 @@ import PageHeader from "@/client/components/PageHeader";
 import SectionCard from "@/client/components/SectionCard";
 import { useToast } from "@/client/components/ToastProvider";
 import { type CreateLocationPayload, createLocation, type LocationType } from "@/client/locations";
+import RequireAdmin from "../../teachers/RequireAdmin";
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern Time (ET)" },
@@ -121,7 +122,7 @@ const initialFormData: FormData = {
   is_active: true,
 };
 
-export default function NewLocationPage() {
+function NewLocationForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -403,5 +404,13 @@ export default function NewLocationPage() {
         </Stack>
       </form>
     </PageContainer>
+  );
+}
+
+export default function NewLocationPage() {
+  return (
+    <RequireAdmin redirectTo="/locations">
+      <NewLocationForm />
+    </RequireAdmin>
   );
 }
