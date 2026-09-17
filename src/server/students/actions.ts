@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { requireRole } from "@/server/shared/auth-guard";
-import { ForbiddenError, HttpError, NotFoundError } from "@/server/shared/errors";
+import { NotFoundError } from "@/server/shared/errors";
 import {
   type AddSiblingInput,
   type CreateStudentInput,
@@ -100,26 +100,16 @@ export async function updateGuardianSummary(
         ? parsed.guardian_summary.trim()
         : null;
 
-  try {
-    const student = await new StudentsService().updateGuardianSummary(id, normalizedSummary, {
-      id: user.id,
-      role: user.role,
-    });
+  const student = await new StudentsService().updateGuardianSummary(id, normalizedSummary, {
+    id: user.id,
+    role: user.role,
+  });
 
-    if (!student) {
-      throw new NotFoundError("Student not found");
-    }
-
-    return student;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("permission")) {
-      throw new ForbiddenError(error.message);
-    }
-    if (error instanceof Error && error.message.includes("Teacher profile not found")) {
-      throw new HttpError(403, "FORBIDDEN", error.message);
-    }
-    throw error;
+  if (!student) {
+    throw new NotFoundError("Student not found");
   }
+
+  return student;
 }
 
 /**

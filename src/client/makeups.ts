@@ -4,6 +4,7 @@
  * Names reconcile 1:1 with `src/server/makeups/{queries,actions}.ts`.
  */
 
+import type { RequestStatus as SchemaRequestStatus } from "@/db/schema";
 import {
   createMakeupRequest as serverCreateMakeupRequest,
   createMakeupSession as serverCreateMakeupSession,
@@ -22,7 +23,7 @@ export type {
   CreateMakeupSessionInput,
 } from "@/server/makeups/service";
 
-export type RequestStatus = "pending" | "approved" | "denied" | "completed";
+export type RequestStatus = Exclude<SchemaRequestStatus, "negotiating">;
 
 export type MakeupRequestWithDetails = {
   id: string;

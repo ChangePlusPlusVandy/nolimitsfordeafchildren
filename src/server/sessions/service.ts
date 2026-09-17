@@ -1,12 +1,13 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { type SessionEntity, type SessionInsert, SessionTable } from "@/db/schema";
 import { db } from "@/lib/db";
+import { BadRequestError, ConflictError } from "@/server/shared/errors";
 import {
   buildPaginatedResponse,
   getPagination,
   type PaginatedQuery,
   type PaginatedResponse,
-} from "@/utils/pagination";
+} from "@/server/shared/pagination";
 
 export interface ListSessionsQuery extends PaginatedQuery {
   include_archived?: boolean;
@@ -66,11 +67,11 @@ export class SessionsService {
   async create(input: CreateSessionInput): Promise<SessionEntity> {
     const name = input.name.trim();
     if (!name) {
-      throw new Error("Session name is required");
+      throw new BadRequestError("Session name is required");
     }
 
     if (input.start_date >= input.end_date) {
-      throw new Error("Session end date must be after start date");
+      throw new BadRequestError("Session end date must be after start date");
     }
 
     const duplicate = await db
@@ -87,7 +88,7 @@ export class SessionsService {
       .limit(1);
 
     if (duplicate.length > 0) {
-      throw new Error("A matching session already exists");
+      throw new ConflictError("A matching session already exists");
     }
 
     const payload: SessionInsert = {
@@ -113,7 +114,7 @@ export class SessionsService {
     const nextEndDate = input.end_date ?? existing[0].end_date;
 
     if (nextStartDate >= nextEndDate) {
-      throw new Error("Session end date must be after start date");
+      throw new BadRequestError("Session end date must be after start date");
     }
 
     const updateData: Partial<SessionInsert> = {

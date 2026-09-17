@@ -15,7 +15,12 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { deleteFile, extractKeyFromUrl, getPublicUrl, getUploadUrl } from "@/lib/r2";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { BadRequestError, ForbiddenError, NotFoundError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export interface GetPhotoUploadUrlInput {
   location_id: string;
@@ -115,7 +120,7 @@ export class PhotosService {
       .limit(1);
 
     if (!location[0]) {
-      throw new Error("Location not found");
+      throw new NotFoundError("Location not found");
     }
 
     if (studentId) {
@@ -126,11 +131,11 @@ export class PhotosService {
         .limit(1);
 
       if (!student[0]) {
-        throw new Error("Student not found");
+        throw new NotFoundError("Student not found");
       }
 
       if (student[0].site_id !== locationId) {
-        throw new Error("Student is not assigned to this location");
+        throw new BadRequestError("Student is not assigned to this location");
       }
     }
   }
@@ -141,7 +146,7 @@ export class PhotosService {
     if (currentUser.role === "teacher") {
       const allowedLocationIds = await this.getTeacherAllowedLocationIds(currentUser.id);
       if (!allowedLocationIds.includes(input.location_id)) {
-        throw new Error("Teacher is not assigned to this location");
+        throw new ForbiddenError("Teacher is not assigned to this location");
       }
     }
 
@@ -162,7 +167,7 @@ export class PhotosService {
     if (currentUser.role === "teacher") {
       const allowedLocationIds = await this.getTeacherAllowedLocationIds(currentUser.id);
       if (!allowedLocationIds.includes(input.location_id)) {
-        throw new Error("Teacher is not assigned to this location");
+        throw new ForbiddenError("Teacher is not assigned to this location");
       }
     }
 

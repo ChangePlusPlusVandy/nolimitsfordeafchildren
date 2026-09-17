@@ -11,7 +11,12 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { BadRequestError, ConflictError, NotFoundError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export interface AssessmentFocusInput {
   goal: string;
@@ -70,18 +75,18 @@ function validateAssessmentFocuses(focuses?: AssessmentFocusInput[]): Assessment
   }
 
   if (focuses.length > 4) {
-    throw new Error("Assessment can include up to 4 teaching focuses");
+    throw new BadRequestError("Assessment can include up to 4 teaching focuses");
   }
 
   for (const focus of focuses) {
     if (!focus.goal?.trim()) {
-      throw new Error("Each teaching focus must include a goal");
+      throw new BadRequestError("Each teaching focus must include a goal");
     }
     if (focus.max_score <= 0) {
-      throw new Error("Each teaching focus max score must be greater than 0");
+      throw new BadRequestError("Each teaching focus max score must be greater than 0");
     }
     if (focus.score < 0 || focus.score > focus.max_score) {
-      throw new Error("Each teaching focus score must be between 0 and max score");
+      throw new BadRequestError("Each teaching focus score must be between 0 and max score");
     }
   }
 
@@ -149,7 +154,7 @@ export class AssessmentsService {
 
     // Validate score is 0-20
     if (normalizedScore < 0 || normalizedScore > 20) {
-      throw new Error("Score must be between 0 and 20");
+      throw new BadRequestError("Score must be between 0 and 20");
     }
 
     // Verify student exists
@@ -160,7 +165,7 @@ export class AssessmentsService {
       .limit(1);
 
     if (student.length === 0) {
-      throw new Error("Student not found");
+      throw new NotFoundError("Student not found");
     }
 
     // Verify teacher exists
@@ -171,7 +176,7 @@ export class AssessmentsService {
       .limit(1);
 
     if (teacher.length === 0) {
-      throw new Error("Teacher not found");
+      throw new NotFoundError("Teacher not found");
     }
 
     // Check if assessment already exists for this cycle/type
@@ -188,7 +193,9 @@ export class AssessmentsService {
       .limit(1);
 
     if (existing.length > 0) {
-      throw new Error(`A ${input.assessment_type} assessment already exists for this cycle`);
+      throw new ConflictError(
+        `A ${input.assessment_type} assessment already exists for this cycle`,
+      );
     }
 
     const newAssessment: AssessmentInsert = {
@@ -514,7 +521,7 @@ export class AssessmentsService {
 
     // Validate score if provided
     if (normalizedScore !== undefined && (normalizedScore < 0 || normalizedScore > 20)) {
-      throw new Error("Score must be between 0 and 20");
+      throw new BadRequestError("Score must be between 0 and 20");
     }
 
     const { focuses: _focuses, ...assessmentUpdateData } = data;
@@ -563,7 +570,7 @@ export class AssessmentsService {
       .limit(1);
 
     if (existing.length === 0) {
-      throw new Error("Assessment not found or you don't have permission to clone it");
+      throw new NotFoundError("Assessment not found or you don't have permission to clone it");
     }
 
     const source = existing[0]!;

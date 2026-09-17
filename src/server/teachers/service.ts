@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNull, like, ne, or, sql } from "drizzle-orm";
 import {
+  type AgeGroupSpecialty,
   LocationTable,
   type ScheduleEntity,
   type ScheduleInsert,
@@ -15,16 +16,15 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { AttendanceService, type SessionForDay } from "@/server/attendance/service";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "@/server/shared/errors";
+import { buildPaginatedResponse, getPagination } from "@/server/shared/pagination";
 
-export type AgeGroupSpecialty =
-  | "infant"
-  | "toddler"
-  | "preschool"
-  | "elementary"
-  | "middle_school"
-  | "high_school"
-  | "young_adult"
-  | "all_ages";
+export type { AgeGroupSpecialty };
 
 export interface ListTeachersQuery {
   search?: string;
@@ -121,9 +121,7 @@ export class TeachersService {
     limit: number;
     totalPages: number;
   }> {
-    const page = query.page || 1;
-    const limit = Math.min(query.limit || 20, 100);
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = getPagination(query, 20, 100);
 
     // Build where conditions
     const conditions = [];
@@ -217,13 +215,7 @@ export class TeachersService {
         : null,
     }));
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -439,18 +431,18 @@ export class TeachersService {
       .limit(1);
 
     if (existing.length > 0) {
-      throw new Error("Teacher profile already exists for this user");
+      throw new ConflictError("Teacher profile already exists for this user");
     }
 
     // Verify user exists and is a teacher role
     const user = await db.select().from(UserTable).where(eq(UserTable.id, input.user_id)).limit(1);
 
     if (user.length === 0) {
-      throw new Error("User not found");
+      throw new NotFoundError("User not found");
     }
 
     if (user[0]!.role !== "teacher") {
-      throw new Error("User must have teacher role");
+      throw new BadRequestError("User must have teacher role");
     }
 
     const newTeacher: TeacherProfileInsert = {
@@ -507,9 +499,7 @@ export class TeachersService {
    * Get students assigned to a teacher
    */
   async students(id: string, query: { page?: number; limit?: number }) {
-    const page = query.page || 1;
-    const limit = Math.min(query.limit || 20, 100);
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = getPagination(query, 20, 100);
 
     // Count total
     const countResult = await db
@@ -554,13 +544,7 @@ export class TeachersService {
       },
     }));
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -604,12 +588,12 @@ export class TeachersService {
       .limit(1);
 
     if (teacher.length === 0) {
-      throw new Error("Teacher not found");
+      throw new NotFoundError("Teacher not found");
     }
 
     const isAssigned = await this.isTeacherAssignedToLocation(teacherId, input.site_id);
     if (!isAssigned) {
-      throw new Error("Teacher is not assigned to this location");
+      throw new ForbiddenError("Teacher is not assigned to this location");
     }
 
     if (input.session_id) {
@@ -620,18 +604,18 @@ export class TeachersService {
         .limit(1);
 
       if (!session[0]) {
-        throw new Error("Session not found");
+        throw new NotFoundError("Session not found");
       }
 
       if (session[0].is_archived) {
-        throw new Error("Cannot assign an archived session to a schedule");
+        throw new BadRequestError("Cannot assign an archived session to a schedule");
       }
     }
 
     // Check for conflicts
     const conflicts = await this.checkScheduleConflicts(teacherId, input);
     if (conflicts.length > 0) {
-      throw new Error(
+      throw new ConflictError(
         `Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`,
       );
     }
@@ -676,7 +660,7 @@ export class TeachersService {
         input.site_id,
       );
       if (!isAssigned) {
-        throw new Error("Teacher is not assigned to this location");
+        throw new ForbiddenError("Teacher is not assigned to this location");
       }
     }
 
@@ -688,11 +672,11 @@ export class TeachersService {
         .limit(1);
 
       if (!session[0]) {
-        throw new Error("Session not found");
+        throw new NotFoundError("Session not found");
       }
 
       if (session[0].is_archived) {
-        throw new Error("Cannot assign an archived session to a schedule");
+        throw new BadRequestError("Cannot assign an archived session to a schedule");
       }
     }
 
@@ -718,7 +702,7 @@ export class TeachersService {
       );
 
       if (conflicts.length > 0) {
-        throw new Error(
+        throw new ConflictError(
           `Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`,
         );
       }

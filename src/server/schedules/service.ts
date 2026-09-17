@@ -10,6 +10,7 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
+import { buildPaginatedResponse, getPagination } from "@/server/shared/pagination";
 
 export interface ListSchedulesQuery {
   teacher_id?: string;
@@ -90,9 +91,7 @@ export class SchedulesService {
     limit: number;
     totalPages: number;
   }> {
-    const page = query.page || 1;
-    const limit = Math.min(query.limit || 20, 100);
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = getPagination(query, 20, 100);
 
     const conditions = [];
 
@@ -184,13 +183,7 @@ export class SchedulesService {
         : null,
     }));
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -301,9 +294,7 @@ export class SchedulesService {
     limit: number;
     totalPages: number;
   }> {
-    const page = query.page || 1;
-    const limit = Math.min(query.limit || 20, 100);
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = getPagination(query, 20, 100);
 
     const today = new Date().toISOString().split("T")[0]!;
 
@@ -407,13 +398,7 @@ export class SchedulesService {
         : null,
     }));
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**

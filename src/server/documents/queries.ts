@@ -7,6 +7,7 @@ import {
   type ListDocumentsQuery,
 } from "@/server/documents/service";
 import { requireRole } from "@/server/shared/auth-guard";
+import { NotFoundError } from "@/server/shared/errors";
 
 /**
  * GET /v1/documents — list documents (any authenticated user).
@@ -23,7 +24,7 @@ export async function getDocument(id: string) {
   await requireRole();
   const result = await new DocumentsService().show(id);
   if (!result) {
-    throw new Error("Document not found");
+    throw new NotFoundError("Document not found");
   }
   return result;
 }
@@ -36,7 +37,7 @@ export async function getDocumentDownload(id: string) {
   await requireRole();
   const result = await new DocumentsService().getDownloadUrl(id);
   if (!result) {
-    throw new Error("Document not found");
+    throw new NotFoundError("Document not found");
   }
   return result;
 }

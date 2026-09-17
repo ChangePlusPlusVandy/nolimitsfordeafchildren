@@ -12,7 +12,11 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export type CreateLocationDto = Omit<LocationInsert, "id" | "created_at" | "updated_at">;
 export type UpdateLocationDto = Partial<CreateLocationDto>;

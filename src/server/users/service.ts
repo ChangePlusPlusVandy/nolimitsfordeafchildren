@@ -9,6 +9,8 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
+import { ConflictError } from "@/server/shared/errors";
+import { buildPaginatedResponse, getPagination } from "@/server/shared/pagination";
 
 export interface ListUsersQuery {
   search?: string;
@@ -63,9 +65,7 @@ export class UsersService {
     limit: number;
     totalPages: number;
   }> {
-    const page = query.page || 1;
-    const limit = Math.min(query.limit || 20, 100);
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = getPagination(query, 20, 100);
 
     // Build where conditions
     const conditions = [];
@@ -113,13 +113,7 @@ export class UsersService {
       .limit(limit)
       .offset(offset);
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return buildPaginatedResponse(items, total, page, limit);
   }
 
   /**
@@ -291,7 +285,7 @@ export class UsersService {
     // Check if email already exists
     const existing = await this.getByEmail(input.email);
     if (existing) {
-      throw new Error("User with this email already exists");
+      throw new ConflictError("User with this email already exists");
     }
 
     const newUser: UserInsert = {
@@ -341,7 +335,7 @@ export class UsersService {
     if (input.email && input.email.toLowerCase() !== existingUser.email.toLowerCase()) {
       const emailTaken = await this.getByEmail(input.email);
       if (emailTaken) {
-        throw new Error("Email is already in use");
+        throw new ConflictError("Email is already in use");
       }
     }
 

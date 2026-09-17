@@ -76,9 +76,6 @@ const reviewBulletinSchema = z
   })
   .passthrough();
 
-/**
- * POST /v1/bulletins — create a bulletin (administrator | teacher).
- */
 export async function createBulletin(input: CreateBulletinInput) {
   const currentUser = await requireRole("administrator", "teacher");
 
@@ -100,20 +97,9 @@ export async function createBulletin(input: CreateBulletinInput) {
 
   const parsed = createBulletinSchema.parse(input) as CreateBulletinInput;
 
-  try {
-    return await new BulletinsService().create(parsed, currentUser.id, currentUser.role);
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes("assigned site")) throw new BadRequestError(error.message);
-      if (error.message.includes("requires_initials")) throw new BadRequestError(error.message);
-    }
-    throw error;
-  }
+  return await new BulletinsService().create(parsed, currentUser.id, currentUser.role);
 }
 
-/**
- * PATCH /v1/bulletins/:id — update (admin only).
- */
 export async function updateBulletin(id: string, input: UpdateBulletinInput) {
   await requireRole("administrator");
 
@@ -129,23 +115,13 @@ export async function updateBulletin(id: string, input: UpdateBulletinInput) {
 
   const parsed = updateBulletinSchema.parse(input) as UpdateBulletinInput;
 
-  try {
-    const bulletin = await new BulletinsService().update(id, parsed);
-    if (!bulletin) {
-      throw new NotFoundError("Bulletin not found");
-    }
-    return bulletin;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("requires_initials")) {
-      throw new BadRequestError(error.message);
-    }
-    throw error;
+  const bulletin = await new BulletinsService().update(id, parsed);
+  if (!bulletin) {
+    throw new NotFoundError("Bulletin not found");
   }
+  return bulletin;
 }
 
-/**
- * DELETE /v1/bulletins/:id — admin only.
- */
 export async function deleteBulletin(id: string) {
   await requireRole("administrator");
   const deleted = await new BulletinsService().delete(id);
@@ -155,9 +131,6 @@ export async function deleteBulletin(id: string) {
   return { success: true, message: "Bulletin deleted" };
 }
 
-/**
- * POST /v1/bulletins/:id/attachments — add an attachment (admin only).
- */
 export async function addBulletinAttachment(id: string, input: AddAttachmentInput) {
   await requireRole("administrator");
 
@@ -167,21 +140,9 @@ export async function addBulletinAttachment(id: string, input: AddAttachmentInpu
 
   const parsed = addAttachmentSchema.parse(input) as AddAttachmentInput;
 
-  try {
-    return await new BulletinsService().addAttachment(id, parsed);
-  } catch (error) {
-    if (error instanceof Error && error.message === "Bulletin not found") {
-      throw new NotFoundError("Bulletin not found");
-    }
-    throw error;
-  }
+  return await new BulletinsService().addAttachment(id, parsed);
 }
 
-/**
- * POST /v1/bulletins/attachments/upload-url — upload target for an
- * attachment (admin only). R2 has no S3 presigning; the returned
- * upload_url is the authenticated /api/files/upload route.
- */
 export async function getBulletinAttachmentUploadUrl(input: {
   file_name: string;
   content_type: string;
@@ -196,9 +157,6 @@ export async function getBulletinAttachmentUploadUrl(input: {
   return await new BulletinsService().getAttachmentUploadUrl(parsed);
 }
 
-/**
- * DELETE /v1/bulletins/:id/attachments/:attachmentId — admin only.
- */
 export async function deleteBulletinAttachment(_id: string, attachmentId: string) {
   await requireRole("administrator");
   const deleted = await new BulletinsService().deleteAttachment(attachmentId);
@@ -208,9 +166,6 @@ export async function deleteBulletinAttachment(_id: string, attachmentId: string
   return { success: true, message: "Attachment deleted" };
 }
 
-/**
- * POST /v1/bulletins/:id/acknowledge — parent acknowledgement with initials.
- */
 export async function acknowledgeBulletin(id: string, input: AcknowledgeBulletinInput) {
   const currentUser = await requireRole("parent");
 
@@ -220,22 +175,9 @@ export async function acknowledgeBulletin(id: string, input: AcknowledgeBulletin
 
   const parsed = acknowledgeSchema.parse(input);
 
-  try {
-    return await new BulletinsService().acknowledgeBulletin(id, currentUser.id, parsed);
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "Bulletin not found") throw new NotFoundError("Bulletin not found");
-      if (error.message.includes("Initials")) throw new BadRequestError(error.message);
-      if (error.message.includes("does not require initials"))
-        throw new BadRequestError(error.message);
-    }
-    throw error;
-  }
+  return await new BulletinsService().acknowledgeBulletin(id, currentUser.id, parsed);
 }
 
-/**
- * PATCH /v1/bulletins/:id/review — moderation decision (admin only).
- */
 export async function reviewBulletin(id: string, input: ReviewBulletinInput) {
   const currentUser = await requireRole("administrator");
 
@@ -245,16 +187,9 @@ export async function reviewBulletin(id: string, input: ReviewBulletinInput) {
 
   const parsed = reviewBulletinSchema.parse(input) as ReviewBulletinInput;
 
-  try {
-    const bulletin = await new BulletinsService().reviewBulletin(id, currentUser.id, parsed);
-    if (!bulletin) {
-      throw new NotFoundError("Bulletin not found");
-    }
-    return bulletin;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("Only pending bulletins")) {
-      throw new BadRequestError(error.message);
-    }
-    throw error;
+  const bulletin = await new BulletinsService().reviewBulletin(id, currentUser.id, parsed);
+  if (!bulletin) {
+    throw new NotFoundError("Bulletin not found");
   }
+  return bulletin;
 }

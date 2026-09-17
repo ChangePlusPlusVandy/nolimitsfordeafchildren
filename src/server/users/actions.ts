@@ -51,10 +51,6 @@ const updateUserSchema = z
   })
   .passthrough();
 
-/**
- * POST /v1/users/:id/students/:studentId — link a student to a parent user
- * (admin only).
- */
 export async function linkStudentToParentUser(
   parentUserId: string,
   studentId: string,
@@ -70,17 +66,11 @@ export async function linkStudentToParentUser(
   );
 }
 
-/**
- * DELETE /v1/users/:id/students/:studentId — unlink (admin only).
- */
 export async function unlinkStudentFromParentUser(parentUserId: string, studentId: string) {
   await requireRole("administrator");
   return await new UsersService().unlinkStudentFromParentUser(parentUserId, studentId);
 }
 
-/**
- * POST /v1/users/invite — invite a new user (admin only).
- */
 export async function inviteUser(input: InviteUserInput) {
   await requireRole("administrator");
 
@@ -93,40 +83,20 @@ export async function inviteUser(input: InviteUserInput) {
 
   const parsed = inviteUserSchema.parse(input) as InviteUserInput;
 
-  try {
-    return await new UsersService().invite(parsed);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("already exists")) {
-      throw new BadRequestError(error.message);
-    }
-    throw error;
-  }
+  return await new UsersService().invite(parsed);
 }
 
-/**
- * PATCH /v1/users/:id — update a user (admin only).
- */
 export async function updateUser(id: string, input: UpdateUserInput) {
   await requireRole("administrator");
   const parsed = updateUserSchema.parse(input) as UpdateUserInput;
 
-  try {
-    const user = await new UsersService().update(id, parsed);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-    return user;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("already in use")) {
-      throw new BadRequestError(error.message);
-    }
-    throw error;
+  const user = await new UsersService().update(id, parsed);
+  if (!user) {
+    throw new NotFoundError("User not found");
   }
+  return user;
 }
 
-/**
- * DELETE /v1/users/:id — disable (soft delete) a user (admin only).
- */
 export async function disableUser(id: string) {
   await requireRole("administrator");
   const user = await new UsersService().disable(id);
@@ -136,9 +106,6 @@ export async function disableUser(id: string) {
   return { success: true, message: "User disabled" };
 }
 
-/**
- * POST /v1/users/:id/enable — re-enable a disabled user (admin only).
- */
 export async function enableUser(id: string) {
   await requireRole("administrator");
   const user = await new UsersService().enable(id);

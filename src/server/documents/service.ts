@@ -9,7 +9,12 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { deleteFile, extractKeyFromUrl, getPublicUrl, getUploadUrl } from "@/lib/r2";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { BadRequestError, ConflictError, NotFoundError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export type DocumentType =
   | "audiogram"
@@ -325,7 +330,7 @@ export class DocumentsService {
 
     const current = existing[0]!;
     if (current.review_status !== "pending") {
-      throw new Error("Document has already been reviewed");
+      throw new ConflictError("Document has already been reviewed");
     }
 
     const result = await db
@@ -520,7 +525,7 @@ export class DocumentsService {
         .limit(1);
 
       if (student.length === 0) {
-        throw new Error("Student not found");
+        throw new NotFoundError("Student not found");
       }
     } else if (entityType === "teacher") {
       const teacher = await db
@@ -530,10 +535,10 @@ export class DocumentsService {
         .limit(1);
 
       if (teacher.length === 0) {
-        throw new Error("Teacher not found");
+        throw new NotFoundError("Teacher not found");
       }
     } else {
-      throw new Error("Invalid entity type");
+      throw new BadRequestError("Invalid entity type");
     }
   }
 }

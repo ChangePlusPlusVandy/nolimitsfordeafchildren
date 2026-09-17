@@ -46,6 +46,13 @@ export class BadRequestError extends HttpError {
   }
 }
 
+export class ConflictError extends HttpError {
+  constructor(message: string = "Conflict") {
+    super(409, "CONFLICT", message);
+    this.name = "ConflictError";
+  }
+}
+
 export class PayloadTooLargeError extends HttpError {
   constructor(message: string = "Payload too large") {
     super(413, "PAYLOAD_TOO_LARGE", message);

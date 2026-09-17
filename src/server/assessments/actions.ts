@@ -6,7 +6,7 @@ import { TeacherProfileTable } from "@/db/schema";
 import { db } from "@/lib/db";
 import { AssessmentsService, type CreateAssessmentInput } from "@/server/assessments/service";
 import { requireRole } from "@/server/shared/auth-guard";
-import { HttpError, NotFoundError } from "@/server/shared/errors";
+import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
 
 const focusSchema = z.object({
   goal: z.string().min(1).max(500),
@@ -51,20 +51,6 @@ const cloneAssessmentSchema = z
   })
   .passthrough();
 
-/** Map service validation messages onto 400/409 as the controller did. */
-function mapAssessmentError(error: unknown): never {
-  if (error instanceof Error) {
-    if (error.message.includes("already exists"))
-      throw new HttpError(409, "CONFLICT", error.message);
-    if (error.message.includes("Score must be"))
-      throw new HttpError(400, "BAD_REQUEST", error.message);
-    if (error.message.includes("teaching focus") || error.message.includes("max score")) {
-      throw new HttpError(400, "BAD_REQUEST", error.message);
-    }
-  }
-  throw error;
-}
-
 async function requireTeacherProfileId(currentUserId: string, verb: string): Promise<string> {
   const teacherProfile = await db
     .select()
@@ -73,14 +59,11 @@ async function requireTeacherProfileId(currentUserId: string, verb: string): Pro
     .limit(1);
 
   if (teacherProfile.length === 0) {
-    throw new HttpError(403, "FORBIDDEN", `Only teachers can ${verb} assessments`);
+    throw new ForbiddenError(`Only teachers can ${verb} assessments`);
   }
   return teacherProfile[0].id;
 }
 
-/**
- * POST /v1/students/:studentId/assessments — create (teacher).
- */
 export async function createAssessment(
   studentId: string,
   input: Omit<CreateAssessmentInput, "student_id" | "teacher_id">,
@@ -93,20 +76,13 @@ export async function createAssessment(
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "create");
 
-  try {
-    return await new AssessmentsService().create({
-      student_id: studentId,
-      teacher_id: teacherId,
-      ...parsed,
-    });
-  } catch (error) {
-    mapAssessmentError(error);
-  }
+  return await new AssessmentsService().create({
+    student_id: studentId,
+    teacher_id: teacherId,
+    ...parsed,
+  });
 }
 
-/**
- * PATCH /v1/assessments/:id — update (teacher; must own the assessment).
- */
 export async function updateAssessment(
   id: string,
   input: {
@@ -124,20 +100,13 @@ export async function updateAssessment(
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "update");
 
-  try {
-    const assessment = await new AssessmentsService().update(id, teacherId, parsed);
-    if (!assessment) {
-      throw new NotFoundError("Assessment not found or you don't have permission to update it");
-    }
-    return assessment;
-  } catch (error) {
-    mapAssessmentError(error);
+  const assessment = await new AssessmentsService().update(id, teacherId, parsed);
+  if (!assessment) {
+    throw new NotFoundError("Assessment not found or you don't have permission to update it");
   }
+  return assessment;
 }
 
-/**
- * DELETE /v1/assessments/:id — administrator | teacher (teachers must own).
- */
 export async function deleteAssessment(id: string) {
   const currentUser = await requireRole("administrator", "teacher");
 
@@ -153,10 +122,6 @@ export async function deleteAssessment(id: string) {
   return { success: true };
 }
 
-/**
- * POST /v1/assessments/:id/clone — clone an assessment into a new cycle
- * (teacher).
- */
 export async function cloneAssessment(
   id: string,
   input: {
@@ -182,14 +147,5 @@ export async function cloneAssessment(
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "clone");
 
-  try {
-    return await new AssessmentsService().clone(id, teacherId, parsed);
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes("permission") || error.message.includes("not found")) {
-        throw new HttpError(404, "NOT_FOUND", error.message);
-      }
-    }
-    mapAssessmentError(error);
-  }
+  return await new AssessmentsService().clone(id, teacherId, parsed);
 }

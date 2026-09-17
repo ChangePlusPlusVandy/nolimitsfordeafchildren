@@ -11,7 +11,7 @@ import {
   type ReviewDocumentInput,
 } from "@/server/documents/service";
 import { requireRole } from "@/server/shared/auth-guard";
-import { BadRequestError, NotFoundError } from "@/server/shared/errors";
+import { NotFoundError } from "@/server/shared/errors";
 
 const entityTypeSchema = z.enum(["student", "teacher"]);
 const documentTypeSchema = z.enum([
@@ -106,18 +106,10 @@ export async function reviewDocument(id: string, input: Omit<ReviewDocumentInput
   const currentUser = await requireRole("administrator");
   const parsed = reviewDocumentSchema.parse(input) as Omit<ReviewDocumentInput, "reviewed_by">;
 
-  let result: Awaited<ReturnType<DocumentsService["reviewDocument"]>>;
-  try {
-    result = await new DocumentsService().reviewDocument(id, {
-      ...parsed,
-      reviewed_by: currentUser.id,
-    });
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new BadRequestError(error.message);
-    }
-    throw error;
-  }
+  const result = await new DocumentsService().reviewDocument(id, {
+    ...parsed,
+    reviewed_by: currentUser.id,
+  });
 
   if (!result) {
     throw new NotFoundError("Document not found");

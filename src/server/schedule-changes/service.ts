@@ -5,6 +5,7 @@ import {
   LocationTable,
   ParentProfileTable,
   ParentStudentLinkTable,
+  type RequestStatus,
   type ScheduleChangeRequestEntity,
   ScheduleChangeRequestEventTable,
   type ScheduleChangeRequestInsert,
@@ -15,9 +16,19 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
-export type RequestStatus = "pending" | "negotiating" | "approved" | "denied" | "completed";
+export type { RequestStatus };
 
 export interface CreateScheduleChangeInput {
   student_id: string;
@@ -196,7 +207,7 @@ export class ScheduleChangeService {
       .limit(1);
 
     if (student.length === 0) {
-      throw new Error("Student not found");
+      throw new NotFoundError("Student not found");
     }
 
     // Verify current schedule exists
@@ -207,7 +218,7 @@ export class ScheduleChangeService {
       .limit(1);
 
     if (currentSchedule.length === 0) {
-      throw new Error("Current schedule not found");
+      throw new NotFoundError("Current schedule not found");
     }
 
     if (input.requested_schedule_id) {
@@ -218,7 +229,7 @@ export class ScheduleChangeService {
         .limit(1);
 
       if (requestedSchedule.length === 0) {
-        throw new Error("Requested schedule not found");
+        throw new NotFoundError("Requested schedule not found");
       }
     }
 
@@ -235,7 +246,7 @@ export class ScheduleChangeService {
       .limit(1);
 
     if (existing.length > 0) {
-      throw new Error("A pending schedule change request already exists for this student");
+      throw new ConflictError("A pending schedule change request already exists for this student");
     }
 
     const newRequest: ScheduleChangeRequestInsert = {
@@ -630,7 +641,7 @@ export class ScheduleChangeService {
     const reviewableStatuses: RequestStatus[] = ["pending", "negotiating"];
 
     if (!reviewableStatuses.includes(currentStatus as RequestStatus)) {
-      throw new Error("Request has already been finalized");
+      throw new ConflictError("Request has already been finalized");
     }
 
     // If approved, update the enrollment when a concrete requested schedule is present
@@ -638,7 +649,7 @@ export class ScheduleChangeService {
       const request = existing[0]!;
 
       if (!request.requested_schedule_id) {
-        throw new Error("Cannot approve without a requested schedule");
+        throw new BadRequestError("Cannot approve without a requested schedule");
       }
 
       // End current enrollment
@@ -714,7 +725,7 @@ export class ScheduleChangeService {
       .limit(1);
 
     if (teacherProfile.length === 0) {
-      throw new Error("Teacher profile not found");
+      throw new NotFoundError("Teacher profile not found");
     }
 
     const currentSchedule = await db
@@ -736,7 +747,7 @@ export class ScheduleChangeService {
     const canRespondRequested = requestedSchedule[0]?.teacher_id === teacherProfileId;
 
     if (!canRespondCurrent && !canRespondRequested) {
-      throw new Error("Teacher is not assigned to either schedule in this request");
+      throw new ForbiddenError("Teacher is not assigned to either schedule in this request");
     }
 
     const nextStatus: RequestStatus =

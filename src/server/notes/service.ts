@@ -8,7 +8,12 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { NotFoundError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export interface CreateSessionNoteInput {
   student_id: string;
@@ -44,7 +49,7 @@ export class SessionNotesService {
       .limit(1);
 
     if (student.length === 0) {
-      throw new Error("Student not found");
+      throw new NotFoundError("Student not found");
     }
 
     // Verify teacher exists
@@ -55,7 +60,7 @@ export class SessionNotesService {
       .limit(1);
 
     if (teacher.length === 0) {
-      throw new Error("Teacher not found");
+      throw new NotFoundError("Teacher not found");
     }
 
     const newNote: SessionNoteInsert = {

@@ -23,7 +23,7 @@ import {
   getPagination,
   type PaginatedQuery,
   type PaginatedResponse,
-} from "@/utils/pagination";
+} from "@/server/shared/pagination";
 
 export interface LinkedChild {
   id: string;

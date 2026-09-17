@@ -1,6 +1,7 @@
 "use server";
 import { SessionNotesService } from "@/server/notes/service";
 import { requireRole } from "@/server/shared/auth-guard";
+import { NotFoundError } from "@/server/shared/errors";
 
 /**
  * GET /v1/students/:studentId/notes — administrator | teacher | parent.
@@ -30,7 +31,7 @@ export async function getNote(id: string) {
   await requireRole("administrator", "teacher", "parent");
   const note = await new SessionNotesService().show(id);
   if (!note) {
-    throw new Error("Note not found");
+    throw new NotFoundError("Note not found");
   }
   return note;
 }

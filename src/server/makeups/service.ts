@@ -10,12 +10,18 @@ import {
   ParentProfileTable,
   ParentStudentLinkTable,
   ScheduleTable,
+  type RequestStatus as SchemaRequestStatus,
   StudentTable,
   TeacherProfileTable,
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { ConflictError, NotFoundError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export type AbsenceReason =
   | "sick"
@@ -24,7 +30,7 @@ export type AbsenceReason =
   | "schedule_conflict"
   | "no_show_unknown"
   | "other";
-export type RequestStatus = "pending" | "approved" | "denied" | "completed";
+export type RequestStatus = Exclude<SchemaRequestStatus, "negotiating">;
 export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
 
 export interface CreateMakeupRequestInput {
@@ -178,7 +184,7 @@ export class MakeupService {
       .limit(1);
 
     if (student.length === 0) {
-      throw new Error("Student not found");
+      throw new NotFoundError("Student not found");
     }
 
     // Verify schedule exists
@@ -189,7 +195,7 @@ export class MakeupService {
       .limit(1);
 
     if (schedule.length === 0) {
-      throw new Error("Schedule not found");
+      throw new NotFoundError("Schedule not found");
     }
 
     // Check for duplicate request
@@ -206,7 +212,7 @@ export class MakeupService {
       .limit(1);
 
     if (existing.length > 0) {
-      throw new Error("A makeup request already exists for this session");
+      throw new ConflictError("A makeup request already exists for this session");
     }
 
     const newRequest: MakeupRequestInsert = {
@@ -465,7 +471,7 @@ export class MakeupService {
     }
 
     if (existing[0]!.status !== "pending") {
-      throw new Error("Request has already been reviewed");
+      throw new ConflictError("Request has already been reviewed");
     }
 
     const result = await db
@@ -495,7 +501,7 @@ export class MakeupService {
       .limit(1);
 
     if (student.length === 0) {
-      throw new Error("Student not found");
+      throw new NotFoundError("Student not found");
     }
 
     // Verify teacher exists
@@ -506,7 +512,7 @@ export class MakeupService {
       .limit(1);
 
     if (teacher.length === 0) {
-      throw new Error("Teacher not found");
+      throw new NotFoundError("Teacher not found");
     }
 
     // Verify site exists
@@ -517,7 +523,7 @@ export class MakeupService {
       .limit(1);
 
     if (site.length === 0) {
-      throw new Error("Site not found");
+      throw new NotFoundError("Site not found");
     }
 
     const newSession: MakeupSessionInsert = {

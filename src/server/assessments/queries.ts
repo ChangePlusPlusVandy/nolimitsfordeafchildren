@@ -1,6 +1,7 @@
 "use server";
 import { AssessmentsService } from "@/server/assessments/service";
 import { requireRole } from "@/server/shared/auth-guard";
+import { NotFoundError } from "@/server/shared/errors";
 
 /**
  * GET /v1/students/:studentId/assessments — grouped by cycle
@@ -31,7 +32,7 @@ export async function getAssessment(id: string) {
   await requireRole("administrator", "teacher", "parent");
   const assessment = await new AssessmentsService().show(id);
   if (!assessment) {
-    throw new Error("Assessment not found");
+    throw new NotFoundError("Assessment not found");
   }
   return assessment;
 }

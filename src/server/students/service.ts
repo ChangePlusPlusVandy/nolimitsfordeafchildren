@@ -16,7 +16,12 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { AttendanceService } from "@/server/attendance/service";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 // Types
 export type UserRole = "administrator" | "teacher" | "parent" | "unassigned";
@@ -646,7 +651,7 @@ export class StudentsService {
         .limit(1);
 
       if (teacherProfile.length === 0) {
-        throw new Error("Teacher profile not found");
+        throw new NotFoundError("Teacher profile not found");
       }
 
       const teacherLink = await db
@@ -662,7 +667,9 @@ export class StudentsService {
         .limit(1);
 
       if (teacherLink.length === 0) {
-        throw new Error("You do not have permission to update this student's guardian summary");
+        throw new ForbiddenError(
+          "You do not have permission to update this student's guardian summary",
+        );
       }
     }
 

@@ -1,6 +1,7 @@
 "use server";
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import {
+  type AgeGroupSpecialty,
   BulletinTable,
   LocationTable,
   TeacherProfileTable,
@@ -11,11 +12,7 @@ import {
 import { db } from "@/lib/db";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
-import {
-  type AgeGroupSpecialty,
-  type ListTeachersQuery,
-  TeachersService,
-} from "@/server/teachers/service";
+import { type ListTeachersQuery, TeachersService } from "@/server/teachers/service";
 
 /**
  * GET /v1/teachers — list teachers (admin only).
@@ -73,7 +70,7 @@ export async function getTeachersMeDay(query: {
     .limit(1);
 
   if (teacherProfile.length === 0) {
-    throw new Error("Teacher profile not found for current user");
+    throw new NotFoundError("Teacher profile not found for current user");
   }
 
   return await new TeachersService().myDay({

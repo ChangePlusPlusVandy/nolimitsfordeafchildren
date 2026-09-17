@@ -22,7 +22,12 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { getPublicUrl, getUploadUrl } from "@/lib/r2";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { BadRequestError, ForbiddenError, NotFoundError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export type BulletinScope = "global" | "site";
 export type BulletinRoleTarget = "all" | "administrator" | "teacher" | "parent";
@@ -177,7 +182,7 @@ export class BulletinsService {
       .limit(1);
 
     if (!teacherProfile[0]) {
-      throw new Error("Teacher profile not found");
+      throw new NotFoundError("Teacher profile not found");
     }
 
     if (requestedSiteId) {
@@ -200,7 +205,7 @@ export class BulletinsService {
         return requestedSiteId;
       }
 
-      throw new Error("Teacher is not assigned to the selected site");
+      throw new ForbiddenError("Teacher is not assigned to the selected site");
     }
 
     if (teacherProfile[0].primary_site_id) {
@@ -218,7 +223,7 @@ export class BulletinsService {
       return fallbackSite[0].location_id;
     }
 
-    throw new Error("Teacher must have an assigned site to create bulletins");
+    throw new BadRequestError("Teacher must have an assigned site to create bulletins");
   }
 
   async recordView(bulletinId: string, userId: string): Promise<void> {
@@ -625,7 +630,9 @@ export class BulletinsService {
     }
 
     if (data.requires_initials && data.role_target !== "parent" && data.role_target !== "all") {
-      throw new Error("requires_initials can only be enabled for parent-facing bulletins");
+      throw new BadRequestError(
+        "requires_initials can only be enabled for parent-facing bulletins",
+      );
     }
 
     const newBulletin: BulletinInsert = {
@@ -664,7 +671,9 @@ export class BulletinsService {
 
     const resolvedRoleTarget = data.role_target ?? existing[0]!.role_target;
     if (data.requires_initials && resolvedRoleTarget !== "parent" && resolvedRoleTarget !== "all") {
-      throw new Error("requires_initials can only be enabled for parent-facing bulletins");
+      throw new BadRequestError(
+        "requires_initials can only be enabled for parent-facing bulletins",
+      );
     }
 
     const updateData: Partial<BulletinInsert> = {
@@ -731,7 +740,7 @@ export class BulletinsService {
       .limit(1);
 
     if (bulletin.length === 0) {
-      throw new Error("Bulletin not found");
+      throw new NotFoundError("Bulletin not found");
     }
 
     const attachment: BulletinAttachmentInsert = {
@@ -770,10 +779,10 @@ export class BulletinsService {
   ): Promise<BulletinAcknowledgementEntity> {
     const initials = input.initials.trim().toUpperCase();
     if (!initials) {
-      throw new Error("Initials are required");
+      throw new BadRequestError("Initials are required");
     }
     if (initials.length > 8) {
-      throw new Error("Initials must be 8 characters or fewer");
+      throw new BadRequestError("Initials must be 8 characters or fewer");
     }
 
     const bulletin = await db
@@ -783,11 +792,11 @@ export class BulletinsService {
       .limit(1);
 
     if (bulletin.length === 0) {
-      throw new Error("Bulletin not found");
+      throw new NotFoundError("Bulletin not found");
     }
 
     if (!bulletin[0]!.requires_initials) {
-      throw new Error("This bulletin does not require initials acknowledgement");
+      throw new BadRequestError("This bulletin does not require initials acknowledgement");
     }
 
     const now = new Date();
@@ -897,7 +906,7 @@ export class BulletinsService {
     }
 
     if (existing[0]!.approval_status !== "pending") {
-      throw new Error("Only pending bulletins can be reviewed");
+      throw new BadRequestError("Only pending bulletins can be reviewed");
     }
 
     const result = await db

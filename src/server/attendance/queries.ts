@@ -5,6 +5,7 @@ import {
   type ListAttendanceQuery,
 } from "@/server/attendance/service";
 import { requireRole } from "@/server/shared/auth-guard";
+import { NotFoundError } from "@/server/shared/errors";
 
 /**
  * GET /v1/attendance — list attendance records (any authenticated user).
@@ -21,7 +22,7 @@ export async function showAttendance(id: string) {
   await requireRole();
   const result = await new AttendanceService().show(id);
   if (!result) {
-    throw new Error("Attendance record not found");
+    throw new NotFoundError("Attendance record not found");
   }
   return result;
 }

@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { sendMissedSessionAlert } from "@/lib/email";
+import { BadRequestError } from "@/server/shared/errors";
 
 export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
 export type AbsenceReason =
@@ -228,7 +229,7 @@ export class AttendanceService {
 
     if (input.status === "late") {
       if (![10, 15, 30].includes(input.late_minutes || 0)) {
-        throw new Error("Late minutes must be one of: 10, 15, or 30");
+        throw new BadRequestError("Late minutes must be one of: 10, 15, or 30");
       }
     }
 
@@ -326,7 +327,7 @@ export class AttendanceService {
 
     if (input.status === "late") {
       if (![10, 15, 30].includes(input.late_minutes || 0)) {
-        throw new Error("Late minutes must be one of: 10, 15, or 30");
+        throw new BadRequestError("Late minutes must be one of: 10, 15, or 30");
       }
     }
 
@@ -838,11 +839,11 @@ export class AttendanceService {
     const end = new Date(`${endDate}T00:00:00`);
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new Error("Invalid date range");
+      throw new BadRequestError("Invalid date range");
     }
 
     if (start > end) {
-      throw new Error("Start date must be before or equal to end date");
+      throw new BadRequestError("Start date must be before or equal to end date");
     }
 
     const sessions: SessionForDay[] = [];

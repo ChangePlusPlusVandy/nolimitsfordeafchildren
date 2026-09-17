@@ -1,7 +1,12 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { type ChatMessageEntity, ChatMessageTable, UserTable } from "@/db/schema";
 import { db } from "@/lib/db";
-import { buildPaginatedResponse, getPagination, type PaginatedResponse } from "@/utils/pagination";
+import { BadRequestError, ForbiddenError } from "@/server/shared/errors";
+import {
+  buildPaginatedResponse,
+  getPagination,
+  type PaginatedResponse,
+} from "@/server/shared/pagination";
 
 export type ChatChannel = "community" | "teacher";
 
@@ -82,7 +87,7 @@ export class ChatService {
   async createMessage(input: CreateChatMessageInput): Promise<ChatMessageEntity> {
     const trimmed = input.message.trim();
     if (!trimmed) {
-      throw new Error("Message cannot be empty");
+      throw new BadRequestError("Message cannot be empty");
     }
 
     const result = await db
@@ -115,7 +120,9 @@ export class ChatService {
     }
 
     if (!isAdmin && existing[0].created_by !== actorUserId) {
-      throw new Error("Only the message author or an admin can update announcement status");
+      throw new ForbiddenError(
+        "Only the message author or an admin can update announcement status",
+      );
     }
 
     const result = await db
