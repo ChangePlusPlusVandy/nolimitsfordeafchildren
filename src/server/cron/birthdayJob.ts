@@ -2,10 +2,25 @@ import { and, eq } from "drizzle-orm";
 import { LocationTable, StudentTable, UserTable } from "@/db/schema";
 import { db } from "@/lib/db";
 import { sendBirthdayNotification } from "@/lib/email";
+import { addDaysStr, parseDateOnly, todayStr } from "@/server/shared/dates";
 
 interface JobResult {
   sent: number;
   errors: number;
+}
+
+function birthdayDateStr(year: number, dob: string): string {
+  const { month, day } = parseDateOnly(dob);
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function nextBirthdayDateStr(dob: string, fromDateStr: string): string {
+  const fromParts = parseDateOnly(fromDateStr);
+  let candidate = birthdayDateStr(fromParts.year, dob);
+  if (candidate < fromDateStr) {
+    candidate = birthdayDateStr(fromParts.year + 1, dob);
+  }
+  return candidate;
 }
 
 /**
@@ -18,22 +33,9 @@ export async function runBirthdayJob(): Promise<JobResult> {
   let errors = 0;
 
   try {
-    const now = new Date();
+    const todayDateStr = todayStr();
+    const windowEndStr = addDaysStr(todayDateStr, 7);
 
-    // Day boundaries in UTC so behavior is identical on any machine:
-    // Cloudflare Workers run in UTC and `wrangler dev`/`next dev` run in the
-    // operator's local timezone — mixing `getMonth()` (local) with
-    // `toISOString()` (UTC) shifts dates by a day in negative-offset zones.
-    const todayStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
-    const endOfWindow = new Date(todayStart);
-    endOfWindow.setUTCDate(endOfWindow.getUTCDate() + 7);
-
-    // Find active students with upcoming birthdays.
-    // SQLite has no EXTRACT(); the dataset is small, so the month/day windowing
-    // (including year-wrap, e.g. today Dec 28 → next 7 days includes Jan 4) is
-    // done in JS here, mirroring the old EXTRACT(MONTH/DAY FROM dob::date) SQL.
     const allActiveStudents = await db
       .select({
         student: StudentTable,
@@ -43,18 +45,9 @@ export async function runBirthdayJob(): Promise<JobResult> {
       .innerJoin(LocationTable, eq(StudentTable.site_id, LocationTable.id))
       .where(eq(StudentTable.is_active, true));
 
-    // `dob` is stored as "YYYY-MM-DD" (parsed as UTC midnight).
     const studentsWithBirthdays = allActiveStudents.filter(({ student }) => {
-      const dob = new Date(`${student.dob}T00:00:00Z`);
-      let nextBirthday = new Date(
-        Date.UTC(now.getUTCFullYear(), dob.getUTCMonth(), dob.getUTCDate()),
-      );
-      if (nextBirthday < todayStart) {
-        nextBirthday = new Date(
-          Date.UTC(now.getUTCFullYear() + 1, dob.getUTCMonth(), dob.getUTCDate()),
-        );
-      }
-      return nextBirthday >= todayStart && nextBirthday <= endOfWindow;
+      const upcoming = nextBirthdayDateStr(student.dob, todayDateStr);
+      return upcoming >= todayDateStr && upcoming <= windowEndStr;
     });
 
     if (studentsWithBirthdays.length === 0) {
@@ -66,7 +59,6 @@ export async function runBirthdayJob(): Promise<JobResult> {
       `[Birthday Job] Found ${studentsWithBirthdays.length} students with upcoming birthdays`,
     );
 
-    // Get site administrators to notify
     const admins = await db
       .select()
       .from(UserTable)
@@ -77,32 +69,17 @@ export async function runBirthdayJob(): Promise<JobResult> {
       return { sent: 0, errors: 0 };
     }
 
-    // Calculate age and send notifications
     for (const { student, site } of studentsWithBirthdays) {
-      const dob = new Date(`${student.dob}T00:00:00Z`);
-      const birthdayThisYear = new Date(
-        Date.UTC(now.getUTCFullYear(), dob.getUTCMonth(), dob.getUTCDate()),
-      );
+      const upcomingBirthdayStr = nextBirthdayDateStr(student.dob, todayDateStr);
+      const age = parseDateOnly(upcomingBirthdayStr).year - parseDateOnly(student.dob).year;
 
-      // If birthday already passed this year, use next year for age calculation
-      let upcomingBirthday = birthdayThisYear;
-      if (upcomingBirthday < todayStart) {
-        upcomingBirthday = new Date(
-          Date.UTC(now.getUTCFullYear() + 1, dob.getUTCMonth(), dob.getUTCDate()),
-        );
-      }
-
-      const age = upcomingBirthday.getUTCFullYear() - dob.getUTCFullYear();
-
-      // Send to all administrators (could be enhanced to send only to site-specific admins)
       for (const admin of admins) {
         try {
-          const birthdayStr = upcomingBirthday.toISOString().split("T")[0] ?? "";
           const result = await sendBirthdayNotification(
             admin.email,
             `${student.first_name} ${student.last_name}`,
             student.initials,
-            birthdayStr,
+            upcomingBirthdayStr,
             age,
             site.name,
           );

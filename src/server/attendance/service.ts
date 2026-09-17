@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { sendMissedSessionAlert } from "@/lib/email";
+import { dayOfWeek, eachDateStrInRange } from "@/server/shared/dates";
 import { BadRequestError } from "@/server/shared/errors";
 
 export type AttendanceStatus = "present" | "late" | "no_show" | "cancelled";
@@ -610,10 +611,7 @@ export class AttendanceService {
    * Get sessions for a teacher's day (used by My Day page)
    */
   async getTeacherDaySessions(teacherProfileId: string, date: string): Promise<SessionForDay[]> {
-    // Get the day of week (0 = Sunday, 1 = Monday, etc.)
-    const dateObj = new Date(`${date}T00:00:00`);
-    const dayOfWeek = dateObj.getDay();
-    const dayMask = 1 << dayOfWeek; // Convert to bitmask
+    const dayMask = 1 << dayOfWeek(date);
 
     // Find schedules for this teacher on this day
     const schedules = await db
@@ -835,25 +833,15 @@ export class AttendanceService {
     startDate: string,
     endDate: string,
   ): Promise<SessionForDay[]> {
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestError("Invalid date range");
-    }
-
-    if (start > end) {
+    if (startDate > endDate) {
       throw new BadRequestError("Start date must be before or equal to end date");
     }
 
     const sessions: SessionForDay[] = [];
-    const cursor = new Date(start);
 
-    while (cursor <= end) {
-      const currentDate = cursor.toISOString().split("T")[0]!;
+    for (const currentDate of eachDateStrInRange(startDate, endDate)) {
       const daySessions = await this.getTeacherDaySessions(teacherProfileId, currentDate);
       sessions.push(...daySessions);
-      cursor.setDate(cursor.getDate() + 1);
     }
 
     sessions.sort((a, b) => {

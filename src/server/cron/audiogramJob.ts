@@ -2,6 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 import { DocumentTable, LocationTable, StudentTable, UserTable } from "@/db/schema";
 import { db } from "@/lib/db";
 import { sendAudiogramReminder } from "@/lib/email";
+import { addDaysStr, daysBetweenDateStr, todayStr } from "@/server/shared/dates";
 
 interface JobResult {
   sent: number;
@@ -18,17 +19,8 @@ export async function runAudiogramJob(): Promise<JobResult> {
   let errors = 0;
 
   try {
-    const today = new Date();
-    // UTC day boundaries (see birthdayJob.ts: keeps dev-machine behavior
-    // identical to the UTC Cloudflare Workers runtime).
-    const todayStart = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
-    );
-    const thirtyDaysFromNow = new Date(todayStart);
-    thirtyDaysFromNow.setUTCDate(thirtyDaysFromNow.getUTCDate() + 30);
-
-    const todayStr = todayStart.toISOString().split("T")[0] ?? "";
-    const thirtyDaysStr = thirtyDaysFromNow.toISOString().split("T")[0] ?? "";
+    const todayDateStr = todayStr();
+    const thirtyDaysStr = addDaysStr(todayDateStr, 30);
 
     // Find audiograms due in the next 30 days
     // Gets the most recent audiogram for each student that has a next_due_date
@@ -49,7 +41,7 @@ export async function runAudiogramJob(): Promise<JobResult> {
           eq(DocumentTable.document_type, "audiogram"),
           eq(StudentTable.is_active, true),
           // Due date is within next 30 days
-          gte(DocumentTable.next_due_date, todayStr),
+          gte(DocumentTable.next_due_date, todayDateStr),
           lte(DocumentTable.next_due_date, thirtyDaysStr),
         ),
       )
@@ -96,10 +88,7 @@ export async function runAudiogramJob(): Promise<JobResult> {
 
     // Send notifications
     for (const { student, site, dueDate } of studentMap.values()) {
-      const dueDateObj = new Date(`${dueDate}T00:00:00Z`);
-      const daysUntilDue = Math.ceil(
-        (dueDateObj.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24),
-      );
+      const daysUntilDue = daysBetweenDateStr(todayDateStr, dueDate);
 
       // Send to all administrators
       for (const admin of admins) {
