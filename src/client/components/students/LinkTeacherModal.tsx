@@ -28,11 +28,12 @@ import { useState } from "react";
 import ConfirmDialog from "@/client/components/ConfirmDialog";
 import { useToast } from "@/client/components/ToastProvider";
 import {
-  getStudentDetails,
+  getStudentTeachers,
+  type LinkableTeacher,
   linkTeacherToStudent,
+  listLinkableTeachers,
   unlinkTeacherFromStudent,
 } from "@/client/students";
-import { listTeachers, type Teacher } from "@/client/teachers";
 
 interface LinkTeacherModalProps {
   open: boolean;
@@ -50,43 +51,45 @@ export default function LinkTeacherModal({
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<LinkableTeacher | null>(null);
   const [unlinkTeacherId, setUnlinkTeacherId] = useState<string | null>(null);
 
-  // Fetch student details to show current linked teachers
   const {
-    data: student,
-    isLoading: studentLoading,
-    isError: studentError,
+    data: teachersData,
+    isLoading: linkedTeachersLoading,
+    isError: linkedTeachersError,
   } = useQuery({
-    queryKey: ["students", "show", studentId],
-    queryFn: () => getStudentDetails(studentId),
+    queryKey: ["studentTeachers", studentId],
+    queryFn: () => getStudentTeachers(studentId, { page: 1, limit: 100 }),
     enabled: open && !!studentId,
   });
 
-  // Fetch all teachers for the dropdown
   const {
-    data: teachersData,
-    isLoading: teachersLoading,
-    isError: teachersError,
+    data: linkableTeachersData,
+    isLoading: linkableTeachersLoading,
+    isError: linkableTeachersError,
   } = useQuery({
-    queryKey: ["teachers", "all"],
-    queryFn: () => listTeachers({ page: 1, limit: 500 }),
+    queryKey: ["linkableTeachers"],
+    queryFn: () => listLinkableTeachers({ page: 1, limit: 100 }),
     enabled: open,
   });
 
-  const teachers = teachersData?.items ?? [];
+  const linkedTeachers = teachersData?.items ?? [];
+  const linkableTeachers = linkableTeachersData?.items ?? [];
 
-  // Filter out already linked teachers
-  const linkedTeacherIds = student?.teachers?.map((t) => t.teacher_id) || [];
-  const availableTeachers = teachers.filter((t) => !linkedTeacherIds.includes(t.id));
+  const linkedTeacherIds = linkedTeachers.map((t) => t.teacher_id);
+  const availableTeachers = linkableTeachers.filter((t) => !linkedTeacherIds.includes(t.id));
 
-  // Link teacher mutation
+  const invalidateTeacherQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["students", "show", studentId] });
+    queryClient.invalidateQueries({ queryKey: ["studentTeachers", studentId] });
+  };
+
   const linkMutation = useMutation({
     mutationFn: ({ studentId, teacher_id }: { studentId: string; teacher_id: string }) =>
       linkTeacherToStudent({ studentId, teacher_id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["students", "show", studentId] });
+      invalidateTeacherQueries();
       toast.success("Teacher linked successfully");
       setSelectedTeacher(null);
     },
@@ -95,12 +98,11 @@ export default function LinkTeacherModal({
     },
   });
 
-  // Unlink teacher mutation
   const unlinkMutation = useMutation({
     mutationFn: ({ studentId, teacherId }: { studentId: string; teacherId: string }) =>
       unlinkTeacherFromStudent({ studentId, teacherId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["students", "show", studentId] });
+      invalidateTeacherQueries();
       toast.success("Teacher unlinked successfully");
       setUnlinkTeacherId(null);
     },
@@ -119,17 +121,13 @@ export default function LinkTeacherModal({
     }
   };
 
-  const handleUnlinkTeacher = (teacherId: string) => {
-    setUnlinkTeacherId(teacherId);
-  };
-
   const handleClose = () => {
     setSelectedTeacher(null);
     setUnlinkTeacherId(null);
     onClose();
   };
 
-  const isLoading = studentLoading || teachersLoading;
+  const isLoading = linkedTeachersLoading || linkableTeachersLoading;
 
   return (
     <>
@@ -143,13 +141,12 @@ export default function LinkTeacherModal({
           )}
         </DialogTitle>
         <DialogContent>
-          {(studentError || teachersError) && (
+          {(linkedTeachersError || linkableTeachersError) && (
             <Alert severity="error" sx={{ mb: 2 }}>
               Failed to load data. Please try again.
             </Alert>
           )}
 
-          {/* Add Teacher Section */}
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
               Search and select a teacher to link
@@ -160,9 +157,9 @@ export default function LinkTeacherModal({
                 value={selectedTeacher}
                 onChange={(_, newValue) => setSelectedTeacher(newValue)}
                 options={availableTeachers}
-                getOptionLabel={(option) => option.user?.name || ""}
+                getOptionLabel={(option) => option.name}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
-                loading={teachersLoading}
+                loading={linkableTeachersLoading}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -178,9 +175,9 @@ export default function LinkTeacherModal({
                         <PersonIcon fontSize="small" />
                       </Avatar>
                       <Box>
-                        <Typography variant="body2">{option.user?.name || ""}</Typography>
+                        <Typography variant="body2">{option.name}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {option.user?.email || ""}
+                          {option.email}
                         </Typography>
                       </Box>
                     </Box>
@@ -201,19 +198,18 @@ export default function LinkTeacherModal({
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Currently Linked Teachers */}
           <Box>
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-              Currently Linked Teachers ({student?.teachers?.length || 0})
+              Currently Linked Teachers ({linkedTeachers.length})
             </Typography>
 
             {isLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
                 <CircularProgress size={24} />
               </Box>
-            ) : student?.teachers && student.teachers.length > 0 ? (
+            ) : linkedTeachers.length > 0 ? (
               <List dense sx={{ maxHeight: 240, overflow: "auto" }}>
-                {student.teachers.map((teacher) => (
+                {linkedTeachers.map((teacher) => (
                   <ListItem
                     key={teacher.link_id}
                     secondaryAction={
@@ -221,7 +217,7 @@ export default function LinkTeacherModal({
                         edge="end"
                         color="error"
                         size="small"
-                        onClick={() => handleUnlinkTeacher(teacher.teacher_id)}
+                        onClick={() => setUnlinkTeacherId(teacher.teacher_id)}
                         disabled={unlinkMutation.isPending}
                         aria-label={`Unlink teacher ${teacher.name}`}
                       >

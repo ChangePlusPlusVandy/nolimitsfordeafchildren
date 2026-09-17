@@ -2,40 +2,9 @@
 
 import AddIcon from "@mui/icons-material/Add";
 import AssessmentIcon from "@mui/icons-material/Assessment";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  MenuItem,
-  Slider,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import {
   type Assessment,
   type AssessmentFocus,
@@ -48,26 +17,15 @@ import {
 import ConfirmDialog from "@/client/components/ConfirmDialog";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import SectionCard from "@/client/components/SectionCard";
+import AssessmentFormDialog from "@/client/components/students/AssessmentFormDialog";
+import AssessmentHistoryTable from "@/client/components/students/AssessmentHistoryTable";
 import { useToast } from "@/client/components/ToastProvider";
-import { formatDate } from "@/client/utils/formatDate";
 
 interface AssessmentHistoryProps {
   studentId: string;
   canAdd?: boolean;
   canEdit?: boolean;
 }
-
-const TEACHING_FOCUS_OPTIONS = [
-  "Articulation",
-  "Vocabulary",
-  "Listening Skills",
-  "Speech Comprehension",
-  "Language Development",
-  "Auditory Memory",
-  "Phonological Awareness",
-  "Reading Skills",
-  "Other",
-];
 
 export default function AssessmentHistory({
   studentId,
@@ -85,7 +43,6 @@ export default function AssessmentHistory({
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  // Form state
   const [cycleStartDate, setCycleStartDate] = useState("");
   const [assessmentType, setAssessmentType] = useState<"pre" | "post">("pre");
   const [teachingFocus, setTeachingFocus] = useState("");
@@ -95,13 +52,11 @@ export default function AssessmentHistory({
     { goal: "", score: 0, max_score: 10 },
   ]);
 
-  // Fetch assessments
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["assessments", studentId, page, rowsPerPage],
     queryFn: () => listAssessmentsForStudent(studentId, { page, limit: rowsPerPage }),
   });
 
-  // Create assessment mutation
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createAssessment>[1]) =>
       createAssessment(studentId, input),
@@ -115,7 +70,6 @@ export default function AssessmentHistory({
     },
   });
 
-  // Update assessment mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateAssessment>[1] }) =>
       updateAssessment(id, data),
@@ -129,7 +83,6 @@ export default function AssessmentHistory({
     },
   });
 
-  // Delete assessment mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteAssessment(id),
     onSuccess: () => {
@@ -161,6 +114,15 @@ export default function AssessmentHistory({
     },
   });
 
+  const resetForm = () => {
+    setCycleStartDate("");
+    setAssessmentType("pre");
+    setTeachingFocus("");
+    setScore(10);
+    setNotes("");
+    setFocuses([{ goal: "", score: 0, max_score: 10 }]);
+  };
+
   const handleOpenDialog = (assessment?: Assessment) => {
     if (assessment) {
       setEditingAssessment(assessment);
@@ -185,16 +147,15 @@ export default function AssessmentHistory({
     } else {
       setEditingAssessment(null);
       setCloningAssessmentId(null);
-      // Default to today's Monday as cycle start
       const today = new Date();
       const monday = new Date(today);
       monday.setDate(today.getDate() - today.getDay() + 1);
-      setCycleStartDate(monday.toISOString().split("T")[0] ?? "");
       setAssessmentType("pre");
       setTeachingFocus("");
       setScore(10);
       setNotes("");
       setFocuses([{ goal: "", score: 0, max_score: 10 }]);
+      setCycleStartDate(monday.toISOString().split("T")[0] ?? "");
     }
     setDialogOpen(true);
   };
@@ -226,12 +187,7 @@ export default function AssessmentHistory({
     setDialogOpen(false);
     setEditingAssessment(null);
     setCloningAssessmentId(null);
-    setCycleStartDate("");
-    setAssessmentType("pre");
-    setTeachingFocus("");
-    setScore(10);
-    setNotes("");
-    setFocuses([{ goal: "", score: 0, max_score: 10 }]);
+    resetForm();
   };
 
   const sanitizedFocuses = focuses
@@ -295,32 +251,8 @@ export default function AssessmentHistory({
   };
 
   const cycles = data?.items ?? [];
-
-  const getScoreColor = (value: number) => {
-    if (value >= 15) return "success";
-    if (value >= 10) return "warning";
-    return "error";
-  };
-
-  const getImprovementChip = (improvement: number | undefined) => {
-    if (improvement === undefined) return null;
-    if (improvement > 0) {
-      return (
-        <Chip icon={<TrendingUpIcon />} label={`+${improvement}`} color="success" size="small" />
-      );
-    }
-    if (improvement < 0) {
-      return (
-        <Chip
-          icon={<TrendingDownIcon />}
-          label={improvement.toString()}
-          color="error"
-          size="small"
-        />
-      );
-    }
-    return <Chip label="No change" size="small" variant="outlined" />;
-  };
+  const dialogMode = editingAssessment ? "edit" : cloningAssessmentId ? "clone" : "create";
+  const isSaving = createMutation.isPending || updateMutation.isPending || cloneMutation.isPending;
 
   return (
     <>
@@ -350,507 +282,57 @@ export default function AssessmentHistory({
         )}
 
         {cycles.length > 0 && (
-          <>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ width: 40 }} />
-                    <TableCell>Cycle Start</TableCell>
-                    <TableCell align="center">Pre</TableCell>
-                    <TableCell align="center">Post</TableCell>
-                    <TableCell align="center">Improvement</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {cycles.map((cycle) => (
-                    <Fragment key={cycle.cycle_start_date}>
-                      <TableRow
-                        hover
-                        sx={{ cursor: "pointer" }}
-                        onClick={() =>
-                          setExpandedCycle(
-                            expandedCycle === cycle.cycle_start_date
-                              ? null
-                              : cycle.cycle_start_date,
-                          )
-                        }
-                      >
-                        <TableCell>
-                          <IconButton
-                            size="small"
-                            aria-label={
-                              expandedCycle === cycle.cycle_start_date
-                                ? "Collapse cycle details"
-                                : "Expand cycle details"
-                            }
-                          >
-                            {expandedCycle === cycle.cycle_start_date ? (
-                              <ExpandLessIcon />
-                            ) : (
-                              <ExpandMoreIcon />
-                            )}
-                          </IconButton>
-                        </TableCell>
-                        <TableCell>{formatDate(cycle.cycle_start_date)}</TableCell>
-                        <TableCell align="center">
-                          {cycle.pre_assessment ? (
-                            <Chip
-                              label={cycle.pre_assessment.score}
-                              color={getScoreColor(cycle.pre_assessment.score)}
-                              size="small"
-                            />
-                          ) : (
-                            <Typography color="text.secondary" variant="body2">
-                              -
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          {cycle.post_assessment ? (
-                            <Chip
-                              label={cycle.post_assessment.score}
-                              color={getScoreColor(cycle.post_assessment.score)}
-                              size="small"
-                            />
-                          ) : (
-                            <Typography color="text.secondary" variant="body2">
-                              -
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          {getImprovementChip(cycle.improvement)}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ py: 0 }} colSpan={5}>
-                          <Collapse
-                            in={expandedCycle === cycle.cycle_start_date}
-                            timeout="auto"
-                            unmountOnExit
-                          >
-                            <Box sx={{ py: 2 }}>
-                              {/* Pre-Assessment Details */}
-                              {cycle.pre_assessment && (
-                                <Box
-                                  sx={{
-                                    mb: 2,
-                                    p: 2,
-                                    bgcolor: "grey.50",
-                                    borderRadius: 1,
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "space-between",
-                                      mb: 1,
-                                    }}
-                                  >
-                                    <Typography variant="subtitle2">Pre-Assessment</Typography>
-                                    {canEdit && (
-                                      <Stack direction="row" spacing={0.5}>
-                                        <IconButton
-                                          size="small"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenDialog(cycle.pre_assessment);
-                                          }}
-                                          aria-label="Edit pre-assessment"
-                                        >
-                                          <EditIcon fontSize="small" />
-                                        </IconButton>
-                                        <IconButton
-                                          size="small"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleCloneDialog(cycle.pre_assessment as Assessment);
-                                          }}
-                                          aria-label="Clone pre-assessment"
-                                        >
-                                          <ContentCopyIcon fontSize="small" />
-                                        </IconButton>
-                                        <IconButton
-                                          size="small"
-                                          color="error"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteTarget(
-                                              (cycle.pre_assessment as Assessment).id,
-                                            );
-                                          }}
-                                          aria-label="Delete pre-assessment"
-                                        >
-                                          <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                      </Stack>
-                                    )}
-                                  </Box>
-                                  <Typography variant="body2">
-                                    <strong>Focus:</strong> {cycle.pre_assessment.teaching_focus}
-                                  </Typography>
-                                  {cycle.pre_assessment.focuses &&
-                                    cycle.pre_assessment.focuses.length > 0 && (
-                                      <Box sx={{ mt: 1 }}>
-                                        {cycle.pre_assessment.focuses.map((focus, focusIndex) => (
-                                          <Typography
-                                            key={`${cycle.pre_assessment?.id}-focus-${focus.goal}`}
-                                            variant="body2"
-                                          >
-                                            <strong>Goal {focusIndex + 1}:</strong> {focus.goal} (
-                                            {focus.score}/{focus.max_score})
-                                          </Typography>
-                                        ))}
-                                      </Box>
-                                    )}
-                                  <Typography variant="body2">
-                                    <strong>Score:</strong> {cycle.pre_assessment.score}/20
-                                  </Typography>
-                                  {cycle.pre_assessment.notes && (
-                                    <Typography variant="body2">
-                                      <strong>Notes:</strong> {cycle.pre_assessment.notes}
-                                    </Typography>
-                                  )}
-                                  <Typography variant="caption" color="text.secondary">
-                                    By {cycle.pre_assessment.teacher?.name || "Teacher"} on{" "}
-                                    {formatDate(cycle.pre_assessment.assessed_at)}
-                                  </Typography>
-                                </Box>
-                              )}
-
-                              {/* Post-Assessment Details */}
-                              {cycle.post_assessment && (
-                                <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "space-between",
-                                      mb: 1,
-                                    }}
-                                  >
-                                    <Typography variant="subtitle2">Post-Assessment</Typography>
-                                    {canEdit && (
-                                      <Stack direction="row" spacing={0.5}>
-                                        <IconButton
-                                          size="small"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenDialog(cycle.post_assessment);
-                                          }}
-                                          aria-label="Edit post-assessment"
-                                        >
-                                          <EditIcon fontSize="small" />
-                                        </IconButton>
-                                        <IconButton
-                                          size="small"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleCloneDialog(cycle.post_assessment as Assessment);
-                                          }}
-                                          aria-label="Clone post-assessment"
-                                        >
-                                          <ContentCopyIcon fontSize="small" />
-                                        </IconButton>
-                                        <IconButton
-                                          size="small"
-                                          color="error"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteTarget(
-                                              (cycle.post_assessment as Assessment).id,
-                                            );
-                                          }}
-                                          aria-label="Delete post-assessment"
-                                        >
-                                          <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                      </Stack>
-                                    )}
-                                  </Box>
-                                  <Typography variant="body2">
-                                    <strong>Focus:</strong> {cycle.post_assessment.teaching_focus}
-                                  </Typography>
-                                  {cycle.post_assessment.focuses &&
-                                    cycle.post_assessment.focuses.length > 0 && (
-                                      <Box sx={{ mt: 1 }}>
-                                        {cycle.post_assessment.focuses.map((focus, focusIndex) => (
-                                          <Typography
-                                            key={`${cycle.post_assessment?.id}-focus-${focus.goal}`}
-                                            variant="body2"
-                                          >
-                                            <strong>Goal {focusIndex + 1}:</strong> {focus.goal} (
-                                            {focus.score}/{focus.max_score})
-                                          </Typography>
-                                        ))}
-                                      </Box>
-                                    )}
-                                  <Typography variant="body2">
-                                    <strong>Score:</strong> {cycle.post_assessment.score}/20
-                                  </Typography>
-                                  {cycle.post_assessment.notes && (
-                                    <Typography variant="body2">
-                                      <strong>Notes:</strong> {cycle.post_assessment.notes}
-                                    </Typography>
-                                  )}
-                                  <Typography variant="caption" color="text.secondary">
-                                    By {cycle.post_assessment.teacher?.name || "Teacher"} on{" "}
-                                    {formatDate(cycle.post_assessment.assessed_at)}
-                                  </Typography>
-                                </Box>
-                              )}
-
-                              {/* Missing assessments */}
-                              {!cycle.pre_assessment && canAdd && (
-                                <Alert severity="info" sx={{ mb: 1 }}>
-                                  Pre-assessment not recorded.{" "}
-                                  <Button
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCycleStartDate(cycle.cycle_start_date);
-                                      setAssessmentType("pre");
-                                      handleOpenDialog();
-                                    }}
-                                  >
-                                    Add Pre-Assessment
-                                  </Button>
-                                </Alert>
-                              )}
-                              {!cycle.post_assessment && cycle.pre_assessment && canAdd && (
-                                <Alert severity="info">
-                                  Post-assessment not recorded.{" "}
-                                  <Button
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCycleStartDate(cycle.cycle_start_date);
-                                      setAssessmentType("post");
-                                      handleOpenDialog();
-                                    }}
-                                  >
-                                    Add Post-Assessment
-                                  </Button>
-                                </Alert>
-                              )}
-                            </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 20]}
-              component="div"
-              count={data?.total ?? 0}
-              rowsPerPage={rowsPerPage}
-              page={Math.max(page - 1, 0)}
-              onPageChange={(_event, nextPage) => setPage(nextPage + 1)}
-              onRowsPerPageChange={(event) => {
-                setRowsPerPage(Number(event.target.value));
-                setPage(1);
-              }}
-            />
-          </>
+          <AssessmentHistoryTable
+            cycles={cycles}
+            total={data?.total ?? 0}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            expandedCycle={expandedCycle}
+            canAdd={canAdd}
+            canEdit={canEdit}
+            onToggleCycle={(cycleStartDate) =>
+              setExpandedCycle(expandedCycle === cycleStartDate ? null : cycleStartDate)
+            }
+            onEdit={handleOpenDialog}
+            onClone={handleCloneDialog}
+            onDelete={setDeleteTarget}
+            onAddPre={(cycleStartDate) => {
+              setCycleStartDate(cycleStartDate);
+              setAssessmentType("pre");
+              handleOpenDialog();
+            }}
+            onAddPost={(cycleStartDate) => {
+              setCycleStartDate(cycleStartDate);
+              setAssessmentType("post");
+              handleOpenDialog();
+            }}
+            onPageChange={setPage}
+            onRowsPerPageChange={setRowsPerPage}
+          />
         )}
       </SectionCard>
 
-      {/* Add/Edit Assessment Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingAssessment
-            ? "Edit Assessment"
-            : cloningAssessmentId
-              ? "Clone Assessment"
-              : "Add Assessment"}
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <TextField
-              label="Cycle Start Date"
-              type="date"
-              value={cycleStartDate}
-              onChange={(e) => setCycleStartDate((e.target as unknown as { value: string }).value)}
-              disabled={!!editingAssessment}
-              slotProps={{ inputLabel: { shrink: true } }}
-              fullWidth
-            />
+      <AssessmentFormDialog
+        open={dialogOpen}
+        mode={dialogMode}
+        cycleStartDate={cycleStartDate}
+        assessmentType={assessmentType}
+        teachingFocus={teachingFocus}
+        score={score}
+        notes={notes}
+        focuses={focuses}
+        isSaving={isSaving}
+        canSave={!!cycleStartDate && sanitizedFocuses.length > 0 && !hasInvalidFocuses}
+        onClose={handleCloseDialog}
+        onSave={handleSave}
+        onCycleStartDateChange={setCycleStartDate}
+        onAssessmentTypeChange={setAssessmentType}
+        onTeachingFocusChange={setTeachingFocus}
+        onScoreChange={setScore}
+        onNotesChange={setNotes}
+        onFocusesChange={setFocuses}
+      />
 
-            <TextField
-              select
-              label="Assessment Type"
-              value={assessmentType}
-              onChange={(e) =>
-                setAssessmentType((e.target as unknown as { value: "pre" | "post" }).value)
-              }
-              disabled={!!editingAssessment}
-              fullWidth
-            >
-              <MenuItem value="pre">Pre-Assessment</MenuItem>
-              <MenuItem value="post">Post-Assessment</MenuItem>
-            </TextField>
-
-            <TextField
-              select
-              label="Legacy Focus Summary"
-              value={teachingFocus}
-              onChange={(e) => setTeachingFocus((e.target as unknown as { value: string }).value)}
-              fullWidth
-              helperText="Auto-generated from focus goals below when goals are provided"
-            >
-              {TEACHING_FOCUS_OPTIONS.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <Stack spacing={1}>
-              <Typography variant="subtitle2">Teaching Focuses (up to 4)</Typography>
-              {focuses.map((focus, index) => (
-                <Box
-                  // biome-ignore lint/suspicious/noArrayIndexKey: editable focus rows are keyed by position
-                  key={`focus-${index}`}
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "2fr 1fr 1fr auto",
-                    gap: 1,
-                  }}
-                >
-                  <TextField
-                    label={`Goal ${index + 1}`}
-                    value={focus.goal}
-                    onChange={(e) => {
-                      const next = [...focuses];
-                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
-                      next[index] = {
-                        ...current,
-                        goal: (e.target as unknown as { value: string }).value,
-                      };
-                      setFocuses(next);
-                    }}
-                    fullWidth
-                  />
-                  <TextField
-                    type="number"
-                    label="Score"
-                    value={focus.score}
-                    onChange={(e) => {
-                      const next = [...focuses];
-                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
-                      next[index] = {
-                        ...current,
-                        score: Number((e.target as unknown as { value: string }).value),
-                      };
-                      setFocuses(next);
-                    }}
-                    slotProps={{ htmlInput: { min: 0 } }}
-                  />
-                  <TextField
-                    type="number"
-                    label="Max"
-                    value={focus.max_score}
-                    onChange={(e) => {
-                      const next = [...focuses];
-                      const current = next[index] ?? { goal: "", score: 0, max_score: 10 };
-                      next[index] = {
-                        ...current,
-                        max_score: Number((e.target as unknown as { value: string }).value),
-                      };
-                      setFocuses(next);
-                    }}
-                    slotProps={{ htmlInput: { min: 1 } }}
-                  />
-                  <Button
-                    color="error"
-                    onClick={() => {
-                      if (focuses.length === 1) {
-                        setFocuses([{ goal: "", score: 0, max_score: 10 }]);
-                        return;
-                      }
-                      setFocuses(focuses.filter((_, focusIndex) => focusIndex !== index));
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </Box>
-              ))}
-              <Box>
-                <Button
-                  size="small"
-                  onClick={() => {
-                    if (focuses.length >= 4) return;
-                    setFocuses([...focuses, { goal: "", score: 0, max_score: 10 }]);
-                  }}
-                  disabled={focuses.length >= 4}
-                >
-                  Add Focus
-                </Button>
-              </Box>
-            </Stack>
-
-            <Box>
-              <Typography gutterBottom>Score: {score}/20</Typography>
-              <Slider
-                value={score}
-                onChange={(_, value) => setScore(value as number)}
-                min={0}
-                max={20}
-                step={1}
-                marks={[
-                  { value: 0, label: "0" },
-                  { value: 5, label: "5" },
-                  { value: 10, label: "10" },
-                  { value: 15, label: "15" },
-                  { value: 20, label: "20" },
-                ]}
-                valueLabelDisplay="auto"
-              />
-            </Box>
-
-            <TextField
-              label="Notes (optional)"
-              value={notes}
-              onChange={(e) => setNotes((e.target as unknown as { value: string }).value)}
-              multiline
-              rows={3}
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={
-              !cycleStartDate ||
-              sanitizedFocuses.length === 0 ||
-              hasInvalidFocuses ||
-              createMutation.isPending ||
-              updateMutation.isPending ||
-              cloneMutation.isPending
-            }
-          >
-            {createMutation.isPending || updateMutation.isPending || cloneMutation.isPending ? (
-              <CircularProgress size={20} />
-            ) : editingAssessment ? (
-              "Update"
-            ) : cloningAssessmentId ? (
-              "Clone"
-            ) : (
-              "Save"
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete assessment?"

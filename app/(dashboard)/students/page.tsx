@@ -91,7 +91,7 @@ function StudentsIndexPage() {
     return (
       <PageContainer>
         <PageHeader title="Students" breadcrumbs={[{ label: "Students" }]} />
-        <TableSkeleton columns={5} rows={8} />
+        <TableSkeleton columns={4} rows={8} />
       </PageContainer>
     );
   }
@@ -191,7 +191,6 @@ function StudentsIndexPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Initials</TableCell>
-                  {isAdmin && <TableCell>Name</TableCell>}
                   <TableCell>Location</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
@@ -213,13 +212,6 @@ function StudentsIndexPage() {
                         variant="outlined"
                       />
                     </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        {student.first_name && student.last_name
-                          ? `${student.first_name} ${student.last_name}`
-                          : "-"}
-                      </TableCell>
-                    )}
                     <TableCell>{locationMap.get(student.site_id) ?? "-"}</TableCell>
                     <TableCell>
                       <Chip
@@ -270,7 +262,7 @@ export default function StudentsPage() {
   // useServerTable reads the URL search params, which requires a Suspense
   // boundary during static/prerender rendering in Next.js.
   return (
-    <Suspense fallback={<TableSkeleton columns={5} rows={8} />}>
+    <Suspense fallback={<TableSkeleton columns={4} rows={8} />}>
       <StudentsIndexPage />
     </Suspense>
   );

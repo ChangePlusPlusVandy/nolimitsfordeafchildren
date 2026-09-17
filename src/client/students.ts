@@ -18,6 +18,8 @@ import {
 } from "@/server/students/actions";
 import {
   getStudent as serverGetStudent,
+  getStudentTeachers as serverGetStudentTeachers,
+  listLinkableTeachers as serverListLinkableTeachers,
   listStudents as serverListStudents,
 } from "@/server/students/queries";
 
@@ -62,9 +64,6 @@ export interface StudentListItem {
   site_id: string;
   dob: string;
   is_active: boolean;
-  // Only available for admins
-  first_name?: string;
-  last_name?: string;
 }
 
 export interface StudentDetails extends Student {
@@ -160,6 +159,12 @@ export interface LinkedTeacher {
   assigned_at: string;
 }
 
+export interface LinkableTeacher {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export interface LinkedParent {
   link_id: string;
   parent_id: string;
@@ -188,6 +193,21 @@ export async function listStudents(
 
 export async function getStudentDetails(id: string): Promise<StudentDetails> {
   return serverGetStudent(id) as never;
+}
+
+export async function getStudentTeachers(
+  studentId: string,
+  params?: { page?: number; limit?: number },
+) {
+  return serverGetStudentTeachers(studentId, params);
+}
+
+export async function listLinkableTeachers(params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return serverListLinkableTeachers(params);
 }
 
 export async function createStudent(

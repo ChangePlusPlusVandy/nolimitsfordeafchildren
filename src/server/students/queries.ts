@@ -42,3 +42,13 @@ export async function getStudentParents(id: string, query: { page?: number; limi
   await requireRole();
   return await new StudentsService().parents(id, query);
 }
+
+/**
+ * GET /v1/students/linkable-teachers — admin autocomplete for linking teachers.
+ */
+export async function listLinkableTeachers(
+  query: { search?: string; page?: number; limit?: number } = {},
+) {
+  await requireRole("administrator");
+  return await new StudentsService().listLinkableTeachers(query);
+}

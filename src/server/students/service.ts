@@ -318,18 +318,13 @@ export class StudentsService {
       return buildPaginatedResponse([], 0, page, limit);
     }
 
-    // For list views, show only initials (not full names) for PII protection
+    // For list views, show only initials — full PII stays on authorized detail pages
     const items = students.map((student) => ({
       id: student.id,
       initials: student.initials,
       site_id: student.site_id,
       dob: student.dob,
       is_active: student.is_active,
-      // Only admins see full names in list view
-      ...(userRole === "administrator" && {
-        first_name: student.first_name,
-        last_name: student.last_name,
-      }),
     }));
 
     return buildPaginatedResponse(items, total, page, limit);
@@ -786,6 +781,52 @@ export class StudentsService {
     }));
 
     return buildPaginatedResponse(items, total, page, limit);
+  }
+
+  /**
+   * Search teachers available for linking to a student (admin only).
+   * Returns teacher profile ids with display names for autocomplete UIs.
+   */
+  async listLinkableTeachers(query: { search?: string; page?: number; limit?: number } = {}) {
+    const { page, limit, offset } = getPagination(query, 50, 100);
+
+    const conditions = [eq(UserTable.is_active, true)];
+
+    if (query.search?.trim()) {
+      const searchQuery = `%${query.search.trim()}%`;
+      const searchCondition = or(
+        like(UserTable.name, searchQuery),
+        like(UserTable.email, searchQuery),
+      );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
+    }
+
+    const whereClause = and(...conditions);
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(TeacherProfileTable)
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(whereClause);
+
+    const total = countResult[0]?.count ?? 0;
+
+    const rows = await db
+      .select({
+        id: TeacherProfileTable.id,
+        name: UserTable.name,
+        email: UserTable.email,
+      })
+      .from(TeacherProfileTable)
+      .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
+      .where(whereClause)
+      .orderBy(asc(UserTable.name), asc(TeacherProfileTable.id))
+      .limit(limit)
+      .offset(offset);
+
+    return buildPaginatedResponse(rows, total, page, limit);
   }
 
   /**
