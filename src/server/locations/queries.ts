@@ -1,0 +1,63 @@
+"use server";
+import { type ListLocationsQuery, locationsService } from "@/server/locations/service";
+import { requireRole } from "@/server/shared/auth-guard";
+import { NotFoundError } from "@/server/shared/errors";
+
+/** GET /v1/locations — administrator | teacher. */
+export async function listLocations(query: ListLocationsQuery = {}) {
+  await requireRole("administrator", "teacher");
+  return await locationsService.index(query);
+}
+
+/** GET /v1/locations/map-summary — administrator | teacher. */
+export async function mapSummary() {
+  await requireRole("administrator", "teacher");
+  return await locationsService.mapSummary();
+}
+
+/** GET /v1/locations/:siteId/now-next — administrator | teacher. */
+export async function nowNext(siteId: string, query?: { date?: string }) {
+  await requireRole("administrator", "teacher");
+  return await locationsService.nowNext(siteId, query);
+}
+
+/**
+ * GET /v1/sites/:siteId/now-next — administrator | teacher (SitesController
+ * reuses LocationsService.nowNext; the sites domain maps into src/server/locations/).
+ */
+export async function getSiteNowNext(siteId: string, query?: { date?: string }) {
+  await requireRole("administrator", "teacher");
+  return await locationsService.nowNext(siteId, query);
+}
+
+/** GET /v1/locations/:siteId — administrator | teacher. */
+export async function showLocation(siteId: string) {
+  await requireRole("administrator", "teacher");
+  const location = await locationsService.show(siteId);
+  if (!location) {
+    throw new NotFoundError("Location not found");
+  }
+  return location;
+}
+
+/**
+ * Client-facing aliases (src/client/locations.ts imports these names).
+ */
+export async function getLocation(siteId: string) {
+  return await showLocation(siteId);
+}
+
+export async function getLocationMap() {
+  return await mapSummary();
+}
+
+/**
+ * GET /v1/locations/:siteId/staff — parent | administrator.
+ */
+export async function staffByLocation(siteId: string) {
+  const currentUser = await requireRole("parent", "administrator");
+  return await locationsService.staffByLocation(siteId, currentUser);
+}
+
+/** Re-exported for callers that want the create/update DTO types. */
+export type { CreateLocationDto } from "@/server/locations/service";
