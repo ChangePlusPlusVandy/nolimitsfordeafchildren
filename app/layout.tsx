@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "Help deaf children speak, learn, and dream.",
 };
 
+// Auth + D1/R2 bindings are request-scoped (`getCloudflareContext` is sync).
+// Without this, `next build` prerenders RSC pages like /users and the
+// OpenNext sync context throws, failing CI.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{

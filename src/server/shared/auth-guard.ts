@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
+import { connection } from "next/server";
 import { AuthUserTable, type UserEntity, UserTable } from "@/db/schema";
 import { ensureAppUser, getAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -41,9 +42,14 @@ export type CurrentUserResult =
 type AuthSession = Awaited<ReturnType<ReturnType<typeof getAuth>["api"]["getSession"]>>;
 
 export async function resolveCurrentUser(): Promise<CurrentUserResult> {
+  // Opt out of prerender before `getAuth()` / D1 touch `getCloudflareContext()`
+  // in sync mode (OpenNext forbids that on static routes during `next build`).
+  await connection();
+
   let session: AuthSession | null = null;
   try {
-    session = await getAuth().api.getSession({ headers: await headers() });
+    const requestHeaders = await headers();
+    session = await getAuth().api.getSession({ headers: requestHeaders });
   } catch (error) {
     return {
       status: "error",
