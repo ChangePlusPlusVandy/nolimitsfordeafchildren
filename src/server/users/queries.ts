@@ -2,14 +2,14 @@
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 import { StudentsService } from "@/server/students/service";
-import { type ListUsersQuery, UsersService } from "@/server/users/service";
+import { type ListUsersQuery, usersService } from "@/server/users/service";
 
 /**
  * GET /v1/users — list users (admin only).
  */
 export async function listUsers(query: ListUsersQuery = {}) {
   await requireRole("administrator");
-  return await new UsersService().index(query);
+  return await usersService.index(query);
 }
 
 /**
@@ -17,7 +17,7 @@ export async function listUsers(query: ListUsersQuery = {}) {
  */
 export async function getUser(id: string) {
   await requireRole("administrator");
-  const user = await new UsersService().showWithLinkedStudents(id);
+  const user = await usersService.showWithLinkedStudents(id);
   if (!user) {
     throw new NotFoundError("User not found");
   }

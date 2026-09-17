@@ -9,18 +9,19 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { BulletinsService } from "@/server/bulletins/service";
+import { bulletinsService } from "@/server/bulletins/service";
 import {
   type CreateScheduleInput,
-  SchedulesService,
+  schedulesService,
   type UpdateScheduleInput,
 } from "@/server/schedules/service";
 import { requireRole } from "@/server/shared/auth-guard";
+import { todayStr } from "@/server/shared/dates";
 import { BadRequestError, NotFoundError } from "@/server/shared/errors";
 import { requireTeacherProfileId } from "@/server/teachers/resolve";
 import {
   type CreateTeacherInput,
-  TeachersService,
+  teachersService,
   type UpdateTeacherInput,
 } from "@/server/teachers/service";
 
@@ -123,7 +124,7 @@ const sickDaySchema = z
 export async function createTeacher(input: CreateTeacherInput) {
   await requireRole("administrator");
   const parsed = createTeacherSchema.parse(input) as CreateTeacherInput;
-  return await new TeachersService().create(parsed);
+  return await teachersService.create(parsed);
 }
 
 /**
@@ -133,7 +134,7 @@ export async function updateTeacher(id: string, input: UpdateTeacherInput) {
   await requireRole("administrator");
   const parsed = updateTeacherSchema.parse(input) as UpdateTeacherInput;
   const profileId = await requireTeacherProfileId(id);
-  const teacher = await new TeachersService().update(profileId, parsed);
+  const teacher = await teachersService.update(profileId, parsed);
   if (!teacher) {
     throw new NotFoundError("Teacher not found");
   }
@@ -146,7 +147,7 @@ export async function updateTeacher(id: string, input: UpdateTeacherInput) {
 export async function assignTeacherLocation(id: string, locationId: string) {
   await requireRole("administrator");
   const profileId = await requireTeacherProfileId(id);
-  await new TeachersService().assignTeacherToLocation(profileId, locationId);
+  await teachersService.assignTeacherToLocation(profileId, locationId);
   return { success: true };
 }
 
@@ -156,7 +157,7 @@ export async function assignTeacherLocation(id: string, locationId: string) {
 export async function unassignTeacherLocation(id: string, locationId: string) {
   await requireRole("administrator");
   const profileId = await requireTeacherProfileId(id);
-  await new TeachersService().unassignTeacherFromLocation(profileId, locationId);
+  await teachersService.unassignTeacherFromLocation(profileId, locationId);
   return { success: true };
 }
 
@@ -166,7 +167,7 @@ export async function unassignTeacherLocation(id: string, locationId: string) {
 export async function createTeacherSchedule(id: string, input: CreateScheduleInput) {
   await requireRole("administrator");
   const parsed = createScheduleSchema.parse(input) as CreateScheduleInput;
-  return await new SchedulesService().create(id, parsed);
+  return await schedulesService.create(id, parsed);
 }
 
 /**
@@ -175,7 +176,7 @@ export async function createTeacherSchedule(id: string, input: CreateScheduleInp
 export async function updateSchedule(scheduleId: string, input: UpdateScheduleInput) {
   await requireRole("administrator");
   const parsed = updateScheduleSchema.parse(input) as UpdateScheduleInput;
-  const schedule = await new SchedulesService().update(scheduleId, parsed);
+  const schedule = await schedulesService.update(scheduleId, parsed);
   if (!schedule) {
     throw new NotFoundError("Schedule not found");
   }
@@ -205,7 +206,7 @@ export async function postTeacherSickDayNotice(input: {
     throw new BadRequestError("Teacher profile not found");
   }
 
-  const noticeDate = parsed.notice_date || new Date().toISOString().split("T")[0];
+  const noticeDate = parsed.notice_date || todayStr();
   let siteId = parsed.site_id || teacherProfile[0].site_id;
   if (!siteId) {
     throw new BadRequestError("Teacher must have a primary site to create a sick-day notice");
@@ -252,7 +253,7 @@ export async function postTeacherSickDayNotice(input: {
     .limit(1);
 
   const title = `Teacher sick-day notice: ${teacherUser[0]?.name ?? "Teacher"} (${noticeDate})`;
-  const bulletin = await new BulletinsService().create(
+  const bulletin = await bulletinsService.create(
     {
       title,
       body:

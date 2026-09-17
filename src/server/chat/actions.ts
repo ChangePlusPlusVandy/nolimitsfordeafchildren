@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { type ChatChannel, ChatService } from "@/server/chat/service";
+import { type ChatChannel, chatService } from "@/server/chat/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { BadRequestError, NotFoundError } from "@/server/shared/errors";
 
@@ -34,7 +34,7 @@ export async function createChatMessage(input: {
 
   const parsed = createMessageSchema.parse(input);
 
-  return await new ChatService().createMessage({
+  return await chatService.createMessage({
     channel: parsed.channel,
     message: parsed.message,
     is_announcement: parsed.is_announcement,
@@ -49,7 +49,7 @@ export async function updateChatMessageAnnouncement(
   const currentUser = await requireRole("administrator", "teacher");
   const parsed = announcementSchema.parse(input);
 
-  const updated = await new ChatService().updateAnnouncement(
+  const updated = await chatService.updateAnnouncement(
     id,
     currentUser.id,
     Boolean(parsed.is_announcement),
@@ -65,7 +65,7 @@ export async function updateChatMessageAnnouncement(
 
 export async function deleteChatMessage(id: string) {
   const currentUser = await requireRole("administrator");
-  const deleted = await new ChatService().deleteMessage(id, currentUser.id);
+  const deleted = await chatService.deleteMessage(id, currentUser.id);
   if (!deleted) {
     throw new NotFoundError("Message not found");
   }

@@ -159,3 +159,5 @@ export class MeService {
     return { ok: true };
   }
 }
+
+export const meService = new MeService();

@@ -1,5 +1,5 @@
 "use server";
-import { AssessmentsService } from "@/server/assessments/service";
+import { assessmentsService } from "@/server/assessments/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 
@@ -12,7 +12,7 @@ export async function listStudentAssessments(
   query: { page?: number; limit?: number } = {},
 ) {
   await requireRole("administrator", "teacher", "parent");
-  return await new AssessmentsService().listForStudent(studentId, query);
+  return await assessmentsService.listForStudent(studentId, query);
 }
 
 /**
@@ -30,7 +30,7 @@ export async function listAssessmentsForStudent(
  */
 export async function getAssessment(id: string) {
   await requireRole("administrator", "teacher", "parent");
-  const assessment = await new AssessmentsService().show(id);
+  const assessment = await assessmentsService.show(id);
   if (!assessment) {
     throw new NotFoundError("Assessment not found");
   }

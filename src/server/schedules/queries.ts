@@ -2,7 +2,7 @@
 import {
   type AvailableSchedulesQuery,
   type ListSchedulesQuery,
-  SchedulesService,
+  schedulesService,
 } from "@/server/schedules/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
@@ -12,7 +12,7 @@ import { NotFoundError } from "@/server/shared/errors";
  */
 export async function listSchedules(query: ListSchedulesQuery = {}) {
   await requireRole();
-  return await new SchedulesService().index(query);
+  return await schedulesService.index(query);
 }
 
 /**
@@ -21,7 +21,7 @@ export async function listSchedules(query: ListSchedulesQuery = {}) {
  */
 export async function availableSchedules(query: AvailableSchedulesQuery = {}) {
   await requireRole("parent", "administrator");
-  return await new SchedulesService().getAvailable(query);
+  return await schedulesService.getAvailable(query);
 }
 
 /**
@@ -36,7 +36,7 @@ export async function getAvailableSchedules(query: AvailableSchedulesQuery = {})
  */
 export async function getSchedule(id: string) {
   await requireRole();
-  const schedule = await new SchedulesService().show(id);
+  const schedule = await schedulesService.show(id);
   if (!schedule) {
     throw new NotFoundError("Schedule not found");
   }

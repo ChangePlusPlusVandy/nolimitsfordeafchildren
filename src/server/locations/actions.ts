@@ -3,7 +3,7 @@
 import { z } from "zod";
 import {
   type CreateLocationDto,
-  LocationsService,
+  locationsService,
   type UpdateLocationDto,
 } from "@/server/locations/service";
 import { requireRole } from "@/server/shared/auth-guard";
@@ -51,7 +51,7 @@ const updateLocationSchema = z
 export async function createLocation(input: CreateLocationDto) {
   await requireRole("administrator");
   const parsed = createLocationSchema.parse(input) as CreateLocationDto;
-  return await new LocationsService().create(parsed);
+  return await locationsService.create(parsed);
 }
 
 /**
@@ -60,7 +60,7 @@ export async function createLocation(input: CreateLocationDto) {
 export async function updateLocation(siteId: string, input: UpdateLocationDto) {
   await requireRole("administrator");
   const parsed = updateLocationSchema.parse(input) as UpdateLocationDto;
-  const location = await new LocationsService().update(siteId, parsed);
+  const location = await locationsService.update(siteId, parsed);
   if (!location) {
     throw new NotFoundError("Location not found");
   }

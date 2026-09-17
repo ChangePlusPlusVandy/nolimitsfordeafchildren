@@ -4,7 +4,7 @@ import { z } from "zod";
 import {
   type AcknowledgeBulletinInput,
   type AddAttachmentInput,
-  BulletinsService,
+  bulletinsService,
   type CreateBulletinInput,
   type ReviewBulletinInput,
   type UpdateBulletinInput,
@@ -97,7 +97,7 @@ export async function createBulletin(input: CreateBulletinInput) {
 
   const parsed = createBulletinSchema.parse(input) as CreateBulletinInput;
 
-  return await new BulletinsService().create(parsed, currentUser.id, currentUser.role);
+  return await bulletinsService.create(parsed, currentUser.id, currentUser.role);
 }
 
 export async function updateBulletin(id: string, input: UpdateBulletinInput) {
@@ -115,7 +115,7 @@ export async function updateBulletin(id: string, input: UpdateBulletinInput) {
 
   const parsed = updateBulletinSchema.parse(input) as UpdateBulletinInput;
 
-  const bulletin = await new BulletinsService().update(id, parsed);
+  const bulletin = await bulletinsService.update(id, parsed);
   if (!bulletin) {
     throw new NotFoundError("Bulletin not found");
   }
@@ -124,7 +124,7 @@ export async function updateBulletin(id: string, input: UpdateBulletinInput) {
 
 export async function deleteBulletin(id: string) {
   await requireRole("administrator");
-  const deleted = await new BulletinsService().delete(id);
+  const deleted = await bulletinsService.delete(id);
   if (!deleted) {
     throw new NotFoundError("Bulletin not found");
   }
@@ -140,7 +140,7 @@ export async function addBulletinAttachment(id: string, input: AddAttachmentInpu
 
   const parsed = addAttachmentSchema.parse(input) as AddAttachmentInput;
 
-  return await new BulletinsService().addAttachment(id, parsed);
+  return await bulletinsService.addAttachment(id, parsed);
 }
 
 export async function getBulletinAttachmentUploadUrl(input: {
@@ -154,12 +154,12 @@ export async function getBulletinAttachmentUploadUrl(input: {
   }
 
   const parsed = attachmentUploadUrlSchema.parse(input);
-  return await new BulletinsService().getAttachmentUploadUrl(parsed);
+  return await bulletinsService.getAttachmentUploadUrl(parsed);
 }
 
 export async function deleteBulletinAttachment(_id: string, attachmentId: string) {
   await requireRole("administrator");
-  const deleted = await new BulletinsService().deleteAttachment(attachmentId);
+  const deleted = await bulletinsService.deleteAttachment(attachmentId);
   if (!deleted) {
     throw new NotFoundError("Attachment not found");
   }
@@ -175,7 +175,7 @@ export async function acknowledgeBulletin(id: string, input: AcknowledgeBulletin
 
   const parsed = acknowledgeSchema.parse(input);
 
-  return await new BulletinsService().acknowledgeBulletin(id, currentUser.id, parsed);
+  return await bulletinsService.acknowledgeBulletin(id, currentUser.id, parsed);
 }
 
 export async function reviewBulletin(id: string, input: ReviewBulletinInput) {
@@ -187,7 +187,7 @@ export async function reviewBulletin(id: string, input: ReviewBulletinInput) {
 
   const parsed = reviewBulletinSchema.parse(input) as ReviewBulletinInput;
 
-  const bulletin = await new BulletinsService().reviewBulletin(id, currentUser.id, parsed);
+  const bulletin = await bulletinsService.reviewBulletin(id, currentUser.id, parsed);
   if (!bulletin) {
     throw new NotFoundError("Bulletin not found");
   }

@@ -1,5 +1,5 @@
 "use server";
-import { MeService } from "@/server/me/service";
+import { meService } from "@/server/me/service";
 import { getCurrentUser } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 
@@ -14,7 +14,7 @@ export async function getMe() {
     throw new NotFoundError("User not found");
   }
 
-  const profile = await new MeService().getProfile(currentUser.id);
+  const profile = await meService.getProfile(currentUser.id);
   if (!profile) {
     throw new NotFoundError("User not found");
   }

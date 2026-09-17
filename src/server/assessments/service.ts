@@ -641,3 +641,5 @@ export class AssessmentsService {
     return result.length > 0;
   }
 }
+
+export const assessmentsService = new AssessmentsService();

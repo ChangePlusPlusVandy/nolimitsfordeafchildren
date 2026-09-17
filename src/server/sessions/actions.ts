@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { type CreateSessionInput, SessionsService } from "@/server/sessions/service";
+import { type CreateSessionInput, sessionsService } from "@/server/sessions/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { BadRequestError, NotFoundError } from "@/server/shared/errors";
 
@@ -38,7 +38,7 @@ export async function createSession(input: CreateSessionInput) {
 
   const parsed = createSessionSchema.parse(input) as CreateSessionInput;
 
-  return await new SessionsService().create(parsed);
+  return await sessionsService.create(parsed);
 }
 
 export async function updateSession(
@@ -48,7 +48,7 @@ export async function updateSession(
   await requireRole("administrator");
   const parsed = updateSessionSchema.parse(input);
 
-  const updated = await new SessionsService().update(id, parsed);
+  const updated = await sessionsService.update(id, parsed);
   if (!updated) {
     throw new NotFoundError("Session not found");
   }

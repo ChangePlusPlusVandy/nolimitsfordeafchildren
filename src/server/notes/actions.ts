@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { TeacherProfileTable } from "@/db/schema";
 import { db } from "@/lib/db";
-import { SessionNotesService } from "@/server/notes/service";
+import { sessionNotesService } from "@/server/notes/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { HttpError, NotFoundError } from "@/server/shared/errors";
 
@@ -51,7 +51,7 @@ export async function createNote(
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "create");
 
-  return await new SessionNotesService().create({
+  return await sessionNotesService.create({
     student_id: studentId,
     teacher_id: teacherId,
     schedule_id: parsed.schedule_id,
@@ -69,7 +69,7 @@ export async function updateNote(id: string, input: { note: string }) {
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "update");
 
-  const note = await new SessionNotesService().update(id, teacherId, parsed.note);
+  const note = await sessionNotesService.update(id, teacherId, parsed.note);
   if (!note) {
     throw new NotFoundError("Note not found or you don't have permission to update it");
   }
@@ -88,7 +88,7 @@ export async function deleteNote(id: string) {
     teacherId = await requireTeacherProfileId(currentUser.id, "delete");
   }
 
-  const deleted = await new SessionNotesService().delete(id, teacherId);
+  const deleted = await sessionNotesService.delete(id, teacherId);
   if (!deleted) {
     throw new NotFoundError("Note not found or you don't have permission to delete it");
   }

@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { type SessionEntity, type SessionInsert, SessionTable } from "@/db/schema";
 import { db } from "@/lib/db";
+import { todayStr } from "@/server/shared/dates";
 import { BadRequestError, ConflictError } from "@/server/shared/errors";
 import {
   buildPaginatedResponse,
@@ -38,7 +39,7 @@ export class SessionsService {
     }
 
     if (query.active_only) {
-      const today = new Date().toISOString().split("T")[0]!;
+      const today = todayStr();
       conditions.push(eq(SessionTable.is_active, true));
       conditions.push(lte(SessionTable.start_date, today));
       conditions.push(gte(SessionTable.end_date, today));
@@ -142,7 +143,7 @@ export class SessionsService {
   }
 
   async getCurrentSession(): Promise<SessionEntity | null> {
-    const today = new Date().toISOString().split("T")[0]!;
+    const today = todayStr();
 
     const rows = await db
       .select()
@@ -161,3 +162,5 @@ export class SessionsService {
     return rows[0] ?? null;
   }
 }
+
+export const sessionsService = new SessionsService();

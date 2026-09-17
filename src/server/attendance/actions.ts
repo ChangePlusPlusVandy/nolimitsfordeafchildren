@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import {
-  AttendanceService,
+  attendanceService,
   type MarkAttendanceInput,
   type UpdateAttendanceInput,
 } from "@/server/attendance/service";
@@ -49,7 +49,7 @@ export async function markAttendance(input: Omit<MarkAttendanceInput, "marked_by
   const currentUser = await requireRole("teacher", "administrator");
   const parsed = markAttendanceSchema.parse(input) as Omit<MarkAttendanceInput, "marked_by">;
 
-  return await new AttendanceService().mark({
+  return await attendanceService.mark({
     ...parsed,
     marked_by: currentUser.id,
   });
@@ -59,7 +59,7 @@ export async function updateAttendance(id: string, input: UpdateAttendanceInput)
   const currentUser = await requireRole("teacher", "administrator");
   const parsed = updateAttendanceSchema.parse(input) as UpdateAttendanceInput;
 
-  const result = await new AttendanceService().update(id, parsed, currentUser.id);
+  const result = await attendanceService.update(id, parsed, currentUser.id);
   if (!result) {
     throw new NotFoundError("Attendance record not found");
   }

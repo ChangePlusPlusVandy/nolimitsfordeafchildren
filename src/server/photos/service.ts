@@ -319,3 +319,5 @@ export class PhotosService {
     return true;
   }
 }
+
+export const photosService = new PhotosService();

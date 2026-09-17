@@ -4,8 +4,8 @@ import { z } from "zod";
 import {
   type ConfirmUploadInput,
   type DocumentReviewStatus,
-  DocumentsService,
   type DocumentType,
+  documentsService,
   type EntityType,
   type GetUploadUrlInput,
   type ReviewDocumentInput,
@@ -49,7 +49,7 @@ const reviewDocumentSchema = z
 export async function getDocumentUploadUrl(input: GetUploadUrlInput) {
   await requireRole();
   const parsed = uploadUrlSchema.parse(input) as GetUploadUrlInput;
-  return await new DocumentsService().getUploadUrl(parsed);
+  return await documentsService.getUploadUrl(parsed);
 }
 
 /**
@@ -80,7 +80,7 @@ export async function confirmDocumentUpload(input: Omit<ConfirmUploadInput, "upl
     .passthrough()
     .parse(input) as Omit<ConfirmUploadInput, "uploaded_by">;
 
-  const document = await new DocumentsService().confirmUpload({
+  const document = await documentsService.confirmUpload({
     ...parsed,
     uploaded_by: currentUser.id,
   });
@@ -92,7 +92,7 @@ export async function confirmDocumentUpload(input: Omit<ConfirmUploadInput, "upl
  */
 export async function deleteDocument(id: string) {
   await requireRole("administrator");
-  const deleted = await new DocumentsService().delete(id);
+  const deleted = await documentsService.delete(id);
   if (!deleted) {
     throw new NotFoundError("Document not found");
   }
@@ -106,7 +106,7 @@ export async function reviewDocument(id: string, input: Omit<ReviewDocumentInput
   const currentUser = await requireRole("administrator");
   const parsed = reviewDocumentSchema.parse(input) as Omit<ReviewDocumentInput, "reviewed_by">;
 
-  const result = await new DocumentsService().reviewDocument(id, {
+  const result = await documentsService.reviewDocument(id, {
     ...parsed,
     reviewed_by: currentUser.id,
   });

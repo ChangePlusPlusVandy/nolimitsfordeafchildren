@@ -416,3 +416,5 @@ export class UsersService {
     // Note: We don't delete old profiles to preserve historical data
   }
 }
+
+export const usersService = new UsersService();

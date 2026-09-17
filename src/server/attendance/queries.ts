@@ -1,7 +1,7 @@
 "use server";
 import {
-  AttendanceService,
   type AttendanceStatus,
+  attendanceService,
   type ListAttendanceQuery,
 } from "@/server/attendance/service";
 import { requireRole } from "@/server/shared/auth-guard";
@@ -12,7 +12,7 @@ import { NotFoundError } from "@/server/shared/errors";
  */
 export async function listAttendance(query: ListAttendanceQuery = {}) {
   await requireRole();
-  return await new AttendanceService().index(query);
+  return await attendanceService.index(query);
 }
 
 /**
@@ -20,7 +20,7 @@ export async function listAttendance(query: ListAttendanceQuery = {}) {
  */
 export async function showAttendance(id: string) {
   await requireRole();
-  const result = await new AttendanceService().show(id);
+  const result = await attendanceService.show(id);
   if (!result) {
     throw new NotFoundError("Attendance record not found");
   }
@@ -32,7 +32,7 @@ export async function showAttendance(id: string) {
  */
 export async function studentAttendanceSummary(studentId: string) {
   await requireRole();
-  return await new AttendanceService().getSummary(studentId);
+  return await attendanceService.getSummary(studentId);
 }
 
 /**
@@ -49,7 +49,7 @@ export async function siblingParticipationReport(
   query: { date_from?: string; date_to?: string; site_id?: string } = {},
 ) {
   await requireRole("administrator");
-  return await new AttendanceService().getSiblingParticipationReport(query);
+  return await attendanceService.getSiblingParticipationReport(query);
 }
 
 export type { AttendanceStatus };

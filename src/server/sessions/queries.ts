@@ -1,5 +1,5 @@
 "use server";
-import { type ListSessionsQuery, SessionsService } from "@/server/sessions/service";
+import { type ListSessionsQuery, sessionsService } from "@/server/sessions/service";
 import { requireRole } from "@/server/shared/auth-guard";
 
 /**
@@ -7,7 +7,7 @@ import { requireRole } from "@/server/shared/auth-guard";
  */
 export async function listSessions(query: ListSessionsQuery = {}) {
   await requireRole("administrator");
-  return await new SessionsService().index(query);
+  return await sessionsService.index(query);
 }
 
 /**
@@ -16,6 +16,6 @@ export async function listSessions(query: ListSessionsQuery = {}) {
  */
 export async function getCurrentSession() {
   await requireRole("administrator");
-  const session = await new SessionsService().getCurrentSession();
+  const session = await sessionsService.getCurrentSession();
   return { item: session };
 }

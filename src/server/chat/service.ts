@@ -151,3 +151,5 @@ export class ChatService {
     return result.length > 0;
   }
 }
+
+export const chatService = new ChatService();

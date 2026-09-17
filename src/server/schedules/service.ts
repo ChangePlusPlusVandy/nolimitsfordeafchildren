@@ -11,6 +11,7 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
+import { todayStr } from "@/server/shared/dates";
 import {
   BadRequestError,
   ConflictError,
@@ -326,7 +327,7 @@ export class SchedulesService {
   }> {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
-    const today = new Date().toISOString().split("T")[0]!;
+    const today = todayStr();
 
     const conditions = [
       eq(ScheduleTable.is_active, true),
@@ -636,3 +637,5 @@ export class SchedulesService {
     return result[0] ?? null;
   }
 }
+
+export const schedulesService = new SchedulesService();

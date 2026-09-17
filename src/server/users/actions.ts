@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { requireRole } from "@/server/shared/auth-guard";
 import { BadRequestError, NotFoundError } from "@/server/shared/errors";
-import { type InviteUserInput, type UpdateUserInput, UsersService } from "@/server/users/service";
+import { type InviteUserInput, type UpdateUserInput, usersService } from "@/server/users/service";
 
 /**
  * Client-facing aliases (src/client/users.ts imports these names).
@@ -58,7 +58,7 @@ export async function linkStudentToParentUser(
 ) {
   await requireRole("administrator");
   const parsed = linkStudentSchema.parse(input);
-  return await new UsersService().linkStudentToParentUser(
+  return await usersService.linkStudentToParentUser(
     parentUserId,
     studentId,
     parsed.relationship ?? undefined,
@@ -68,7 +68,7 @@ export async function linkStudentToParentUser(
 
 export async function unlinkStudentFromParentUser(parentUserId: string, studentId: string) {
   await requireRole("administrator");
-  return await new UsersService().unlinkStudentFromParentUser(parentUserId, studentId);
+  return await usersService.unlinkStudentFromParentUser(parentUserId, studentId);
 }
 
 export async function inviteUser(input: InviteUserInput) {
@@ -83,14 +83,14 @@ export async function inviteUser(input: InviteUserInput) {
 
   const parsed = inviteUserSchema.parse(input) as InviteUserInput;
 
-  return await new UsersService().invite(parsed);
+  return await usersService.invite(parsed);
 }
 
 export async function updateUser(id: string, input: UpdateUserInput) {
   await requireRole("administrator");
   const parsed = updateUserSchema.parse(input) as UpdateUserInput;
 
-  const user = await new UsersService().update(id, parsed);
+  const user = await usersService.update(id, parsed);
   if (!user) {
     throw new NotFoundError("User not found");
   }
@@ -99,7 +99,7 @@ export async function updateUser(id: string, input: UpdateUserInput) {
 
 export async function disableUser(id: string) {
   await requireRole("administrator");
-  const user = await new UsersService().disable(id);
+  const user = await usersService.disable(id);
   if (!user) {
     throw new NotFoundError("User not found");
   }
@@ -108,7 +108,7 @@ export async function disableUser(id: string) {
 
 export async function enableUser(id: string) {
   await requireRole("administrator");
-  const user = await new UsersService().enable(id);
+  const user = await usersService.enable(id);
   if (!user) {
     throw new NotFoundError("User not found");
   }

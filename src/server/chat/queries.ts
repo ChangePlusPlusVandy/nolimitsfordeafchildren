@@ -1,5 +1,5 @@
 "use server";
-import { type ChatChannel, ChatService } from "@/server/chat/service";
+import { type ChatChannel, chatService } from "@/server/chat/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { HttpError } from "@/server/shared/errors";
 
@@ -16,5 +16,5 @@ export async function listChatMessages(
     throw new HttpError(400, "BAD_REQUEST", "Invalid channel");
   }
 
-  return await new ChatService().listMessages({ channel, page: query.page, limit: query.limit });
+  return await chatService.listMessages({ channel, page: query.page, limit: query.limit });
 }

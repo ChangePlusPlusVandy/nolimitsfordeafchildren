@@ -4,7 +4,7 @@ import { z } from "zod";
 import {
   type CreatePhotoInput,
   type GetPhotoUploadUrlInput,
-  PhotosService,
+  photosService,
 } from "@/server/photos/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { BadRequestError, NotFoundError } from "@/server/shared/errors";
@@ -43,7 +43,7 @@ export async function getPhotoUploadUrl(input: GetPhotoUploadUrlInput) {
 
   const parsed = getUploadUrlSchema.parse(input) as GetPhotoUploadUrlInput;
 
-  return await new PhotosService().getUploadUrl(parsed, currentUser);
+  return await photosService.getUploadUrl(parsed, currentUser);
 }
 
 export async function createPhoto(input: CreatePhotoInput) {
@@ -55,12 +55,12 @@ export async function createPhoto(input: CreatePhotoInput) {
 
   const parsed = createPhotoSchema.parse(input) as CreatePhotoInput;
 
-  return await new PhotosService().createPhoto(parsed, currentUser);
+  return await photosService.createPhoto(parsed, currentUser);
 }
 
 export async function deletePhoto(id: string) {
   await requireRole("administrator");
-  const deleted = await new PhotosService().deletePhoto(id);
+  const deleted = await photosService.deletePhoto(id);
   if (!deleted) {
     throw new NotFoundError("Photo not found");
   }

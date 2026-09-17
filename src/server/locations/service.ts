@@ -11,6 +11,7 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
+import { todayStr } from "@/server/shared/dates";
 import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
 import {
   buildPaginatedResponse,
@@ -183,7 +184,7 @@ export class LocationsService {
    * Get current and next sessions at a location
    */
   async nowNext(siteId: string, query?: { date?: string }) {
-    const today = query?.date ?? new Date().toISOString().split("T")[0]!;
+    const today = query?.date ?? todayStr();
 
     // Get schedules for this site that include today in their cycle
     const schedules = await db
@@ -318,3 +319,5 @@ export class LocationsService {
     };
   }
 }
+
+export const locationsService = new LocationsService();

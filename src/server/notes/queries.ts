@@ -1,5 +1,5 @@
 "use server";
-import { SessionNotesService } from "@/server/notes/service";
+import { sessionNotesService } from "@/server/notes/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 
@@ -11,7 +11,7 @@ export async function listStudentNotes(
   query: { page?: number; limit?: number } = {},
 ) {
   await requireRole("administrator", "teacher", "parent");
-  return await new SessionNotesService().listForStudent(studentId, query);
+  return await sessionNotesService.listForStudent(studentId, query);
 }
 
 /**
@@ -29,7 +29,7 @@ export async function listNotesForStudent(
  */
 export async function getNote(id: string) {
   await requireRole("administrator", "teacher", "parent");
-  const note = await new SessionNotesService().show(id);
+  const note = await sessionNotesService.show(id);
   if (!note) {
     throw new NotFoundError("Note not found");
   }
@@ -44,5 +44,5 @@ export async function listTeacherNotes(
   query: { page?: number; limit?: number } = {},
 ) {
   await requireRole("administrator", "teacher");
-  return await new SessionNotesService().listByTeacher(teacherId, query);
+  return await sessionNotesService.listByTeacher(teacherId, query);
 }

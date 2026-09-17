@@ -1,5 +1,5 @@
 "use server";
-import { type ListPhotosQuery, PhotosService } from "@/server/photos/service";
+import { type ListPhotosQuery, photosService } from "@/server/photos/service";
 import { requireRole } from "@/server/shared/auth-guard";
 
 /**
@@ -8,5 +8,5 @@ import { requireRole } from "@/server/shared/auth-guard";
  */
 export async function listPhotos(query: ListPhotosQuery = {}) {
   const currentUser = await requireRole("administrator", "teacher", "parent");
-  return await new PhotosService().listPhotos(query, currentUser);
+  return await photosService.listPhotos(query, currentUser);
 }

@@ -1,5 +1,5 @@
 "use server";
-import { BulletinsService, type ListBulletinsQuery } from "@/server/bulletins/service";
+import { bulletinsService, type ListBulletinsQuery } from "@/server/bulletins/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 
@@ -8,7 +8,7 @@ import { NotFoundError } from "@/server/shared/errors";
  */
 export async function listBulletins(query: ListBulletinsQuery = {}) {
   const currentUser = await requireRole();
-  return await new BulletinsService().index(query, currentUser.role, currentUser.id);
+  return await bulletinsService.index(query, currentUser.role, currentUser.id);
 }
 
 /**
@@ -16,14 +16,12 @@ export async function listBulletins(query: ListBulletinsQuery = {}) {
  */
 export async function getBulletin(id: string) {
   const currentUser = await requireRole();
-  const service = new BulletinsService();
-
-  const bulletin = await service.show(id, currentUser.id);
+  const bulletin = await bulletinsService.show(id, currentUser.id);
   if (!bulletin) {
     throw new NotFoundError("Bulletin not found");
   }
 
-  await service.recordView(id, currentUser.id);
+  await bulletinsService.recordView(id, currentUser.id);
 
   return bulletin;
 }
@@ -33,14 +31,12 @@ export async function getBulletin(id: string) {
  */
 export async function getBulletinViews(id: string) {
   await requireRole("administrator");
-  const service = new BulletinsService();
-
-  const bulletin = await service.show(id);
+  const bulletin = await bulletinsService.show(id);
   if (!bulletin) {
     throw new NotFoundError("Bulletin not found");
   }
 
-  return await service.getViewStats(id);
+  return await bulletinsService.getViewStats(id);
 }
 
 /**
@@ -48,14 +44,12 @@ export async function getBulletinViews(id: string) {
  */
 export async function getBulletinAcknowledgements(id: string) {
   await requireRole("administrator");
-  const service = new BulletinsService();
-
-  const bulletin = await service.show(id);
+  const bulletin = await bulletinsService.show(id);
   if (!bulletin) {
     throw new NotFoundError("Bulletin not found");
   }
 
-  return await service.getAcknowledgementStats(id);
+  return await bulletinsService.getAcknowledgementStats(id);
 }
 
 /**
@@ -63,7 +57,7 @@ export async function getBulletinAcknowledgements(id: string) {
  */
 export async function listBulletinsPending(query: { page?: number; limit?: number } = {}) {
   await requireRole("administrator");
-  return await new BulletinsService().listPendingApproval(query);
+  return await bulletinsService.listPendingApproval(query);
 }
 
 /**

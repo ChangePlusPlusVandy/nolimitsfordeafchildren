@@ -12,14 +12,14 @@ import {
 import { db } from "@/lib/db";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
-import { type ListTeachersQuery, TeachersService } from "@/server/teachers/service";
+import { type ListTeachersQuery, teachersService } from "@/server/teachers/service";
 
 /**
  * GET /v1/teachers — list teachers (admin only).
  */
 export async function listTeachers(query: ListTeachersQuery = {}) {
   await requireRole("administrator");
-  return await new TeachersService().index(query);
+  return await teachersService.index(query);
 }
 
 /**
@@ -27,7 +27,7 @@ export async function listTeachers(query: ListTeachersQuery = {}) {
  * `id` is teacher_profiles.id (canonical) or users.id (User Management links).
  */
 export async function getTeacher(id: string) {
-  const teacher = await new TeachersService().show(id);
+  const teacher = await teachersService.show(id);
   if (!teacher) {
     throw new NotFoundError("Teacher not found");
   }
@@ -41,7 +41,7 @@ export async function getTeacherStudents(
   id: string,
   query: { page?: number; limit?: number } = {},
 ) {
-  return await new TeachersService().students(id, query);
+  return await teachersService.students(id, query);
 }
 
 /**
@@ -49,11 +49,11 @@ export async function getTeacherStudents(
  */
 export async function getTeacherLocations(id: string) {
   await requireRole("administrator");
-  const profileId = await new TeachersService().resolveTeacherProfileId(id);
+  const profileId = await teachersService.resolveTeacherProfileId(id);
   if (!profileId) {
     throw new NotFoundError("Teacher not found");
   }
-  return await new TeachersService().getTeacherLocations(profileId);
+  return await teachersService.getTeacherLocations(profileId);
 }
 
 /**
@@ -78,7 +78,7 @@ export async function getTeachersMeDay(query: {
     throw new NotFoundError("Teacher profile not found for current user");
   }
 
-  return await new TeachersService().myDay({
+  return await teachersService.myDay({
     date: query.date,
     start_date: query.start_date,
     end_date: query.end_date,

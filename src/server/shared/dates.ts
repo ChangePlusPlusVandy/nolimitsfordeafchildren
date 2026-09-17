@@ -57,6 +57,13 @@ export function addDaysStr(dateStr: string, days: number): string {
   return formatDateOnlyParts(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
 }
 
+/** Add calendar months to a date-only string (day clamped when month is shorter). */
+export function addMonthsStr(dateStr: string, months: number): string {
+  const { year, month, day } = parseDateOnly(dateStr);
+  const dt = new Date(Date.UTC(year, month - 1 + months, day));
+  return formatDateOnlyParts(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+}
+
 export function compareDateStr(a: string, b: string): number {
   return a.localeCompare(b);
 }

@@ -1,5 +1,5 @@
 "use server";
-import { type ListLocationsQuery, LocationsService } from "@/server/locations/service";
+import { type ListLocationsQuery, locationsService } from "@/server/locations/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 
@@ -8,21 +8,21 @@ import { NotFoundError } from "@/server/shared/errors";
  * never blocked public routes).
  */
 export async function listLocations(query: ListLocationsQuery = {}) {
-  return await new LocationsService().index(query);
+  return await locationsService.index(query);
 }
 
 /**
  * GET /v1/locations/map-summary — public.
  */
 export async function mapSummary() {
-  return await new LocationsService().mapSummary();
+  return await locationsService.mapSummary();
 }
 
 /**
  * GET /v1/locations/:siteId/now-next — public.
  */
 export async function nowNext(siteId: string, query?: { date?: string }) {
-  return await new LocationsService().nowNext(siteId, query);
+  return await locationsService.nowNext(siteId, query);
 }
 
 /**
@@ -30,14 +30,14 @@ export async function nowNext(siteId: string, query?: { date?: string }) {
  * LocationsService.nowNext; the sites domain maps into src/server/locations/).
  */
 export async function getSiteNowNext(siteId: string, query?: { date?: string }) {
-  return await new LocationsService().nowNext(siteId, query);
+  return await locationsService.nowNext(siteId, query);
 }
 
 /**
  * GET /v1/locations/:siteId — public.
  */
 export async function showLocation(siteId: string) {
-  const location = await new LocationsService().show(siteId);
+  const location = await locationsService.show(siteId);
   if (!location) {
     throw new NotFoundError("Location not found");
   }
@@ -60,7 +60,7 @@ export async function getLocationMap() {
  */
 export async function staffByLocation(siteId: string) {
   const currentUser = await requireRole("parent", "administrator");
-  return await new LocationsService().staffByLocation(siteId, currentUser);
+  return await locationsService.staffByLocation(siteId, currentUser);
 }
 
 /** Re-exported for callers that want the create/update DTO types. */

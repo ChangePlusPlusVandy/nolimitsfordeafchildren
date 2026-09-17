@@ -4,7 +4,7 @@ import { z } from "zod";
 import {
   type ConflictCheckInput,
   type CreateScheduleInput,
-  SchedulesService,
+  schedulesService,
   type UpdateScheduleInput,
 } from "@/server/schedules/service";
 import { requireRole } from "@/server/shared/auth-guard";
@@ -28,7 +28,7 @@ const conflictCheckSchema = z
 export async function checkScheduleConflicts(input: ConflictCheckInput) {
   await requireRole("administrator");
   const parsed = conflictCheckSchema.parse(input) as ConflictCheckInput;
-  return await new SchedulesService().checkConflicts(parsed);
+  return await schedulesService.checkConflicts(parsed);
 }
 
 const createScheduleSchema = z
@@ -74,7 +74,7 @@ const updateScheduleSchema = z
 export async function createSchedule(teacherId: string, input: CreateScheduleInput) {
   await requireRole("administrator");
   const parsed = createScheduleSchema.parse(input) as CreateScheduleInput;
-  return await new SchedulesService().create(teacherId, parsed);
+  return await schedulesService.create(teacherId, parsed);
 }
 
 /**
@@ -83,7 +83,7 @@ export async function createSchedule(teacherId: string, input: CreateScheduleInp
 export async function updateScheduleById(scheduleId: string, input: UpdateScheduleInput) {
   await requireRole("administrator");
   const parsed = updateScheduleSchema.parse(input) as UpdateScheduleInput;
-  const schedule = await new SchedulesService().update(scheduleId, parsed);
+  const schedule = await schedulesService.update(scheduleId, parsed);
   if (!schedule) {
     throw new NotFoundError("Schedule not found");
   }

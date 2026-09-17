@@ -9,6 +9,7 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { deleteFile, extractKeyFromUrl, getPublicUrl, getUploadUrl } from "@/lib/r2";
+import { addDaysStr, addMonthsStr, daysBetweenDateStr, todayStr } from "@/server/shared/dates";
 import { BadRequestError, ConflictError, NotFoundError } from "@/server/shared/errors";
 import {
   buildPaginatedResponse,
@@ -116,9 +117,7 @@ export class DocumentsService {
     // Calculate next_due_date for audiograms (6 months from document_date)
     let nextDueDate: string | null = null;
     if (input.document_type === "audiogram" && input.document_date) {
-      const docDate = new Date(input.document_date);
-      docDate.setMonth(docDate.getMonth() + 6);
-      nextDueDate = docDate.toISOString().split("T")[0]!;
+      nextDueDate = addMonthsStr(input.document_date, 6);
     }
 
     const newDocument: DocumentInsert = {
@@ -356,9 +355,7 @@ export class DocumentsService {
     query: { page?: number; limit?: number } = {},
   ): Promise<PaginatedResponse<DocumentWithMetadata>> {
     const { page, limit, offset } = getPagination(query, 20, 100);
-    const today = new Date();
-    today.setDate(today.getDate() + daysAhead);
-    const checkDate = today.toISOString().split("T")[0]!;
+    const checkDate = addDaysStr(todayStr(), daysAhead);
 
     const whereClause = and(
       eq(DocumentTable.document_type, "audiogram"),
@@ -399,17 +396,14 @@ export class DocumentsService {
     >
   > {
     const { page, limit, offset } = getPagination(query, 20, 100);
-    const today = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + daysAhead);
-    const todayStr = today.toISOString().split("T")[0]!;
-    const futureDateStr = futureDate.toISOString().split("T")[0]!;
+    const today = todayStr();
+    const futureDate = addDaysStr(today, daysAhead);
 
     const whereClause = and(
       eq(DocumentTable.document_type, "audiogram"),
       eq(DocumentTable.entity_type, "student"),
-      gte(DocumentTable.next_due_date, todayStr),
-      lte(DocumentTable.next_due_date, futureDateStr),
+      gte(DocumentTable.next_due_date, today),
+      lte(DocumentTable.next_due_date, futureDate),
     );
 
     const countResult = await db
@@ -491,18 +485,12 @@ export class DocumentsService {
    * Add metadata (overdue status, days until due) to a document
    */
   private addMetadata(doc: DocumentEntity): DocumentWithMetadata {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     let isOverdue = false;
     let daysUntilDue: number | null = null;
 
     if (doc.next_due_date) {
-      const dueDate = new Date(doc.next_due_date);
-      dueDate.setHours(0, 0, 0, 0);
-
-      const diffTime = dueDate.getTime() - today.getTime();
-      daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const today = todayStr();
+      daysUntilDue = daysBetweenDateStr(today, doc.next_due_date);
       isOverdue = daysUntilDue < 0;
     }
 
@@ -542,3 +530,5 @@ export class DocumentsService {
     }
   }
 }
+
+export const documentsService = new DocumentsService();

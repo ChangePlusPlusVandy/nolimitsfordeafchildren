@@ -285,3 +285,5 @@ export class SessionNotesService {
     return result.length > 0;
   }
 }
+
+export const sessionNotesService = new SessionNotesService();

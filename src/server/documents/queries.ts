@@ -1,8 +1,8 @@
 "use server";
 import {
   type DocumentReviewStatus,
-  DocumentsService,
   type DocumentType,
+  documentsService,
   type EntityType,
   type ListDocumentsQuery,
 } from "@/server/documents/service";
@@ -14,7 +14,7 @@ import { NotFoundError } from "@/server/shared/errors";
  */
 export async function listDocuments(query: ListDocumentsQuery = {}) {
   await requireRole();
-  return await new DocumentsService().index(query);
+  return await documentsService.index(query);
 }
 
 /**
@@ -22,7 +22,7 @@ export async function listDocuments(query: ListDocumentsQuery = {}) {
  */
 export async function getDocument(id: string) {
   await requireRole();
-  const result = await new DocumentsService().show(id);
+  const result = await documentsService.show(id);
   if (!result) {
     throw new NotFoundError("Document not found");
   }
@@ -35,7 +35,7 @@ export async function getDocument(id: string) {
  */
 export async function getDocumentDownload(id: string) {
   await requireRole();
-  const result = await new DocumentsService().getDownloadUrl(id);
+  const result = await documentsService.getDownloadUrl(id);
   if (!result) {
     throw new NotFoundError("Document not found");
   }
@@ -59,7 +59,7 @@ export async function listDocumentsForEntity(
   query: { page?: number; limit?: number } = {},
 ) {
   await requireRole();
-  return await new DocumentsService().listForEntityPaginated(entityType, entityId, query);
+  return await documentsService.listForEntityPaginated(entityType, entityId, query);
 }
 
 /**
@@ -72,7 +72,7 @@ export async function listStudentDocuments(
   const user = await requireRole();
   const effectiveReviewStatus = user.role === "parent" ? "approved" : query.review_status;
 
-  return await new DocumentsService().index({
+  return await documentsService.index({
     entity_type: "student",
     entity_id: studentId,
     page: query.page,
@@ -89,7 +89,7 @@ export async function listTeacherDocuments(
   query: { page?: number; limit?: number } = {},
 ) {
   await requireRole();
-  return await new DocumentsService().listForEntityPaginated("teacher", teacherId, query);
+  return await documentsService.listForEntityPaginated("teacher", teacherId, query);
 }
 
 /**
@@ -97,7 +97,7 @@ export async function listTeacherDocuments(
  */
 export async function overdueAudiograms(query: { page?: number; limit?: number } = {}) {
   await requireRole("administrator");
-  return await new DocumentsService().getOverdueAudiograms(0, query);
+  return await documentsService.getOverdueAudiograms(0, query);
 }
 
 /**
@@ -108,7 +108,7 @@ export async function audiogramsDueSoon(
 ) {
   await requireRole("administrator");
   const days = query.days || 30;
-  return await new DocumentsService().getAudiogramsDueSoon(days, {
+  return await documentsService.getAudiogramsDueSoon(days, {
     page: query.page,
     limit: query.limit,
   });

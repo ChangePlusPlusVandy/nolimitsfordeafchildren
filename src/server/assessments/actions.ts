@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { TeacherProfileTable } from "@/db/schema";
 import { db } from "@/lib/db";
-import { AssessmentsService, type CreateAssessmentInput } from "@/server/assessments/service";
+import { assessmentsService, type CreateAssessmentInput } from "@/server/assessments/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
 
@@ -76,7 +76,7 @@ export async function createAssessment(
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "create");
 
-  return await new AssessmentsService().create({
+  return await assessmentsService.create({
     student_id: studentId,
     teacher_id: teacherId,
     ...parsed,
@@ -100,7 +100,7 @@ export async function updateAssessment(
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "update");
 
-  const assessment = await new AssessmentsService().update(id, teacherId, parsed);
+  const assessment = await assessmentsService.update(id, teacherId, parsed);
   if (!assessment) {
     throw new NotFoundError("Assessment not found or you don't have permission to update it");
   }
@@ -115,7 +115,7 @@ export async function deleteAssessment(id: string) {
     teacherId = await requireTeacherProfileId(currentUser.id, "delete");
   }
 
-  const deleted = await new AssessmentsService().delete(id, teacherId);
+  const deleted = await assessmentsService.delete(id, teacherId);
   if (!deleted) {
     throw new NotFoundError("Assessment not found or you don't have permission to delete it");
   }
@@ -147,5 +147,5 @@ export async function cloneAssessment(
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "clone");
 
-  return await new AssessmentsService().clone(id, teacherId, parsed);
+  return await assessmentsService.clone(id, teacherId, parsed);
 }

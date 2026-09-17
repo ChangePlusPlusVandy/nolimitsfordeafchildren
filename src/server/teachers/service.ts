@@ -13,8 +13,9 @@ import {
   UserTable,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { AttendanceService, type SessionForDay } from "@/server/attendance/service";
+import { attendanceService, type SessionForDay } from "@/server/attendance/service";
 import type { CreateScheduleInput, UpdateScheduleInput } from "@/server/schedules/service";
+import { todayStr } from "@/server/shared/dates";
 import { BadRequestError, ConflictError, NotFoundError } from "@/server/shared/errors";
 import { buildPaginatedResponse, getPagination } from "@/server/shared/pagination";
 import {
@@ -88,12 +89,6 @@ export interface TeacherDetails extends TeacherWithUser {
 }
 
 export class TeachersService {
-  private attendanceService: AttendanceService;
-
-  constructor() {
-    this.attendanceService = new AttendanceService();
-  }
-
   /** @see resolveTeacherProfileId */
   resolveTeacherProfileId = resolveTeacherProfileId;
 
@@ -510,7 +505,7 @@ export class TeachersService {
     }
 
     if (query.start_date && query.end_date) {
-      const sessions = await this.attendanceService.getTeacherSessionsInRange(
+      const sessions = await attendanceService.getTeacherSessionsInRange(
         teacherId,
         query.start_date,
         query.end_date,
@@ -518,9 +513,11 @@ export class TeachersService {
       return { sessions };
     }
 
-    const date = query.date || new Date().toISOString().split("T")[0]!;
-    const sessions = await this.attendanceService.getTeacherDaySessions(teacherId, date);
+    const date = query.date || todayStr();
+    const sessions = await attendanceService.getTeacherDaySessions(teacherId, date);
 
     return { sessions };
   }
 }
+
+export const teachersService = new TeachersService();

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { MeService, type UpdateMeInput } from "@/server/me/service";
+import { meService, type UpdateMeInput } from "@/server/me/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 
@@ -29,7 +29,7 @@ export async function updateMe(input: UpdateMeInput) {
 
   const parsed = updateMeSchema.parse(input) as UpdateMeInput;
 
-  const updated = await new MeService().updateProfile(currentUser.id, parsed);
+  const updated = await meService.updateProfile(currentUser.id, parsed);
   if (!updated) {
     throw new NotFoundError("User not found");
   }
