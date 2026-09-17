@@ -2,22 +2,17 @@
 import { assessmentsService } from "@/server/assessments/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
+import { assertCanAccessStudent } from "@/server/shared/student-access";
 
-/**
- * GET /v1/students/:studentId/assessments — grouped by cycle
- * (administrator | teacher | parent).
- */
 export async function listStudentAssessments(
   studentId: string,
   query: { page?: number; limit?: number } = {},
 ) {
-  await requireRole("administrator", "teacher", "parent");
+  const user = await requireRole("administrator", "teacher", "parent");
+  await assertCanAccessStudent(user, studentId);
   return await assessmentsService.listForStudent(studentId, query);
 }
 
-/**
- * Client-facing alias (src/client/assessments.ts imports this name).
- */
 export async function listAssessmentsForStudent(
   studentId: string,
   query: { page?: number; limit?: number } = {},
@@ -25,14 +20,12 @@ export async function listAssessmentsForStudent(
   return await listStudentAssessments(studentId, query);
 }
 
-/**
- * GET /v1/assessments/:id — administrator | teacher | parent.
- */
 export async function getAssessment(id: string) {
-  await requireRole("administrator", "teacher", "parent");
+  const user = await requireRole("administrator", "teacher", "parent");
   const assessment = await assessmentsService.show(id);
   if (!assessment) {
     throw new NotFoundError("Assessment not found");
   }
+  await assertCanAccessStudent(user, assessment.student_id);
   return assessment;
 }

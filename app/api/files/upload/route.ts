@@ -1,8 +1,10 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import type { UserEntity } from "@/db/schema";
 import { requireRole } from "@/server/shared/auth-guard";
 import { BadRequestError, PayloadTooLargeError } from "@/server/shared/errors";
+import { authorizeObjectKey } from "@/server/shared/file-access";
 import { errorResponse, purposeFromKey } from "../_shared";
 
 /**
@@ -43,13 +45,15 @@ export async function POST(request: NextRequest) {
       throw new BadRequestError("purpose query param does not match the key prefix");
     }
 
+    let user: UserEntity;
     if (purpose === "documents") {
-      await requireRole();
+      user = await requireRole();
     } else if (purpose === "photos") {
-      await requireRole("administrator", "teacher");
+      user = await requireRole("administrator", "teacher");
     } else {
-      await requireRole("administrator");
+      user = await requireRole("administrator");
     }
+    await authorizeObjectKey(user, key);
 
     const formData = await request.formData();
     const file = formData.get("file");

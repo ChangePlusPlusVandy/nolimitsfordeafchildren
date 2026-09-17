@@ -11,7 +11,11 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { requireRole } from "@/server/shared/auth-guard";
-import { NotFoundError } from "@/server/shared/errors";
+import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
+import {
+  assertCanViewTeacherProfile,
+  getTeacherProfileIdForUser,
+} from "@/server/shared/student-access";
 import { type ListTeachersQuery, teachersService } from "@/server/teachers/service";
 
 /**
@@ -27,21 +31,31 @@ export async function listTeachers(query: ListTeachersQuery = {}) {
  * `id` is teacher_profiles.id (canonical) or users.id (User Management links).
  */
 export async function getTeacher(id: string) {
+  const user = await requireRole("administrator", "teacher", "parent");
   const teacher = await teachersService.show(id);
   if (!teacher) {
     throw new NotFoundError("Teacher not found");
   }
+  await assertCanViewTeacherProfile(user, teacher.id);
   return teacher;
 }
 
-/**
- * GET /v1/teachers/:id/students — public (no role gate).
- */
 export async function getTeacherStudents(
   id: string,
   query: { page?: number; limit?: number } = {},
 ) {
-  return await teachersService.students(id, query);
+  const user = await requireRole("administrator", "teacher");
+  const profileId = await teachersService.resolveTeacherProfileId(id);
+  if (!profileId) {
+    throw new NotFoundError("Teacher not found");
+  }
+  if (user.role === "teacher") {
+    const callerProfileId = await getTeacherProfileIdForUser(user.id);
+    if (callerProfileId !== profileId) {
+      throw new ForbiddenError("You can only list your assigned students");
+    }
+  }
+  return await teachersService.students(profileId, query);
 }
 
 /**

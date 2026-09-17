@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { assessmentsService, type CreateAssessmentInput } from "@/server/assessments/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { ForbiddenError, NotFoundError } from "@/server/shared/errors";
+import { assertTeacherAssignedToStudent } from "@/server/shared/student-access";
 
 const focusSchema = z.object({
   goal: z.string().min(1).max(500),
@@ -75,6 +76,7 @@ export async function createAssessment(
   >;
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "create");
+  await assertTeacherAssignedToStudent(currentUser.id, studentId);
 
   return await assessmentsService.create({
     student_id: studentId,
@@ -146,6 +148,11 @@ export async function cloneAssessment(
   };
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "clone");
+  const source = await assessmentsService.show(id);
+  if (!source) {
+    throw new NotFoundError("Assessment not found");
+  }
+  await assertTeacherAssignedToStudent(currentUser.id, source.student_id);
 
   return await assessmentsService.clone(id, teacherId, parsed);
 }

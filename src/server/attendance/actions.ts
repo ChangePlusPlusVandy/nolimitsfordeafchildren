@@ -8,6 +8,7 @@ import {
 } from "@/server/attendance/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
+import { assertTeacherCanMarkStudentSchedule } from "@/server/shared/student-access";
 
 const attendanceStatusSchema = z.enum(["present", "late", "no_show", "cancelled"]);
 const absenceReasonSchema = z
@@ -49,6 +50,14 @@ export async function markAttendance(input: Omit<MarkAttendanceInput, "marked_by
   const currentUser = await requireRole("teacher", "administrator");
   const parsed = markAttendanceSchema.parse(input) as Omit<MarkAttendanceInput, "marked_by">;
 
+  if (currentUser.role === "teacher") {
+    await assertTeacherCanMarkStudentSchedule(
+      currentUser.id,
+      parsed.student_id,
+      parsed.schedule_id,
+    );
+  }
+
   return await attendanceService.mark({
     ...parsed,
     marked_by: currentUser.id,
@@ -58,6 +67,18 @@ export async function markAttendance(input: Omit<MarkAttendanceInput, "marked_by
 export async function updateAttendance(id: string, input: UpdateAttendanceInput) {
   const currentUser = await requireRole("teacher", "administrator");
   const parsed = updateAttendanceSchema.parse(input) as UpdateAttendanceInput;
+
+  if (currentUser.role === "teacher") {
+    const existing = await attendanceService.show(id);
+    if (!existing) {
+      throw new NotFoundError("Attendance record not found");
+    }
+    await assertTeacherCanMarkStudentSchedule(
+      currentUser.id,
+      existing.student_id,
+      existing.schedule_id,
+    );
+  }
 
   const result = await attendanceService.update(id, parsed, currentUser.id);
   if (!result) {

@@ -7,13 +7,35 @@ import {
   type ListDocumentsQuery,
 } from "@/server/documents/service";
 import { requireRole } from "@/server/shared/auth-guard";
-import { NotFoundError } from "@/server/shared/errors";
+import { BadRequestError, NotFoundError } from "@/server/shared/errors";
+import {
+  assertCanAccessStudent,
+  assertCanAccessTeacherRecord,
+} from "@/server/shared/student-access";
+
+async function assertCanAccessDocumentEntity(
+  user: { id: string; role: "administrator" | "teacher" | "parent" | "unassigned" },
+  entityType: EntityType,
+  entityId: string,
+): Promise<void> {
+  if (entityType === "student") {
+    await assertCanAccessStudent(user, entityId);
+    return;
+  }
+  await assertCanAccessTeacherRecord(user, entityId);
+}
 
 /**
  * GET /v1/documents — list documents (any authenticated user).
  */
 export async function listDocuments(query: ListDocumentsQuery = {}) {
-  await requireRole();
+  const user = await requireRole();
+  if (user.role !== "administrator") {
+    if (!query.entity_type || !query.entity_id) {
+      throw new BadRequestError("entity_type and entity_id are required");
+    }
+    await assertCanAccessDocumentEntity(user, query.entity_type, query.entity_id);
+  }
   return await documentsService.index(query);
 }
 
@@ -21,11 +43,12 @@ export async function listDocuments(query: ListDocumentsQuery = {}) {
  * GET /v1/documents/:id — single document (any authenticated user).
  */
 export async function getDocument(id: string) {
-  await requireRole();
+  const user = await requireRole();
   const result = await documentsService.show(id);
   if (!result) {
     throw new NotFoundError("Document not found");
   }
+  await assertCanAccessDocumentEntity(user, result.entity_type as EntityType, result.entity_id);
   return result;
 }
 
@@ -34,7 +57,12 @@ export async function getDocument(id: string) {
  * R2 has no presigning — see /api/files/[...key]).
  */
 export async function getDocumentDownload(id: string) {
-  await requireRole();
+  const user = await requireRole();
+  const doc = await documentsService.show(id);
+  if (!doc) {
+    throw new NotFoundError("Document not found");
+  }
+  await assertCanAccessDocumentEntity(user, doc.entity_type as EntityType, doc.entity_id);
   const result = await documentsService.getDownloadUrl(id);
   if (!result) {
     throw new NotFoundError("Document not found");
@@ -58,7 +86,8 @@ export async function listDocumentsForEntity(
   entityId: string,
   query: { page?: number; limit?: number } = {},
 ) {
-  await requireRole();
+  const user = await requireRole();
+  await assertCanAccessDocumentEntity(user, entityType, entityId);
   return await documentsService.listForEntityPaginated(entityType, entityId, query);
 }
 
@@ -70,6 +99,7 @@ export async function listStudentDocuments(
   query: { page?: number; limit?: number; review_status?: DocumentReviewStatus } = {},
 ) {
   const user = await requireRole();
+  await assertCanAccessStudent(user, studentId);
   const effectiveReviewStatus = user.role === "parent" ? "approved" : query.review_status;
 
   return await documentsService.index({
@@ -88,7 +118,8 @@ export async function listTeacherDocuments(
   teacherId: string,
   query: { page?: number; limit?: number } = {},
 ) {
-  await requireRole();
+  const user = await requireRole();
+  await assertCanAccessTeacherRecord(user, teacherId);
   return await documentsService.listForEntityPaginated("teacher", teacherId, query);
 }
 

@@ -21,7 +21,10 @@ export function errorResponse(error: unknown): NextResponse {
       },
     );
   }
-  const message = error instanceof Error ? error.message : "Internal server error";
+  const message = "Internal server error";
+  if (error instanceof Error) {
+    console.error("[files]", error);
+  }
   return NextResponse.json({ error: message }, { status: 500 });
 }
 

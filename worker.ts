@@ -27,7 +27,7 @@ export async function scheduled(event: ScheduledEvent, env: CloudflareEnv, ctx: 
   setDb(env.DB);
   await initD1(env.DB);
 
-  const summary = await runScheduledJobs();
+  const summary = await runScheduledJobs(event.cron);
   console.log("[Cron] completed:", summary);
 
   // Note: the fetch handler from .open-next/worker.js remains the default

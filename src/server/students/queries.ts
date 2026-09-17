@@ -1,6 +1,7 @@
 "use server";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
+import { assertCanAccessStudent } from "@/server/shared/student-access";
 import { type StudentFilters, StudentsService } from "@/server/students/service";
 
 /**
@@ -31,15 +32,14 @@ export async function getStudentTeachers(
   id: string,
   query: { page?: number; limit?: number } = {},
 ) {
-  await requireRole();
+  const user = await requireRole();
+  await assertCanAccessStudent(user, id);
   return await new StudentsService().teachers(id, query);
 }
 
-/**
- * GET /v1/students/:id/parents — any authenticated user.
- */
 export async function getStudentParents(id: string, query: { page?: number; limit?: number } = {}) {
-  await requireRole();
+  const user = await requireRole();
+  await assertCanAccessStudent(user, id);
   return await new StudentsService().parents(id, query);
 }
 

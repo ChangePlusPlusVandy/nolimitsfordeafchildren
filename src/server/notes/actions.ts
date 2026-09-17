@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { sessionNotesService } from "@/server/notes/service";
 import { requireRole } from "@/server/shared/auth-guard";
 import { HttpError, NotFoundError } from "@/server/shared/errors";
+import { assertTeacherAssignedToStudent } from "@/server/shared/student-access";
 
 const createNoteSchema = z
   .object({
@@ -50,6 +51,7 @@ export async function createNote(
   const parsed = createNoteSchema.parse(input);
 
   const teacherId = await requireTeacherProfileId(currentUser.id, "create");
+  await assertTeacherAssignedToStudent(currentUser.id, studentId);
 
   return await sessionNotesService.create({
     student_id: studentId,
