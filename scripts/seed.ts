@@ -48,6 +48,7 @@ import {
 } from "@/db/schema";
 import { getAuth } from "@/lib/auth";
 import { db, initD1, setDb } from "@/lib/db";
+import { addDaysStr, dayOfWeek, todayStr } from "@/server/shared/dates";
 
 const SEED_PASSWORD = "NoLimits!2026";
 const SEED_EMAILS = [
@@ -113,19 +114,13 @@ async function wipeAllTables(d1: D1Database): Promise<void> {
   }
 }
 
-function toDateStr(date: Date): string {
-  return date.toISOString().split("T")[0] ?? "";
+/** Bitmask of weekday bits (Sun=1 … Sat=64) for org-calendar date-only strings. */
+function maskForDateStrs(dates: string[]): number {
+  return dates.reduce((mask, date) => mask | (1 << dayOfWeek(date)), 0);
 }
 
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d;
-}
-
-/** Bitmask of weekday bits (Sun=1 … Sat=64) for the given dates. */
-function maskForDates(dates: Date[]): number {
-  return dates.reduce((mask, date) => mask | (1 << date.getUTCDay()), 0);
+function noonUtc(dateStr: string): Date {
+  return new Date(`${dateStr}T12:00:00.000Z`);
 }
 
 async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
@@ -321,20 +316,21 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   // Noah is intentionally unlinked (no teacher, no parent).
 
   // ----- 10-week cycle including today, with today's weekday in the mask -----
-  const today = new Date();
-  const cycleStart = addDays(today, -7);
-  const cycleEnd = addDays(today, 63);
+  // Use the same America/Los_Angeles calendar as My Day (not UTC).
+  const today = todayStr();
+  const cycleStart = addDaysStr(today, -7);
+  const cycleEnd = addDaysStr(today, 63);
   const [cycleSession] = await db
     .insert(SessionTable)
     .values({
       name: "Fall 2026 Seed Cycle",
-      start_date: toDateStr(cycleStart),
-      end_date: toDateStr(cycleEnd),
+      start_date: cycleStart,
+      end_date: cycleEnd,
     })
     .returning();
 
-  // Schedule days: today, today+2, today+4 (always includes TODAY).
-  const mask = maskForDates([today, addDays(today, 2), addDays(today, 4)]);
+  // Schedule days: today, today+2, today+4 (always includes TODAY in org TZ).
+  const mask = maskForDateStrs([today, addDaysStr(today, 2), addDaysStr(today, 4)]);
   const [centerSchedule] = await db
     .insert(ScheduleTable)
     .values({
@@ -344,8 +340,8 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
       day_of_week_mask: mask,
       start_time: "09:00",
       end_time: "10:00",
-      cycle_start_date: toDateStr(cycleStart),
-      cycle_end_date: toDateStr(cycleEnd),
+      cycle_start_date: cycleStart,
+      cycle_end_date: cycleEnd,
     })
     .returning();
   const [popupSchedule] = await db
@@ -357,8 +353,8 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
       day_of_week_mask: mask,
       start_time: "10:30",
       end_time: "11:30",
-      cycle_start_date: toDateStr(cycleStart),
-      cycle_end_date: toDateStr(cycleEnd),
+      cycle_start_date: cycleStart,
+      cycle_end_date: cycleEnd,
     })
     .returning();
 
@@ -369,7 +365,7 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   ]);
 
   // ----- past attendance (same weekday as today, in the cycle) -----
-  const pastDate = toDateStr(addDays(today, -7));
+  const pastDate = addDaysStr(today, -7);
   await db.insert(AttendanceTable).values([
     {
       student_id: mia.id,
@@ -404,12 +400,12 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
     .values({
       student_id: mia.id,
       teacher_id: teacherProfile.id,
-      cycle_start_date: toDateStr(cycleStart),
+      cycle_start_date: cycleStart,
       assessment_type: "pre",
       teaching_focus: "Speech articulation",
       summary: "Baseline for Fall 2026 cycle.",
       score: 14,
-      assessed_at: cycleStart,
+      assessed_at: noonUtc(cycleStart),
     })
     .returning();
   await db.insert(AssessmentFocusTable).values([
@@ -421,12 +417,12 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
     .values({
       student_id: leo.id,
       teacher_id: teacherProfile.id,
-      cycle_start_date: toDateStr(cycleStart),
+      cycle_start_date: cycleStart,
       assessment_type: "pre",
       teaching_focus: "Auditory discrimination",
       summary: "Baseline for Fall 2026 cycle.",
       score: 12,
-      assessed_at: cycleStart,
+      assessed_at: noonUtc(cycleStart),
     })
     .returning();
   await db.insert(AssessmentFocusTable).values({
@@ -438,8 +434,8 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   });
 
   // ----- audiogram documents + R2 objects (due soon / overdue) -----
-  const miaDue = toDateStr(addDays(today, 25)); // inside the 30-day reminder window
-  const leoDue = toDateStr(addDays(today, -17)); // overdue
+  const miaDue = addDaysStr(today, 25); // inside the 30-day reminder window
+  const leoDue = addDaysStr(today, -17); // overdue
   const miaKey = `documents/student/${mia.id}/audiogram/seed-audiogram.pdf`;
   const leoKey = `documents/student/${leo.id}/audiogram/seed-audiogram-overdue.pdf`;
   await bucket.put(miaKey, AUDIOGRAM_CONTENT, {
@@ -458,7 +454,7 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
       file_name: "seed-audiogram.pdf",
       file_size: new TextEncoder().encode(AUDIOGRAM_CONTENT).length,
       mime_type: "application/pdf",
-      document_date: toDateStr(addDays(today, -158)),
+      document_date: addDaysStr(today, -158),
       next_due_date: miaDue,
       review_status: "approved",
       uploaded_by: adminUser.id,
@@ -471,7 +467,7 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
       file_name: "seed-audiogram-overdue.pdf",
       file_size: new TextEncoder().encode(AUDIOGRAM_CONTENT).length,
       mime_type: "application/pdf",
-      document_date: toDateStr(addDays(today, -200)),
+      document_date: addDaysStr(today, -200),
       next_due_date: leoDue,
       review_status: "approved",
       uploaded_by: adminUser.id,
