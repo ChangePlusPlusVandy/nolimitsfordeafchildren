@@ -29,6 +29,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import ConfirmDialog from "@/client/components/ConfirmDialog";
 import ErrorAlert from "@/client/components/ErrorAlert";
@@ -51,6 +52,7 @@ import { formatDate, formatDateTime } from "@/client/utils/formatDate";
 
 export default function UserDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -233,6 +235,16 @@ export default function UserDetailsPage({ params }: { params: Promise<{ id: stri
           )
         }
       />
+
+      {user.role === "teacher" ? (
+        <Button
+          variant="outlined"
+          sx={{ mb: 2 }}
+          onClick={() => router.push(`/teachers/${user.id}`)}
+        >
+          View teacher profile and schedules
+        </Button>
+      ) : null}
 
       {/* Status chips */}
       <Stack direction="row" spacing={1} sx={{ mb: 3 }}>

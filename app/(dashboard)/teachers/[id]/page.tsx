@@ -300,6 +300,10 @@ export default function TeacherDetailsPage({ params }: { params: Promise<{ id: s
                   {idx > 0 && <Divider />}
                   <ListItem>
                     <ListItemText
+                      slotProps={{
+                        primary: { component: "div" },
+                        secondary: { component: "div" },
+                      }}
                       primary={
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                           <Typography variant="body1">
