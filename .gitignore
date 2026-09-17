@@ -49,3 +49,4 @@ worker-configuration.d.ts
 # Playwright MCP artifacts
 .playwright-mcp/
 my-students-full-page.png
+.pnpm-store/

@@ -11,10 +11,6 @@ CORS_ORIGINS=http://localhost:3000
 # Public URL of the app (used by better-auth)
 BETTER_AUTH_URL=http://localhost:3000
 
-# Local test data: enables POST /api/dev/seed (deterministic synthetic seed).
-# Keep OFF (or unset) otherwise.
-ENABLE_DEV_SEED=true
-
 # Email FROM address — REQUIRED for email to be enabled. Must be VERIFIED in
 # the Cloudflare dashboard (Workers & Pages -> Email -> Settings -> Destination
 # addresses). Until this is set, src/lib/email.ts keeps email DISABLED: every

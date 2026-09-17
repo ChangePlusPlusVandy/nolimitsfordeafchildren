@@ -11,6 +11,7 @@
     "cf-typegen": "wrangler types",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
+    "db:seed": "tsx scripts/seed.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write ."
   },
@@ -24,7 +25,6 @@
     "@mui/material-nextjs": "^9.4.0",
     "@opennextjs/cloudflare": "^1.20.6",
     "@tanstack/react-query": "^5.102.8",
-    "axios": "^1.13.0",
     "better-auth": "^1.7.2",
     "drizzle-orm": "^0.45.2",
     "leaflet": "^1.9.4",
@@ -41,6 +41,7 @@
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "drizzle-kit": "^0.31.10",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "wrangler": "^4.129.0"
   }

@@ -261,3 +261,13 @@ CI (`.github/workflows/ci.yml`) runs install → typecheck → lint → build on
 - **Safety First**: This system stores sensitive student data (PII). Ensure no secrets are logged or exposed. R2 files are only served through authenticated `/api/files/*` routes — never hand out public R2 URLs.
 - **Verification**: After making changes, verify by running `pnpm exec tsc --noEmit` and `pnpm lint` (and `pnpm build` for full OpenNext builds).
 - **Context**: If you are unsure about a business rule (e.g., "Can a teacher edit a schedule?"), check the existing pages/services for the authoritative behavior — the old `docs/` folder has been removed.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

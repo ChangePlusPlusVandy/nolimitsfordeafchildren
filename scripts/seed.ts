@@ -1,10 +1,19 @@
 /**
- * DEV-ONLY deterministic seed for local testing.
+ * Deterministic local-dev seed (script, NOT part of the app).
  *
- * POST /api/dev/seed  — wipes all tables and reseeds a known dataset:
- *   - users: admin@nolimits.test (administrator), teacher@nolimits.test (teacher),
- *     parent@nolimits.test (parent, 2 linked children), stranger@nolimits.test
- *     (parent, NO linked children), pending@nolimits.test (unassigned)
+ * Usage:
+ *   pnpm db:seed        (runs: tsx scripts/seed.ts)
+ *
+ * Wipes all tables in the LOCAL wrangler-emulated D1 and reseeds a known
+ * dataset. Uses wrangler's `getPlatformProxy()` so it operates on the exact
+ * same local D1/R2 state (.wrangler/state/v3) that `next dev` uses — the dev
+ * server does not need to be running.
+ *
+ * Seeded dataset:
+ *   - users: admin@nolimits.test (administrator), teacher@nolimits.test
+ *     (teacher), parent@nolimits.test (parent, 2 linked children),
+ *     stranger@nolimits.test (parent, NO linked children),
+ *     pending@nolimits.test (unassigned)
  *   - 3 locations, 4 students (linked/unlinked/unassigned mixes)
  *   - a 10-week teaching cycle with schedules that include TODAY (so the
  *     teacher's "My Day" shows sessions), past attendance (present + no_show),
@@ -12,16 +21,12 @@
  *     with due dates inside/outside the 30-day reminder window
  *
  * Secrets: all passwords are the same deterministic test password; users are
- * FAKE (nolimits.test domain) — never real student data.
- *
- * The route is disabled unless `ENABLE_DEV_SEED=true` is set in `.dev.vars`
- * (gitignored, local dev only) and NODE_ENV is not production. It is safe to
- * call repeatedly (fully deterministic re-seed).
+ * FAKE (nolimits.test domain) — never real student data. Safe to run
+ * repeatedly (fully deterministic re-seed).
  */
 
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { getPlatformProxy } from "wrangler";
 import {
   AssessmentFocusTable,
   AssessmentTable,
@@ -42,7 +47,7 @@ import {
   UserTable,
 } from "@/db/schema";
 import { getAuth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, initD1, setDb } from "@/lib/db";
 
 const SEED_PASSWORD = "NoLimits!2026";
 const SEED_EMAILS = [
@@ -66,7 +71,7 @@ trailer<</Root 1 0 R>>
 `;
 
 /** Full-table wipe in FK-safe dependency order (children first). */
-async function wipeAllTables(): Promise<void> {
+async function wipeAllTables(d1: D1Database): Promise<void> {
   const tables = [
     "attendance_sibling_participants",
     "attendance",
@@ -104,24 +109,8 @@ async function wipeAllTables(): Promise<void> {
   ] as const;
 
   for (const table of tables) {
-    await (db.$client as D1Database).exec(`DELETE FROM ${table}`);
+    await d1.exec(`DELETE FROM ${table}`);
   }
-}
-
-function getEnvValue(key: string): string | undefined {
-  try {
-    const env = getCloudflareContext().env as unknown as Record<string, string | undefined>;
-    const value = env[key];
-    if (value !== undefined && value !== "") return value;
-  } catch {
-    // no request context
-  }
-  return process.env[key];
-}
-
-function isSeedEnabled(): boolean {
-  if (process.env.NODE_ENV === "production") return false;
-  return getEnvValue("ENABLE_DEV_SEED") === "true";
 }
 
 function toDateStr(date: Date): string {
@@ -139,20 +128,9 @@ function maskForDates(dates: Date[]): number {
   return dates.reduce((mask, date) => mask | (1 << date.getUTCDay()), 0);
 }
 
-export async function POST() {
-  if (!isSeedEnabled()) {
-    return NextResponse.json(
-      { error: "Dev seed disabled: set ENABLE_DEV_SEED=true in .dev.vars (local only)" },
-      { status: 404 },
-    );
-  }
-
-  const bucket = getCloudflareContext().env.BUCKET;
-  if (!bucket) {
-    return NextResponse.json({ error: "BUCKET binding missing" }, { status: 500 });
-  }
-
-  await wipeAllTables();
+async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
+  await initD1(d1);
+  await wipeAllTables(d1);
 
   // ----- users (via better-auth so password hashing matches production) -----
   const auth = getAuth();
@@ -515,16 +493,38 @@ export async function POST() {
     due_dates: { mia_next_due: miaDue, leo_next_due: leoDue },
   };
 
-  console.log("[Dev Seed] reseeded:", JSON.stringify(summary));
-  return NextResponse.json(summary);
+  console.log("[seed] reseeded:", JSON.stringify(summary, null, 2));
 }
 
-export async function GET() {
-  if (!isSeedEnabled()) {
-    return NextResponse.json({ error: "Dev seed disabled" }, { status: 404 });
+async function main(): Promise<void> {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("seed: refusing to run with NODE_ENV=production");
   }
-  return NextResponse.json({
-    message: "POST /api/dev/seed to (re)seed. Seed users use the nolimits.test domain.",
-    emails: SEED_EMAILS,
+
+  // Deterministic env for better-auth (matches .dev.vars defaults). The
+  // bootstrap list is what grants admin@nolimits.test the administrator role.
+  process.env.BOOTSTRAP_ADMIN_EMAILS ??= "admin@nolimits.test";
+  process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
+  process.env.CORS_ORIGINS ??= "http://localhost:3000";
+
+  // Same local persistence (.wrangler/state/v3) as `next dev` / `wrangler dev`.
+  const proxy = await getPlatformProxy<{ DB: D1Database; BUCKET: R2Bucket }>({
+    configPath: "wrangler.jsonc",
+    persist: true,
   });
+
+  try {
+    setDb(proxy.env.DB);
+    await seed(proxy.env.DB, proxy.env.BUCKET);
+  } finally {
+    await proxy.dispose();
+  }
 }
+
+main().then(
+  () => process.exit(0),
+  (error) => {
+    console.error("[seed] failed:", error);
+    process.exit(1);
+  },
+);
