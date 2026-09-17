@@ -8,11 +8,22 @@
 
 import { staffByLocation as serverStaffByLocation } from "@/server/locations/queries";
 import {
+  confirmChildDocumentUpload as serverConfirmChildDocumentUpload,
+  getChildDocumentUploadUrl as serverGetChildDocumentUploadUrl,
+} from "@/server/parents/actions";
+import {
   childDetail as serverChildDetail,
   directory as serverDirectory,
   myChildren as serverMyChildren,
   zipReport as serverZipReport,
 } from "@/server/parents/queries";
+
+export type AudiogramComplianceStatus = "overdue" | "due_soon" | "up_to_date" | "unknown";
+
+export interface AudiogramCompliance {
+  status: AudiogramComplianceStatus;
+  next_due_date: string | null;
+}
 
 export interface LinkedChild {
   id: string;
@@ -37,6 +48,7 @@ export interface LinkedChild {
     attendance_rate: number;
   };
   pending_requests: number;
+  audiogram_compliance: AudiogramCompliance;
 }
 
 export interface ChildScheduleSession {
@@ -86,6 +98,7 @@ export interface ChildDocument {
   created_at: string;
   review_status: "approved" | "pending" | "rejected";
   session_date: string | null;
+  next_due_date: string | null;
 }
 
 export interface DirectoryPerson {
@@ -166,6 +179,7 @@ export interface ChildDetails {
   missed_sessions: MissedSession[];
   relevant_bulletins: RelevantBulletin[];
   approved_documents: ChildDocument[];
+  audiogram_compliance: AudiogramCompliance;
   siblings: Array<{
     id: string;
     name: string;
@@ -211,4 +225,31 @@ export async function getZipReport(params?: {
 
 export async function getLocationStaff(siteId: string): Promise<LocationStaffResponse> {
   return serverStaffByLocation(siteId) as never;
+}
+
+export async function getChildDocumentUploadUrl(
+  studentId: string,
+  input: {
+    document_type: ParentDocumentType | "cv";
+    file_name: string;
+    content_type: string;
+  },
+) {
+  return serverGetChildDocumentUploadUrl(studentId, input);
+}
+
+export async function confirmChildDocumentUpload(
+  studentId: string,
+  input: {
+    document_type: ParentDocumentType | "cv";
+    file_url: string;
+    file_name: string;
+    file_size: number;
+    mime_type: string;
+    document_date?: string;
+    session_date?: string;
+    session_type?: string;
+  },
+) {
+  return serverConfirmChildDocumentUpload(studentId, input);
 }

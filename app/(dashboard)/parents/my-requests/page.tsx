@@ -31,6 +31,7 @@ import SectionCard from "@/client/components/SectionCard";
 import { listMakeupRequestsForParent } from "@/client/makeups";
 import { listScheduleChangeRequestsForParent } from "@/client/schedule-changes";
 import { formatDate, formatTime } from "@/client/utils/formatDate";
+import { formatDayMask } from "@/client/utils/scheduleDays";
 
 interface MakeupRequest {
   id: string;
@@ -102,11 +103,6 @@ interface ScheduleChangeRequest {
   review_notes: string | null;
   requested_at: string;
   reviewed_at: string | null;
-}
-
-function getDaysFromMask(mask: number): string {
-  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return dayLabels.filter((_, index) => (mask & (1 << index)) !== 0).join("/");
 }
 
 function getStatusColor(status: string): "warning" | "success" | "error" | "info" {
@@ -245,7 +241,7 @@ function ScheduleChangeRequestCard({ request }: { request: ScheduleChangeRequest
                     <CalendarIcon fontSize="small" color="action" />
                     <Typography variant="body2">
                       {request.current_schedule
-                        ? `${getDaysFromMask(request.current_schedule.day_of_week_mask)} at ${formatTime(request.current_schedule.start_time)}`
+                        ? `${formatDayMask(request.current_schedule.day_of_week_mask)} at ${formatTime(request.current_schedule.start_time)}`
                         : "Unknown schedule"}
                     </Typography>
                   </Stack>
@@ -281,7 +277,7 @@ function ScheduleChangeRequestCard({ request }: { request: ScheduleChangeRequest
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                       <CalendarIcon fontSize="small" color="primary" />
                       <Typography variant="body2">
-                        {getDaysFromMask(requestedSchedule.day_of_week_mask)} at{" "}
+                        {formatDayMask(requestedSchedule.day_of_week_mask)} at{" "}
                         {formatTime(requestedSchedule.start_time)}
                       </Typography>
                     </Stack>

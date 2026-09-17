@@ -32,6 +32,7 @@ import EmptyState from "@/client/components/EmptyState";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import PageContainer from "@/client/components/PageContainer";
 import PageHeader from "@/client/components/PageHeader";
+import AudiogramComplianceChip from "@/client/components/parents/AudiogramComplianceChip";
 import { useServerTable } from "@/client/hooks/useServerTable";
 import { getMe } from "@/client/me";
 import {
@@ -133,15 +134,18 @@ function ChildCard({ child }: { child: LinkedChild }) {
               )}
             </Box>
 
-            {/* Attendance Chip */}
+            {/* Attendance & Audiogram */}
             <Box>
-              <Chip
-                icon={attendanceColor === "success" ? <CheckCircleIcon /> : <WarningIcon />}
-                label={`${child.attendance_summary.attendance_rate.toFixed(0)}% Attendance`}
-                color={attendanceColor}
-                size="small"
-                variant="outlined"
-              />
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+                <Chip
+                  icon={attendanceColor === "success" ? <CheckCircleIcon /> : <WarningIcon />}
+                  label={`${child.attendance_summary.attendance_rate.toFixed(0)}% Attendance`}
+                  color={attendanceColor}
+                  size="small"
+                  variant="outlined"
+                />
+                <AudiogramComplianceChip compliance={child.audiogram_compliance} />
+              </Stack>
               <Typography
                 variant="caption"
                 color="text.secondary"

@@ -1,17 +1,48 @@
 /**
  * Shared date/time formatting utilities (ported from the legacy Vite app).
  * All formatters use explicit "en-US" locale for consistency across browsers.
+ *
+ * Date-only `YYYY-MM-DD` strings are formatted without timezone shifting via
+ * `src/client/utils/date.ts` — never parse them with `new Date(dateStr)`.
  */
 
+import { formatDateOnly } from "@/client/utils/date";
+
 const LOCALE = "en-US" as const;
+const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function isDateOnlyString(value: string): boolean {
+  return DATE_ONLY_RE.test(value);
+}
+
+function parseToLocalDate(value: string | Date): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const dateOnlyMatch = DATE_ONLY_RE.exec(value);
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1]);
+    const month = Number(dateOnlyMatch[2]);
+    const day = Number(dateOnlyMatch[3]);
+    const d = new Date(year, month - 1, day);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 /**
  * "Jan 5, 2025"
  */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (Number.isNaN(d.getTime())) return "—";
+  if (typeof date === "string" && isDateOnlyString(date)) {
+    return formatDateOnly(date);
+  }
+  const d = parseToLocalDate(date);
+  if (!d) return "—";
   return d.toLocaleDateString(LOCALE, {
     month: "short",
     day: "numeric",
@@ -24,8 +55,15 @@ export function formatDate(date: string | Date | null | undefined): string {
  */
 export function formatDateLong(date: string | Date | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (Number.isNaN(d.getTime())) return "—";
+  if (typeof date === "string" && isDateOnlyString(date)) {
+    return formatDateOnly(date, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  const d = parseToLocalDate(date);
+  if (!d) return "—";
   return d.toLocaleDateString(LOCALE, {
     month: "long",
     day: "numeric",
@@ -49,8 +87,8 @@ export function formatTime(time: string | Date | null | undefined): string {
       hour12: true,
     });
   }
-  const d = typeof time === "string" ? new Date(time) : time;
-  if (Number.isNaN(d.getTime())) return "—";
+  const d = parseToLocalDate(time);
+  if (!d) return "—";
   return d.toLocaleTimeString(LOCALE, {
     hour: "numeric",
     minute: "2-digit",
@@ -63,8 +101,11 @@ export function formatTime(time: string | Date | null | undefined): string {
  */
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (Number.isNaN(d.getTime())) return "—";
+  if (typeof date === "string" && isDateOnlyString(date)) {
+    return formatDateOnly(date);
+  }
+  const d = parseToLocalDate(date);
+  if (!d) return "—";
   return d.toLocaleString(LOCALE, {
     month: "short",
     day: "numeric",
@@ -80,8 +121,11 @@ export function formatDateTime(date: string | Date | null | undefined): string {
  */
 export function formatDayOfWeek(date: string | Date | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (Number.isNaN(d.getTime())) return "—";
+  if (typeof date === "string" && isDateOnlyString(date)) {
+    return formatDateOnly(date, { weekday: "short" });
+  }
+  const d = parseToLocalDate(date);
+  if (!d) return "—";
   return d.toLocaleDateString(LOCALE, { weekday: "short" });
 }
 
@@ -91,8 +135,8 @@ export function formatDayOfWeek(date: string | Date | null | undefined): string 
  */
 export function formatRelative(date: string | Date | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (Number.isNaN(d.getTime())) return "—";
+  const d = parseToLocalDate(date);
+  if (!d) return "—";
 
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();

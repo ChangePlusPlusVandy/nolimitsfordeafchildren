@@ -36,7 +36,9 @@ import EmptyState from "@/client/components/EmptyState";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import PageContainer from "@/client/components/PageContainer";
 import PageHeader from "@/client/components/PageHeader";
+import AudiogramComplianceChip from "@/client/components/parents/AudiogramComplianceChip";
 import RequestMakeupModal from "@/client/components/parents/RequestMakeupModal";
+import UploadChildDocumentModal from "@/client/components/parents/UploadChildDocumentModal";
 import SectionCard from "@/client/components/SectionCard";
 import DetailPageSkeleton from "@/client/components/skeletons/DetailPageSkeleton";
 import { type ChildScheduleSession, getChildDetails } from "@/client/parents";
@@ -162,6 +164,7 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
 
   // Modal state
   const [makeupModalOpen, setMakeupModalOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedMissedSession, setSelectedMissedSession] = useState<{
     schedule_id: string;
     date: string;
@@ -279,6 +282,7 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
                   variant="outlined"
                   size="small"
                 />
+                <AudiogramComplianceChip compliance={child.audiogram_compliance} />
               </Stack>
             </Box>
           </Stack>
@@ -511,9 +515,25 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
           )}
         </SectionCard>
 
-        {/* Approved Documents */}
-        {child.approved_documents.length > 0 && (
-          <SectionCard title="Approved Documents" icon={<DescriptionIcon />}>
+        {/* Documents */}
+        <SectionCard
+          title="Documents"
+          icon={<DescriptionIcon />}
+          actions={
+            <Button variant="outlined" size="small" onClick={() => setUploadModalOpen(true)}>
+              Upload Document
+            </Button>
+          }
+        >
+          {child.approved_documents.length === 0 ? (
+            <EmptyState
+              icon={<DescriptionIcon sx={{ fontSize: 48 }} />}
+              title="No Documents Yet"
+              description="Upload audiograms, IEPs, and other required documents for your child."
+              actionLabel="Upload Document"
+              onAction={() => setUploadModalOpen(true)}
+            />
+          ) : (
             <Stack spacing={1.5} divider={<Divider />}>
               {child.approved_documents.map((doc) => (
                 <Box key={doc.id}>
@@ -523,6 +543,7 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
                   <Typography variant="body2" color="text.secondary">
                     Type: {doc.document_type.replace(/_/g, " ")}
                     {doc.session_date ? ` • Session: ${formatDate(doc.session_date)}` : ""}
+                    {doc.next_due_date ? ` • Next due: ${formatDate(doc.next_due_date)}` : ""}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
                     {formatDate(doc.created_at)}
@@ -539,8 +560,8 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
                 </Box>
               ))}
             </Stack>
-          </SectionCard>
-        )}
+          )}
+        </SectionCard>
       </Stack>
 
       {/* Request Make-Up Modal */}
@@ -552,6 +573,20 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
         }}
         studentId={studentId}
         missedSession={selectedMissedSession}
+      />
+
+      <UploadChildDocumentModal
+        open={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        studentId={studentId}
+        studentName={`${child.first_name} ${child.last_name}`}
+        defaultDocumentType={
+          child.audiogram_compliance.status === "overdue" ||
+          child.audiogram_compliance.status === "due_soon" ||
+          child.audiogram_compliance.status === "unknown"
+            ? "audiogram"
+            : undefined
+        }
       />
     </PageContainer>
   );

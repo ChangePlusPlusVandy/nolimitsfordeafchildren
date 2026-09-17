@@ -42,6 +42,7 @@ import { useToast } from "@/client/components/ToastProvider";
 import { getMyChildren } from "@/client/parents";
 import { createScheduleChangeRequest, getAvailableSchedules } from "@/client/schedule-changes";
 import { formatTime } from "@/client/utils/formatDate";
+import { formatDayMask } from "@/client/utils/scheduleDays";
 
 interface AvailableSchedule {
   id: string;
@@ -62,23 +63,6 @@ interface AvailableSchedule {
   end_time: string;
   cycle_start_date: string;
   cycle_end_date: string;
-}
-
-function getDaysFromMask(mask: number): string[] {
-  const days: string[] = [];
-  if (mask & 1) days.push("Mon");
-  if (mask & 2) days.push("Tue");
-  if (mask & 4) days.push("Wed");
-  if (mask & 8) days.push("Thu");
-  if (mask & 16) days.push("Fri");
-  if (mask & 32) days.push("Sat");
-  if (mask & 64) days.push("Sun");
-  return days;
-}
-
-function getDayPattern(mask: number): string {
-  const days = getDaysFromMask(mask);
-  return days.join("/");
 }
 
 function ScheduleCard({
@@ -122,7 +106,7 @@ function ScheduleCard({
 
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <CalendarIcon color="action" fontSize="small" />
-              <Typography variant="body2">{getDayPattern(schedule.day_of_week_mask)}</Typography>
+              <Typography variant="body2">{formatDayMask(schedule.day_of_week_mask)}</Typography>
             </Stack>
 
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
@@ -273,18 +257,45 @@ export default function BrowseSchedulesPage() {
     setReason((event.target as unknown as { value: string }).value);
   };
 
-  const handleSubmitRequest = () => {
-    if (!selectedChild || !reason.trim()) return;
+  const validateSubmit = (): boolean => {
+    if (!selectedChild) {
+      toast.error("Please select a child first.");
+      return false;
+    }
+
+    if (!reason.trim()) {
+      toast.error("Please provide a reason for the schedule change.");
+      return false;
+    }
 
     const currentScheduleId = selectedChildData?.current_schedule_id;
     if (!currentScheduleId) {
       toast.error("We could not determine your child's current schedule. Please contact support.");
+      return false;
+    }
+
+    if (!selectedSchedule && !preferredTimes.trim()) {
+      toast.error("Please select a schedule or provide preferred times for a flexible request.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleOpenConfirmDialog = () => {
+    if (!validateSubmit()) {
+      return;
+    }
+    setConfirmDialogOpen(true);
+  };
+
+  const handleSubmitRequest = () => {
+    if (!validateSubmit()) {
       return;
     }
 
-    const hasSpecificSchedule = Boolean(selectedSchedule);
-    if (!hasSpecificSchedule && !preferredTimes.trim()) {
-      toast.error("Please add preferred times when requesting a flexible schedule change.");
+    const currentScheduleId = selectedChildData?.current_schedule_id;
+    if (!currentScheduleId) {
       return;
     }
 
@@ -474,8 +485,8 @@ export default function BrowseSchedulesPage() {
                 variant="contained"
                 color="primary"
                 startIcon={<SendIcon />}
-                onClick={() => setConfirmDialogOpen(true)}
-                disabled={!reason.trim() || (!selectedSchedule && !preferredTimes.trim())}
+                onClick={handleOpenConfirmDialog}
+                disabled={createRequestMutation.isPending}
                 size="large"
               >
                 Submit Schedule Change Request
@@ -508,7 +519,7 @@ export default function BrowseSchedulesPage() {
                     </Typography>
                     <Typography variant="body2">{selectedSchedule.site.name}</Typography>
                     <Typography variant="body2">
-                      {getDayPattern(selectedSchedule.day_of_week_mask)} at{" "}
+                      {formatDayMask(selectedSchedule.day_of_week_mask)} at{" "}
                       {formatTime(selectedSchedule.start_time)}
                     </Typography>
                   </Stack>
