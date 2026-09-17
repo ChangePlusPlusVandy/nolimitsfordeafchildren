@@ -1,13 +1,11 @@
-import { and, asc, desc, eq, isNull, like, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, like, or, sql } from "drizzle-orm";
 import {
   type AgeGroupSpecialty,
   LocationTable,
   type ScheduleEntity,
-  type ScheduleInsert,
   ScheduleTable,
   SessionTable,
   StudentTable,
-  TeacherLocationTable,
   type TeacherProfileEntity,
   type TeacherProfileInsert,
   TeacherProfileTable,
@@ -16,15 +14,19 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { AttendanceService, type SessionForDay } from "@/server/attendance/service";
-import {
-  BadRequestError,
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-} from "@/server/shared/errors";
+import type { CreateScheduleInput, UpdateScheduleInput } from "@/server/schedules/service";
+import { BadRequestError, ConflictError, NotFoundError } from "@/server/shared/errors";
 import { buildPaginatedResponse, getPagination } from "@/server/shared/pagination";
+import {
+  assignTeacherToLocation,
+  getTeacherLocations,
+  isTeacherAssignedToLocation,
+  unassignTeacherFromLocation,
+} from "@/server/teachers/locations";
+import { requireTeacherProfileId, resolveTeacherProfileId } from "@/server/teachers/resolve";
 
 export type { AgeGroupSpecialty };
+export type { CreateScheduleInput, UpdateScheduleInput };
 
 export interface ListTeachersQuery {
   search?: string;
@@ -54,27 +56,6 @@ export interface UpdateTeacherInput {
   qualifications?: string;
   credentials?: string;
   age_group_specialty?: AgeGroupSpecialty;
-}
-
-export interface CreateScheduleInput {
-  site_id: string;
-  session_id?: string;
-  day_of_week_mask: number;
-  start_time: string;
-  end_time: string;
-  cycle_start_date: string;
-  cycle_end_date: string;
-}
-
-export interface UpdateScheduleInput {
-  site_id?: string;
-  session_id?: string;
-  day_of_week_mask?: number;
-  start_time?: string;
-  end_time?: string;
-  cycle_start_date?: string;
-  cycle_end_date?: string;
-  is_active?: boolean;
 }
 
 export interface TeacherWithUser extends TeacherProfileEntity {
@@ -108,9 +89,14 @@ export interface TeacherDetails extends TeacherWithUser {
 
 export class TeachersService {
   private attendanceService: AttendanceService;
+
   constructor() {
     this.attendanceService = new AttendanceService();
   }
+
+  /** @see resolveTeacherProfileId */
+  resolveTeacherProfileId = resolveTeacherProfileId;
+
   /**
    * List teachers with filtering and pagination
    */
@@ -123,7 +109,6 @@ export class TeachersService {
   }> {
     const { page, limit, offset } = getPagination(query, 20, 100);
 
-    // Build where conditions
     const conditions = [];
 
     if (query.search) {
@@ -146,7 +131,6 @@ export class TeachersService {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get total count
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(TeacherProfileTable)
@@ -155,12 +139,10 @@ export class TeachersService {
 
     const total = countResult[0]?.count || 0;
 
-    // Determine sort and order
     const sortColumn =
       query.sort === "created_at" ? TeacherProfileTable.created_at : UserTable.name;
     const orderFn = query.order === "desc" ? desc : asc;
 
-    // Get paginated results with joins
     const results = await db
       .select({
         id: TeacherProfileTable.id,
@@ -219,10 +201,15 @@ export class TeachersService {
   }
 
   /**
-   * Get teacher details with schedules and assigned students
+   * Get teacher details with schedules and assigned students.
+   * `id` accepts teacher_profiles.id (canonical) or users.id.
    */
   async show(id: string): Promise<TeacherDetails | null> {
-    // Get teacher profile with user and site
+    const profileId = await resolveTeacherProfileId(id);
+    if (!profileId) {
+      return null;
+    }
+
     const teacherResults = await db
       .select({
         id: TeacherProfileTable.id,
@@ -246,7 +233,7 @@ export class TeachersService {
       .from(TeacherProfileTable)
       .innerJoin(UserTable, eq(TeacherProfileTable.user_id, UserTable.id))
       .leftJoin(LocationTable, eq(TeacherProfileTable.primary_site_id, LocationTable.id))
-      .where(eq(TeacherProfileTable.id, id))
+      .where(eq(TeacherProfileTable.id, profileId))
       .limit(1);
 
     if (teacherResults.length === 0) {
@@ -255,9 +242,8 @@ export class TeachersService {
 
     const row = teacherResults[0]!;
 
-    const teacherLocations = await this.getTeacherLocations(id);
+    const teacherLocations = await getTeacherLocations(profileId);
 
-    // Get schedules
     const scheduleResults = await db
       .select({
         id: ScheduleTable.id,
@@ -279,7 +265,7 @@ export class TeachersService {
       .from(ScheduleTable)
       .innerJoin(LocationTable, eq(ScheduleTable.site_id, LocationTable.id))
       .leftJoin(SessionTable, eq(ScheduleTable.session_id, SessionTable.id))
-      .where(eq(ScheduleTable.teacher_id, id));
+      .where(eq(ScheduleTable.teacher_id, profileId));
 
     const schedules = scheduleResults.map((s) => ({
       id: s.id,
@@ -306,7 +292,6 @@ export class TeachersService {
         : null,
     }));
 
-    // Get assigned students (active assignments only)
     const studentResults = await db
       .select({
         id: StudentTable.id,
@@ -320,7 +305,10 @@ export class TeachersService {
       .innerJoin(StudentTable, eq(TeacherStudentTable.student_id, StudentTable.id))
       .innerJoin(LocationTable, eq(StudentTable.site_id, LocationTable.id))
       .where(
-        and(eq(TeacherStudentTable.teacher_id, id), isNull(TeacherStudentTable.unassigned_at)),
+        and(
+          eq(TeacherStudentTable.teacher_id, profileId),
+          isNull(TeacherStudentTable.unassigned_at),
+        ),
       );
 
     const students = studentResults.map((s) => ({
@@ -364,66 +352,15 @@ export class TeachersService {
     };
   }
 
-  async getTeacherLocations(
-    teacherProfileId: string,
-  ): Promise<Array<{ id: string; name: string }>> {
-    const rows = await db
-      .select({
-        id: LocationTable.id,
-        name: LocationTable.name,
-      })
-      .from(TeacherLocationTable)
-      .innerJoin(LocationTable, eq(TeacherLocationTable.location_id, LocationTable.id))
-      .where(eq(TeacherLocationTable.teacher_profile_id, teacherProfileId))
-      .orderBy(asc(LocationTable.name));
-
-    return rows;
-  }
-
-  async assignTeacherToLocation(teacherProfileId: string, locationId: string): Promise<void> {
-    await db
-      .insert(TeacherLocationTable)
-      .values({
-        teacher_profile_id: teacherProfileId,
-        location_id: locationId,
-      })
-      .onConflictDoNothing();
-  }
-
-  async unassignTeacherFromLocation(teacherProfileId: string, locationId: string): Promise<void> {
-    await db
-      .delete(TeacherLocationTable)
-      .where(
-        and(
-          eq(TeacherLocationTable.teacher_profile_id, teacherProfileId),
-          eq(TeacherLocationTable.location_id, locationId),
-        ),
-      );
-  }
-
-  async isTeacherAssignedToLocation(
-    teacherProfileId: string,
-    locationId: string,
-  ): Promise<boolean> {
-    const rows = await db
-      .select({ id: TeacherLocationTable.id })
-      .from(TeacherLocationTable)
-      .where(
-        and(
-          eq(TeacherLocationTable.teacher_profile_id, teacherProfileId),
-          eq(TeacherLocationTable.location_id, locationId),
-        ),
-      )
-      .limit(1);
-
-    return rows.length > 0;
-  }
+  getTeacherLocations = getTeacherLocations;
+  assignTeacherToLocation = assignTeacherToLocation;
+  unassignTeacherFromLocation = unassignTeacherFromLocation;
+  isTeacherAssignedToLocation = isTeacherAssignedToLocation;
 
   /**
    * Create a new teacher profile
    */
   async create(input: CreateTeacherInput): Promise<TeacherProfileEntity> {
-    // Check if teacher profile already exists for this user
     const existing = await db
       .select()
       .from(TeacherProfileTable)
@@ -434,7 +371,6 @@ export class TeachersService {
       throw new ConflictError("Teacher profile already exists for this user");
     }
 
-    // Verify user exists and is a teacher role
     const user = await db.select().from(UserTable).where(eq(UserTable.id, input.user_id)).limit(1);
 
     if (user.length === 0) {
@@ -461,13 +397,18 @@ export class TeachersService {
   }
 
   /**
-   * Update teacher profile
+   * Update teacher profile. `id` accepts teacher_profiles.id or users.id.
    */
   async update(id: string, input: UpdateTeacherInput): Promise<TeacherProfileEntity | null> {
+    const profileId = await resolveTeacherProfileId(id);
+    if (!profileId) {
+      return null;
+    }
+
     const existing = await db
       .select()
       .from(TeacherProfileTable)
-      .where(eq(TeacherProfileTable.id, id))
+      .where(eq(TeacherProfileTable.id, profileId))
       .limit(1);
 
     if (existing.length === 0) {
@@ -489,29 +430,31 @@ export class TeachersService {
     const result = await db
       .update(TeacherProfileTable)
       .set(updateData)
-      .where(eq(TeacherProfileTable.id, id))
+      .where(eq(TeacherProfileTable.id, profileId))
       .returning();
 
     return result[0] ?? null;
   }
 
   /**
-   * Get students assigned to a teacher
+   * Get students assigned to a teacher. `id` accepts teacher_profiles.id or users.id.
    */
   async students(id: string, query: { page?: number; limit?: number }) {
+    const profileId = await requireTeacherProfileId(id);
     const { page, limit, offset } = getPagination(query, 20, 100);
 
-    // Count total
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(TeacherStudentTable)
       .where(
-        and(eq(TeacherStudentTable.teacher_id, id), isNull(TeacherStudentTable.unassigned_at)),
+        and(
+          eq(TeacherStudentTable.teacher_id, profileId),
+          isNull(TeacherStudentTable.unassigned_at),
+        ),
       );
 
     const total = countResult[0]?.count || 0;
 
-    // Get students
     const results = await db
       .select({
         id: StudentTable.id,
@@ -527,7 +470,12 @@ export class TeachersService {
       .from(TeacherStudentTable)
       .innerJoin(StudentTable, eq(TeacherStudentTable.student_id, StudentTable.id))
       .innerJoin(LocationTable, eq(StudentTable.site_id, LocationTable.id))
-      .where(and(eq(TeacherStudentTable.teacher_id, id), isNull(TeacherStudentTable.unassigned_at)))
+      .where(
+        and(
+          eq(TeacherStudentTable.teacher_id, profileId),
+          isNull(TeacherStudentTable.unassigned_at),
+        ),
+      )
       .orderBy(asc(StudentTable.last_name))
       .limit(limit)
       .offset(offset);
@@ -574,206 +522,5 @@ export class TeachersService {
     const sessions = await this.attendanceService.getTeacherDaySessions(teacherId, date);
 
     return { sessions };
-  }
-
-  /**
-   * Create a schedule for a teacher
-   */
-  async createSchedule(teacherId: string, input: CreateScheduleInput): Promise<ScheduleEntity> {
-    // Verify teacher exists
-    const teacher = await db
-      .select()
-      .from(TeacherProfileTable)
-      .where(eq(TeacherProfileTable.id, teacherId))
-      .limit(1);
-
-    if (teacher.length === 0) {
-      throw new NotFoundError("Teacher not found");
-    }
-
-    const isAssigned = await this.isTeacherAssignedToLocation(teacherId, input.site_id);
-    if (!isAssigned) {
-      throw new ForbiddenError("Teacher is not assigned to this location");
-    }
-
-    if (input.session_id) {
-      const session = await db
-        .select({ id: SessionTable.id, is_archived: SessionTable.is_archived })
-        .from(SessionTable)
-        .where(eq(SessionTable.id, input.session_id))
-        .limit(1);
-
-      if (!session[0]) {
-        throw new NotFoundError("Session not found");
-      }
-
-      if (session[0].is_archived) {
-        throw new BadRequestError("Cannot assign an archived session to a schedule");
-      }
-    }
-
-    // Check for conflicts
-    const conflicts = await this.checkScheduleConflicts(teacherId, input);
-    if (conflicts.length > 0) {
-      throw new ConflictError(
-        `Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`,
-      );
-    }
-
-    const newSchedule: ScheduleInsert = {
-      teacher_id: teacherId,
-      site_id: input.site_id,
-      session_id: input.session_id || null,
-      day_of_week_mask: input.day_of_week_mask,
-      start_time: input.start_time,
-      end_time: input.end_time,
-      cycle_start_date: input.cycle_start_date,
-      cycle_end_date: input.cycle_end_date,
-      is_active: true,
-    };
-
-    const result = await db.insert(ScheduleTable).values(newSchedule).returning();
-
-    return result[0]!;
-  }
-
-  /**
-   * Update a schedule
-   */
-  async updateSchedule(
-    scheduleId: string,
-    input: UpdateScheduleInput,
-  ): Promise<ScheduleEntity | null> {
-    const existing = await db
-      .select()
-      .from(ScheduleTable)
-      .where(eq(ScheduleTable.id, scheduleId))
-      .limit(1);
-
-    if (existing.length === 0) {
-      return null;
-    }
-
-    if (input.site_id && input.site_id !== existing[0]!.site_id) {
-      const isAssigned = await this.isTeacherAssignedToLocation(
-        existing[0]!.teacher_id,
-        input.site_id,
-      );
-      if (!isAssigned) {
-        throw new ForbiddenError("Teacher is not assigned to this location");
-      }
-    }
-
-    if (input.session_id !== undefined && input.session_id !== null && input.session_id !== "") {
-      const session = await db
-        .select({ id: SessionTable.id, is_archived: SessionTable.is_archived })
-        .from(SessionTable)
-        .where(eq(SessionTable.id, input.session_id))
-        .limit(1);
-
-      if (!session[0]) {
-        throw new NotFoundError("Session not found");
-      }
-
-      if (session[0].is_archived) {
-        throw new BadRequestError("Cannot assign an archived session to a schedule");
-      }
-    }
-
-    // If changing time/days, check for conflicts
-    if (
-      input.day_of_week_mask !== undefined ||
-      input.start_time !== undefined ||
-      input.end_time !== undefined
-    ) {
-      const checkInput: CreateScheduleInput = {
-        site_id: input.site_id ?? existing[0]!.site_id,
-        day_of_week_mask: input.day_of_week_mask ?? existing[0]!.day_of_week_mask,
-        start_time: input.start_time ?? existing[0]!.start_time,
-        end_time: input.end_time ?? existing[0]!.end_time,
-        cycle_start_date: input.cycle_start_date ?? existing[0]!.cycle_start_date,
-        cycle_end_date: input.cycle_end_date ?? existing[0]!.cycle_end_date,
-      };
-
-      const conflicts = await this.checkScheduleConflicts(
-        existing[0]!.teacher_id,
-        checkInput,
-        scheduleId,
-      );
-
-      if (conflicts.length > 0) {
-        throw new ConflictError(
-          `Schedule conflicts with existing schedules: ${conflicts.map((c) => c.id).join(", ")}`,
-        );
-      }
-    }
-
-    const updateData: Partial<ScheduleInsert> = {
-      updated_at: new Date(),
-    };
-
-    if (input.site_id !== undefined) updateData.site_id = input.site_id;
-    if (input.session_id !== undefined) updateData.session_id = input.session_id || null;
-    if (input.day_of_week_mask !== undefined) updateData.day_of_week_mask = input.day_of_week_mask;
-    if (input.start_time !== undefined) updateData.start_time = input.start_time;
-    if (input.end_time !== undefined) updateData.end_time = input.end_time;
-    if (input.cycle_start_date !== undefined) updateData.cycle_start_date = input.cycle_start_date;
-    if (input.cycle_end_date !== undefined) updateData.cycle_end_date = input.cycle_end_date;
-    if (input.is_active !== undefined) updateData.is_active = input.is_active;
-
-    const result = await db
-      .update(ScheduleTable)
-      .set(updateData)
-      .where(eq(ScheduleTable.id, scheduleId))
-      .returning();
-
-    return result[0] ?? null;
-  }
-
-  /**
-   * Check for schedule conflicts
-   */
-  private async checkScheduleConflicts(
-    teacherId: string,
-    input: CreateScheduleInput,
-    excludeScheduleId?: string,
-  ): Promise<ScheduleEntity[]> {
-    // Get all active schedules for this teacher
-    const conditions = [eq(ScheduleTable.teacher_id, teacherId), eq(ScheduleTable.is_active, true)];
-
-    if (excludeScheduleId) {
-      conditions.push(ne(ScheduleTable.id, excludeScheduleId));
-    }
-
-    const existingSchedules = await db
-      .select()
-      .from(ScheduleTable)
-      .where(and(...conditions));
-
-    const conflicts: ScheduleEntity[] = [];
-
-    for (const schedule of existingSchedules) {
-      // Check if day masks overlap
-      const daysOverlap = (schedule.day_of_week_mask & input.day_of_week_mask) !== 0;
-      if (!daysOverlap) continue;
-
-      // Check if date ranges overlap
-      const inputStart = new Date(input.cycle_start_date);
-      const inputEnd = new Date(input.cycle_end_date);
-      const schedStart = new Date(schedule.cycle_start_date);
-      const schedEnd = new Date(schedule.cycle_end_date);
-
-      const datesOverlap = inputStart <= schedEnd && inputEnd >= schedStart;
-      if (!datesOverlap) continue;
-
-      // Check if time ranges overlap
-      const timesOverlap =
-        input.start_time < schedule.end_time && input.end_time > schedule.start_time;
-      if (!timesOverlap) continue;
-
-      conflicts.push(schedule);
-    }
-
-    return conflicts;
   }
 }

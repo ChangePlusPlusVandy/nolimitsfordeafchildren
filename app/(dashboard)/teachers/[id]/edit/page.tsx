@@ -28,6 +28,7 @@ import {
   getTeacherDetails,
   updateTeacher,
 } from "@/client/teachers";
+import RequireAdmin from "../../RequireAdmin";
 
 type FormData = {
   primary_site_id: string;
@@ -37,7 +38,7 @@ type FormData = {
   age_group_specialty: AgeGroupSpecialty | "";
 };
 
-export default function EditTeacherPage({ params }: { params: Promise<{ id: string }> }) {
+function EditTeacherPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -81,7 +82,7 @@ export default function EditTeacherPage({ params }: { params: Promise<{ id: stri
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teachers"] });
       toast.success("Teacher updated successfully");
-      router.push(`/teachers/${id}`);
+      router.push(`/teachers/${teacher?.id ?? id}`);
     },
     onError: (err: Error) => {
       setError(err.message || "Failed to update teacher. Please try again.");
@@ -112,7 +113,7 @@ export default function EditTeacherPage({ params }: { params: Promise<{ id: stri
     if (!formData || !id) return;
 
     const payload: Parameters<typeof updateTeacher>[0] = {
-      id,
+      id: teacher?.id ?? id,
       primary_site_id: formData.primary_site_id || undefined,
       bio: formData.bio.trim() || undefined,
       qualifications: formData.qualifications.trim() || undefined,
@@ -277,5 +278,13 @@ export default function EditTeacherPage({ params }: { params: Promise<{ id: stri
         </Stack>
       </form>
     </PageContainer>
+  );
+}
+
+export default function EditTeacherPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <RequireAdmin redirectTo="/my-day">
+      <EditTeacherPageContent params={params} />
+    </RequireAdmin>
   );
 }

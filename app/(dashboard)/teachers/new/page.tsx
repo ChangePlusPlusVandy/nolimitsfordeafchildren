@@ -24,8 +24,9 @@ import { useToast } from "@/client/components/ToastProvider";
 import { listAllLocations } from "@/client/locations";
 import { AGE_GROUP_LABELS, type AgeGroupSpecialty, createTeacher } from "@/client/teachers";
 import { listUsers, type User } from "@/client/users";
+import RequireAdmin from "../RequireAdmin";
 
-export default function NewTeacherPage() {
+function NewTeacherPageContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -247,5 +248,13 @@ export default function NewTeacherPage() {
         </form>
       </SectionCard>
     </PageContainer>
+  );
+}
+
+export default function NewTeacherPage() {
+  return (
+    <RequireAdmin redirectTo="/my-day">
+      <NewTeacherPageContent />
+    </RequireAdmin>
   );
 }

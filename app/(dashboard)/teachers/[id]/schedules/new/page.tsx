@@ -44,12 +44,13 @@ import {
   SCHEDULE_PATTERNS,
 } from "@/client/teachers";
 import { formatTime } from "@/client/utils/formatDate";
+import RequireAdmin from "../../../RequireAdmin";
 
 const STEPS = ["Schedule Pattern", "Set Times", "Cycle Dates", "Review"];
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function TeacherScheduleWizardPage({ params }: { params: Promise<{ id: string }> }) {
+function TeacherScheduleWizardPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: teacherId } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -103,8 +104,9 @@ export default function TeacherScheduleWizardPage({ params }: { params: Promise<
     mutationFn: (payload: Parameters<typeof createTeacherSchedule>[0]) =>
       createTeacherSchedule(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["teachers", "show", teacherId] });
-      router.push(`/teachers/${teacherId}`);
+      const profileId = teacher?.id ?? teacherId;
+      queryClient.invalidateQueries({ queryKey: ["teachers", "show", profileId] });
+      router.push(`/teachers/${profileId}`);
     },
     onError: (err: Error) => {
       setError(err.message || "Failed to create schedule");
@@ -567,5 +569,13 @@ export default function TeacherScheduleWizardPage({ params }: { params: Promise<
         </Box>
       </SectionCard>
     </PageContainer>
+  );
+}
+
+export default function TeacherScheduleWizardPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <RequireAdmin redirectTo="/my-day">
+      <TeacherScheduleWizardPageContent params={params} />
+    </RequireAdmin>
   );
 }

@@ -10,13 +10,17 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { BulletinsService } from "@/server/bulletins/service";
-import { requireRole } from "@/server/shared/auth-guard";
-import { BadRequestError, NotFoundError } from "@/server/shared/errors";
 import {
   type CreateScheduleInput,
+  SchedulesService,
+  type UpdateScheduleInput,
+} from "@/server/schedules/service";
+import { requireRole } from "@/server/shared/auth-guard";
+import { BadRequestError, NotFoundError } from "@/server/shared/errors";
+import { requireTeacherProfileId } from "@/server/teachers/resolve";
+import {
   type CreateTeacherInput,
   TeachersService,
-  type UpdateScheduleInput,
   type UpdateTeacherInput,
 } from "@/server/teachers/service";
 
@@ -128,7 +132,8 @@ export async function createTeacher(input: CreateTeacherInput) {
 export async function updateTeacher(id: string, input: UpdateTeacherInput) {
   await requireRole("administrator");
   const parsed = updateTeacherSchema.parse(input) as UpdateTeacherInput;
-  const teacher = await new TeachersService().update(id, parsed);
+  const profileId = await requireTeacherProfileId(id);
+  const teacher = await new TeachersService().update(profileId, parsed);
   if (!teacher) {
     throw new NotFoundError("Teacher not found");
   }
@@ -140,7 +145,8 @@ export async function updateTeacher(id: string, input: UpdateTeacherInput) {
  */
 export async function assignTeacherLocation(id: string, locationId: string) {
   await requireRole("administrator");
-  await new TeachersService().assignTeacherToLocation(id, locationId);
+  const profileId = await requireTeacherProfileId(id);
+  await new TeachersService().assignTeacherToLocation(profileId, locationId);
   return { success: true };
 }
 
@@ -149,7 +155,8 @@ export async function assignTeacherLocation(id: string, locationId: string) {
  */
 export async function unassignTeacherLocation(id: string, locationId: string) {
   await requireRole("administrator");
-  await new TeachersService().unassignTeacherFromLocation(id, locationId);
+  const profileId = await requireTeacherProfileId(id);
+  await new TeachersService().unassignTeacherFromLocation(profileId, locationId);
   return { success: true };
 }
 
@@ -159,7 +166,7 @@ export async function unassignTeacherLocation(id: string, locationId: string) {
 export async function createTeacherSchedule(id: string, input: CreateScheduleInput) {
   await requireRole("administrator");
   const parsed = createScheduleSchema.parse(input) as CreateScheduleInput;
-  return await new TeachersService().createSchedule(id, parsed);
+  return await new SchedulesService().create(id, parsed);
 }
 
 /**
@@ -168,7 +175,7 @@ export async function createTeacherSchedule(id: string, input: CreateScheduleInp
 export async function updateSchedule(scheduleId: string, input: UpdateScheduleInput) {
   await requireRole("administrator");
   const parsed = updateScheduleSchema.parse(input) as UpdateScheduleInput;
-  const schedule = await new TeachersService().updateSchedule(scheduleId, parsed);
+  const schedule = await new SchedulesService().update(scheduleId, parsed);
   if (!schedule) {
     throw new NotFoundError("Schedule not found");
   }

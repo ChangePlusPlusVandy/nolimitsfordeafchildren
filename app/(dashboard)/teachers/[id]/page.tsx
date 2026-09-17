@@ -34,7 +34,7 @@ import {
 import type { SelectChangeEvent } from "@mui/material/Select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { use, useId, useMemo, useState } from "react";
+import { use, useEffect, useId, useMemo, useState } from "react";
 import { useAuth } from "@/client/auth";
 import { NextLinkBehavior } from "@/client/components/Breadcrumbs";
 import ConfirmDialog from "@/client/components/ConfirmDialog";
@@ -119,6 +119,12 @@ export default function TeacherDetailsPage({ params }: { params: Promise<{ id: s
       setUnassignTarget(null);
     },
   });
+
+  useEffect(() => {
+    if (teacher && teacher.id !== id) {
+      router.replace(`/teachers/${teacher.id}`);
+    }
+  }, [teacher, id, router]);
 
   const availableLocations = useMemo(
     () =>

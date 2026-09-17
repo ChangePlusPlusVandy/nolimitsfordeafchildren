@@ -26,12 +26,14 @@ import {
 } from "@mui/material";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
+import { useAuth } from "@/client/auth";
 import EmptyState from "@/client/components/EmptyState";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import PageContainer from "@/client/components/PageContainer";
 import PageHeader from "@/client/components/PageHeader";
 import { useServerTable } from "@/client/hooks/useServerTable";
+import { getMe } from "@/client/me";
 import {
   getLocationStaff,
   getMyChildren,
@@ -409,12 +411,46 @@ function MyStudentsPage() {
   );
 }
 
+function MyStudentsRoleGate({ children }: { children: React.ReactNode }) {
+  const { isTeacher, isParent, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (isTeacher) {
+      void getMe().then((profile) => {
+        if (profile.teacherProfileId) {
+          router.replace(`/teachers/${profile.teacherProfileId}`);
+        } else {
+          router.replace("/my-day");
+        }
+      });
+      return;
+    }
+
+    if (!isParent) {
+      router.replace("/");
+    }
+  }, [isLoading, isTeacher, isParent, router]);
+
+  if (isLoading || isTeacher || !isParent) {
+    return <LoadingSkeleton />;
+  }
+
+  return children;
+}
+
 export default function MyStudentsPageWrapper() {
   // useServerTable reads the URL search params, which requires a Suspense
   // boundary during static/prerender rendering in Next.js.
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
-      <MyStudentsPage />
-    </Suspense>
+    <MyStudentsRoleGate>
+      <Suspense fallback={<LoadingSkeleton />}>
+        <MyStudentsPage />
+      </Suspense>
+    </MyStudentsRoleGate>
   );
 }

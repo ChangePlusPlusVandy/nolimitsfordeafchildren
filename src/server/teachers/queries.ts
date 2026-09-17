@@ -24,6 +24,7 @@ export async function listTeachers(query: ListTeachersQuery = {}) {
 
 /**
  * GET /v1/teachers/:id — public (no role gate).
+ * `id` is teacher_profiles.id (canonical) or users.id (User Management links).
  */
 export async function getTeacher(id: string) {
   const teacher = await new TeachersService().show(id);
@@ -48,7 +49,11 @@ export async function getTeacherStudents(
  */
 export async function getTeacherLocations(id: string) {
   await requireRole("administrator");
-  return await new TeachersService().getTeacherLocations(id);
+  const profileId = await new TeachersService().resolveTeacherProfileId(id);
+  if (!profileId) {
+    throw new NotFoundError("Teacher not found");
+  }
+  return await new TeachersService().getTeacherLocations(profileId);
 }
 
 /**
