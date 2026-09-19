@@ -2,9 +2,11 @@
 
 Platform for managing education centers, students, teachers, parents, and schedules for a non-profit organization helping deaf children speak, learn, and dream.
 
+pnpm monorepo (`app/` + `tests/`). Versioning via release-please (see `release-please-config.json`); `app/` is currently `0.0.1`.
+
 ## Stack
 
-Single-package **Next.js 16 (App Router)** application deployed on **Cloudflare Workers** via **OpenNext**:
+**`app/`** — Next.js 16 (App Router) on Cloudflare Workers via OpenNext:
 
 - **Frontend**: React 19, MUI 9, React Query
 - **Backend**: Server Components, Server Actions, Route Handlers (no Express)
@@ -14,6 +16,8 @@ Single-package **Next.js 16 (App Router)** application deployed on **Cloudflare 
 - **Email**: Cloudflare Email Workers `send_email` binding
 - **Cron**: Cloudflare Cron Triggers (`worker.ts` `scheduled` handler)
 - **Package manager**: pnpm
+
+**`tests/`** — Playwright e2e scaffold (login smoke live, all other routes as `test.skip` TODO stubs).
 
 ## Prerequisites
 
@@ -32,17 +36,19 @@ pnpm install
 ### 2. Configure Environment Variables
 
 ```bash
-cp .dev.vars.example .dev.vars
+cp app/.dev.vars.example app/.dev.vars
 ```
 
-Fill in real values (admin bootstrap emails, auth URL, email from-address). Cloudflare bindings (D1/R2/Email) come from `wrangler.jsonc` automatically — do **not** list them in `.dev.vars`.
+Fill in real values (admin bootstrap emails, auth URL, email from-address). Cloudflare bindings (D1/R2/Email) come from `app/wrangler.jsonc` automatically — do **not** list them in `.dev.vars`.
 
 ### 3. Apply Database Migrations (local D1)
 
 ```bash
-pnpm db:generate                                          # generate migrations from src/db/schema.ts
-pnpm exec wrangler d1 migrations apply nolimits-db --local
+pnpm db:generate                                          # generate migrations from app/src/db/schema.ts
+pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-db --local
 ```
+
+Run wrangler commands from `app/` (or via `--filter nolimits-app`); `migrations_dir` and `main` in `wrangler.jsonc` are relative to `app/`.
 
 ### 4. Start the Dev Server
 
@@ -50,57 +56,72 @@ pnpm exec wrangler d1 migrations apply nolimits-db --local
 pnpm dev
 ```
 
-Runs `next dev` at **http://localhost:3000**. `next.config.ts` boots `initOpenNextCloudflareForDev()`, which wires the live local D1/R2 emulation into the dev server — no containers needed.
+Runs `next dev` at **http://localhost:3000**. `app/next.config.ts` boots `initOpenNextCloudflareForDev()`, which wires the live local D1/R2 emulation into the dev server — no containers needed.
 
-## Common Commands
+## Common Commands (repo root)
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Run `next dev` with emulated Cloudflare bindings |
-| `pnpm typecheck` / `pnpm exec tsc --noEmit` | Typecheck the whole project |
-| `pnpm lint` | Biome check (`pnpm lint:fix` to autofix) |
-| `pnpm build` | `opennextjs-cloudflare build` (produces `.open-next/` for wrangler) |
-| `pnpm preview` | Build + `wrangler dev` preview with real emulated bindings |
-| `pnpm deploy` | `wrangler deploy` — **manual per project**; requires `wrangler login` |
-| `pnpm db:generate` | Generate D1 migrations (drizzle-kit, sqlite) |
-| `pnpm cf-typegen` | Regenerate `cloudflare-env.d.ts` from `wrangler.jsonc` |
+| Command                             | Description                                                           |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `pnpm dev`                          | Run `app` dev server with emulated Cloudflare bindings                |
+| `pnpm typecheck`                    | `tsc --noEmit` in every workspace with a typecheck script             |
+| `pnpm lint` / `pnpm lint:fix`       | `oxlint` / `oxlint --fix` per workspace                               |
+| `pnpm format:check` / `pnpm format` | `oxfmt --check .` / `oxfmt --write .` from root                       |
+| `pnpm check`                        | `oxlint && oxfmt --check .`                                           |
+| `pnpm build`                        | `opennextjs-cloudflare build` for `app/` (produces `app/.open-next/`) |
+| `pnpm preview`                      | Build + `wrangler dev` preview with real emulated bindings            |
+| `pnpm deploy`                       | `wrangler deploy` from `app/` — **manual**; requires `wrangler login` |
+| `pnpm db:generate`                  | Generate D1 migrations (drizzle-kit, sqlite)                          |
+| `pnpm cf-typegen`                   | Regenerate `app/cloudflare-env.d.ts` from `app/wrangler.jsonc`        |
+| `pnpm test:e2e`                     | Playwright suite in `tests/` (boots app dev server automatically)     |
 
 ## Database (D1)
 
-Migrations live in `migrations/` (created by the first `pnpm db:generate`; `drizzle.config.ts` and `wrangler.jsonc` `migrations_dir` both point there).
+Migrations live in `app/migrations/` (`app/drizzle.config.ts` and `app/wrangler.jsonc` `migrations_dir` both point there).
 
 ```bash
-pnpm db:generate                                  # after editing src/db/schema.ts
-pnpm exec wrangler d1 migrations apply nolimits-db --local   # local emulated D1
-pnpm exec wrangler d1 migrations apply nolimits-db --remote  # production D1 (requires login)
+pnpm db:generate                                  # after editing app/src/db/schema.ts
+pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-db --local   # local emulated D1
+pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-db --remote  # production D1 (requires login)
 ```
-
-> The `database_id` in `wrangler.jsonc` is a placeholder — run `wrangler d1 create nolimits-db` and paste the real ID before any remote work.
 
 ## Email
 
-The `send_email` binding requires the **FROM address to be verified in the Cloudflare dashboard** (Workers & Pages → Email → Settings). Until then, `src/lib/email.ts` no-ops with a `console.warn`. Set `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` in `.dev.vars`.
+The `send_email` binding requires the **FROM address to be verified in the Cloudflare dashboard** (Workers & Pages → Email → Settings). Until then, `app/src/lib/email.ts` fails loudly (never fakes success). Set `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` in `app/.dev.vars`.
+
+## e2e
+
+`tests/` holds the Playwright scaffold: `e2e/login.spec.ts` is live smoke, everything else is `test.skip` TODO stubs (one file per route group). See `tests/README.md`.
 
 ## CI
 
-`.github/workflows/ci.yml` runs install → typecheck → lint → build on every push/PR. Deployment is manual per project and is **not** part of CI.
+- `.github/workflows/ci.yml`: install → typecheck → lint → format-check → OpenNext build (+ wrangler dry-run) → Playwright smoke (chromium).
+- `.github/workflows/deploy.yml`: build → D1 migrate → deploy (manual / push to `main`).
+- `.github/workflows/release-please.yml`: opens version-bump PRs for `app/` (`app-vX.Y.Z` tags + GitHub releases). Deployment is manual and is **not** part of CI.
 
 ## Project Structure
 
 ```
-├── app/                  # Next.js App Router pages + API route handlers
-├── src/
-│   ├── client/           # Client components, hooks, and per-domain client data layers
-│   ├── db/schema.ts      # Drizzle schema (sqlite/D1)
-│   ├── lib/              # auth, db (D1 proxy), email, r2 helpers
-│   ├── server/           # Domain slices: {domain}/{service,queries,actions}.ts + shared/ + cron/
-│   └── utils/            # Shared utilities
-├── middleware.ts         # Cookie-presence auth guard
-├── worker.ts             # Wrangler entry: OpenNext handler + scheduled cron handler
-├── wrangler.jsonc        # Bindings (DB/BUCKET/EMAIL) + cron triggers
-├── drizzle.config.ts     # drizzle-kit config (sqlite)
-├── next.config.ts        # Next config + initOpenNextCloudflareForDev()
-└── open-next.config.ts   # OpenNext Cloudflare config
+├── app/                    # Next.js workspace (package: nolimits-app, v0.0.1)
+│   ├── app/                # Next.js App Router pages + API route handlers
+│   ├── src/
+│   │   ├── client/         # Client components, hooks, per-domain client layers
+│   │   ├── db/schema.ts    # Drizzle schema (sqlite/D1)
+│   │   ├── lib/            # auth, db (D1 proxy), email, r2 helpers
+│   │   ├── server/         # Domain slices: {domain}/{service,queries,actions}.ts
+│   │   └── utils/          # Shared utilities
+│   ├── middleware.ts       # Cookie-presence auth guard
+│   ├── worker.ts           # Wrangler entry: OpenNext handler + scheduled cron
+│   ├── wrangler.jsonc      # Bindings (DB/BUCKET/EMAIL) + cron triggers
+│   ├── drizzle.config.ts   # drizzle-kit config (sqlite)
+│   ├── next.config.ts      # Next config + initOpenNextCloudflareForDev()
+│   └── open-next.config.ts # OpenNext Cloudflare config
+├── tests/                  # Playwright workspace (package: nolimits-e2e)
+│   ├── e2e/                # login smoke + TODO stubs for all routes
+│   └── playwright.config.ts
+├── .oxlintrc.json / .oxfmtrc.jsonc  # shared lint/format
+├── tsconfig.base.json      # shared strict base (workspaces extend it)
+├── release-please-config.json + .release-please-manifest.json
+└── CONTRIBUTING.md         # architecture + coding conventions
 ```
 
-See `AGENTS.md` for detailed architecture documentation and coding conventions.
+See `CONTRIBUTING.md` for vertical-slice conventions, authz rules, and business context.

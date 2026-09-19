@@ -19,7 +19,7 @@
 
 <!-- List the main changes made in this PR -->
 
-- 
+-
 
 ## Testing
 
@@ -40,4 +40,3 @@
 - [ ] I have commented my code where necessary
 - [ ] My changes generate no new warnings or errors
 - [ ] Database migrations are included (if applicable)
-

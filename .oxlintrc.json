@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "nextjs",
+    "jsx-a11y",
+    "import",
+    "unicorn",
+    "oxc",
+    "promise",
+    "node"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    // react-jsx runtime (Next.js): React is never in scope.
+    "react/react-in-jsx-scope": "off",
+    // Pre-existing codebase patterns: warn, don't block CI. Tighten later.
+    "react/set-state-in-effect": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+    "jsx-a11y/no-autofocus": "warn",
+    "react/purity": "warn",
+    "unicorn/no-useless-spread": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["app/src/server/**/*.ts"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off"
+      }
+    },
+    {
+      // Playwright specs: no special plugin in oxlint; keep default rules.
+      // a11y assertions are covered by explicit expect() calls instead.
+      "files": ["tests/**/*.ts"],
+      "rules": {}
+    }
+  ],
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/.open-next/**",
+    "**/dist/**",
+    "app/next-env.d.ts",
+    "app/cloudflare-env.d.ts",
+    "tests/test-results/**",
+    "tests/playwright-report/**",
+    "tests/blob-report/**"
+  ]
+}

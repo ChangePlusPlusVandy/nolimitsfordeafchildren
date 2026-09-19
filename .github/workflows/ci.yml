@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   checks:
-    name: Typecheck · Lint
+    name: Typecheck · Lint · Format
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,10 +40,16 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Format check
+        run: pnpm format:check
+
   build:
     name: Build (OpenNext)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: app
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,13 +69,39 @@ jobs:
       - name: Restore Next.js build cache
         uses: actions/cache@v4
         with:
-          path: .next/cache
+          path: app/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
             nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Build
-        run: pnpm build
+        run: pnpm --filter nolimits-app build
 
       - name: Validate wrangler config (dry-run deploy)
-        run: pnpm exec wrangler deploy --dry-run --outdir /tmp/wrangler-dry-run
+        run: pnpm --filter nolimits-app exec wrangler deploy --dry-run --outdir /tmp/wrangler-dry-run
+
+  e2e:
+    name: e2e (Playwright smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter nolimits-e2e exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        run: pnpm test:e2e
