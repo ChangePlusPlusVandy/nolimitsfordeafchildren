@@ -1,6 +1,11 @@
-# Single-package repo (flattened monorepo — no workspaces).
-# No `packages` key: this file exists only for pnpm settings
-# (pnpm 10+ no longer reads the `pnpm` field in package.json).
+# pnpm monorepo: Next.js app + Playwright e2e.
+packages:
+  - "app"
+  - "tests"
+
 allowBuilds:
   esbuild: true
   workerd: true
+
+# Playwright downloads browsers on `pnpm install` via postinstall in tests/.
+# Only build the native deps we trust.

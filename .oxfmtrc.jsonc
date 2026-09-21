@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // Ported from biome.json: 2-space, width 100, double quotes.
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  // Replaces Biome assist organizeImports: on.
+  "sortImports": true,
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "pnpm-lock.yaml",
+    "**/.next/**",
+    "**/.open-next/**",
+    "app/next-env.d.ts",
+    "app/cloudflare-env.d.ts",
+    "tests/test-results/**",
+    "tests/playwright-report/**",
+  ],
+}

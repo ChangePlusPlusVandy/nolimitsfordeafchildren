@@ -24,10 +24,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .dev.vars
 .dev.vars.local
 
-# Cloudflare / OpenNext build output
-.next
-.open-next
-.wrangler
+# Cloudflare / OpenNext build output (per-workspace, but ignore at any depth)
+**/.next
+**/.open-next
+**/.wrangler
 worker-configuration.d.ts
 
 # caches
@@ -50,3 +50,9 @@ worker-configuration.d.ts
 .playwright-mcp/
 my-students-full-page.png
 .pnpm-store/
+
+# Playwright e2e output
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

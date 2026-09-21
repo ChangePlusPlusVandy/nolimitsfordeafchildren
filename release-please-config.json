@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "HEAD",
+  "include-v-in-tag": false,
+  "include-component-in-tag": true,
+  "packages": {
+    "app": {
+      "release-type": "node",
+      "component": "app",
+      "tag-separator": "-v",
+      "include-v-in-tag": false
+    }
+  },
+  "plugins": ["node-workspace"]
+}
