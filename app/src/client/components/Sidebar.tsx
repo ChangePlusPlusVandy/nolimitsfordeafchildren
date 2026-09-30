@@ -273,7 +273,7 @@ export const Sidebar = ({ open, onClose, variant = "temporary" }: SidebarProps) 
           >
             No Limits for
             <br />
-            Deaf Children
+            deaf children
           </Typography>
         </Box>
         <Divider />
