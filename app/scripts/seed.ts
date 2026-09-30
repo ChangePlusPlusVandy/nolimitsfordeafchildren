@@ -13,16 +13,19 @@
  *   - users: admin@nolimits.test (administrator), teacher@nolimits.test
  *     (teacher), parent@nolimits.test (parent, 2 linked children),
  *     stranger@nolimits.test (parent, NO linked children),
- *     pending@nolimits.test (unassigned)
+ *     pending@nolimits.test (unassigned),
+ *     michelle + jeannette on both nolimitsfordeafchildren.org and
+ *     kidswithnolimits.org (administrator, one account per domain)
  *   - 3 locations, 4 students (linked/unlinked/unassigned mixes)
  *   - a 10-week teaching cycle with schedules that include TODAY (so the
  *     teacher's "My Day" shows sessions), past attendance (present + no_show),
  *     session notes, pre-assessments and audiogram documents (+ R2 objects)
  *     with due dates inside/outside the 30-day reminder window
  *
- * Secrets: all passwords are the same deterministic test password; users are
- * FAKE (nolimits.test domain) — never real student data. Safe to run
- * repeatedly (fully deterministic re-seed).
+ * Secrets: all passwords are the same deterministic test password. The
+ * *.nolimits.test accounts are fake. Michelle and Jeannette are local
+ * administrator logins (one per org domain). Never real student data.
+ * Safe to run repeatedly (fully deterministic re-seed).
  */
 
 import { eq } from "drizzle-orm";
@@ -52,13 +55,30 @@ import { db, initD1, setDb } from "@/lib/db";
 import { addDaysStr, dayOfWeek, todayStr } from "@/server/shared/dates";
 
 const SEED_PASSWORD = "NoLimits!2026";
+
+/** Staff logins, one account per organization email domain. */
+const STAFF_SEED_USERS = [
+  { name: "Michelle", localPart: "michelle" },
+  { name: "Jeannette", localPart: "jeannette" },
+] as const;
+const STAFF_EMAIL_DOMAINS = ["nolimitsfordeafchildren.org", "kidswithnolimits.org"] as const;
+const staffSeedAccounts = STAFF_SEED_USERS.flatMap((person) =>
+  STAFF_EMAIL_DOMAINS.map((domain) => ({
+    email: `${person.localPart}@${domain}`,
+    name: person.name,
+  })),
+);
+
 const SEED_EMAILS = [
   "admin@nolimits.test",
   "teacher@nolimits.test",
   "parent@nolimits.test",
   "stranger@nolimits.test",
   "pending@nolimits.test",
+  ...staffSeedAccounts.map((account) => account.email),
 ];
+
+const seedNameByEmail = new Map(staffSeedAccounts.map((account) => [account.email, account.name]));
 
 const AUDIOGRAM_CONTENT = `%PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
@@ -135,7 +155,7 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
       body: {
         email,
         password: SEED_PASSWORD,
-        name: email.split("@")[0] ?? email,
+        name: seedNameByEmail.get(email) ?? email.split("@")[0] ?? email,
       },
     });
   }
@@ -184,6 +204,15 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   users.set("teacher@nolimits.test", { ...teacherUser, role: "teacher" });
   users.set("parent@nolimits.test", { ...parentUser, role: "parent" });
   users.set("stranger@nolimits.test", { ...strangerUser, role: "parent" });
+
+  for (const account of staffSeedAccounts) {
+    const user = getSeededUser(account.email);
+    await db
+      .update(UserTable)
+      .set({ role: "administrator", updated_at: new Date() })
+      .where(eq(UserTable.id, user.id));
+    users.set(account.email, { ...user, role: "administrator" });
+  }
 
   const [teacherProfile] = await db
     .insert(TeacherProfileTable)
