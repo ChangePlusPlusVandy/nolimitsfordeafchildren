@@ -88,10 +88,14 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
 
   // Auto-generate initials from first and last name
   useEffect(() => {
-    if (firstName && lastName && !initials) {
-      const autoInitials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-      setInitials(autoInitials);
+    const firstInitial = firstName.trim().charAt(0);
+    const lastInitial = lastName.trim().charAt(0);
+
+    if (!firstInitial || !lastInitial || initials) {
+      return;
     }
+
+    setInitials(`${firstInitial}${lastInitial}`.toUpperCase());
   }, [firstName, lastName, initials]);
 
   // Fetch locations for the dropdown

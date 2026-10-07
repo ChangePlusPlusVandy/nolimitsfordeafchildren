@@ -576,7 +576,8 @@ export class StudentsService {
   async create(data: CreateStudentInput): Promise<StudentEntity> {
     // Auto-generate initials if not provided
     const initials =
-      data.initials || `${data.first_name.charAt(0)}${data.last_name.charAt(0)}`.toUpperCase();
+      data.initials?.trim() ||
+      `${data.first_name.trim().charAt(0)}${data.last_name.trim().charAt(0)}`.toUpperCase();
 
     const [student] = await db
       .insert(StudentTable)
