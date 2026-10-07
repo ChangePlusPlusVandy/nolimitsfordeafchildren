@@ -17,12 +17,10 @@ import {
   Card,
   CardContent,
   Chip,
-  FormControl,
-  InputLabel,
-  OutlinedInput,
   Skeleton,
   Stack,
   TablePagination,
+  TextField,
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -302,18 +300,17 @@ function MakeupSessionsPage() {
       <Stack spacing={3}>
         {/* Date Filter */}
         <SectionCard>
-          <FormControl fullWidth>
-            <InputLabel>Filter by Date</InputLabel>
-            <OutlinedInput
-              type="date"
-              value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value);
-                table.setPage(1);
-              }}
-              label="Filter by Date"
-            />
-          </FormControl>
+          <TextField
+            fullWidth
+            label="Filter by Date"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => {
+              setSelectedDate(e.target.value);
+              table.setPage(1);
+            }}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
           <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
             <Button
               size="small"
