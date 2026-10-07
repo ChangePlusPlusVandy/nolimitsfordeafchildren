@@ -5,6 +5,7 @@
  */
 
 import {
+  clearAttendance as serverClearAttendance,
   markAttendance as serverMarkAttendance,
   updateAttendance as serverUpdateAttendance,
 } from "@/server/attendance/actions";
@@ -19,6 +20,7 @@ export type {
   AttendanceRecentEntry,
   AttendanceStatus,
   AttendanceSummary,
+  ClearAttendanceInput,
   ListAttendanceQuery,
   MarkAttendanceInput,
   SessionForDay,
@@ -60,4 +62,10 @@ export async function markAttendance(
   input: Omit<import("@/server/attendance/service").MarkAttendanceInput, "marked_by">,
 ) {
   return serverMarkAttendance(input);
+}
+
+export async function clearAttendance(
+  input: import("@/server/attendance/service").ClearAttendanceInput,
+) {
+  return serverClearAttendance(input);
 }

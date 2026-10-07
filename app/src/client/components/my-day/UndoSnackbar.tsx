@@ -4,25 +4,38 @@ import { IconButton, Snackbar } from "@mui/material";
 import type { AttendanceStatus } from "@/client/attendance";
 import type { SessionForDay } from "@/client/teachers";
 
+export enum UndoAvailability {
+  Ready = "ready",
+  Pending = "pending",
+}
+
 interface UndoSnackbarProps {
   open: boolean;
+  availability: UndoAvailability;
   session: SessionForDay | null;
   onClose: () => void;
   onUndo: () => void;
 }
 
-export default function UndoSnackbar({ open, session, onClose, onUndo }: UndoSnackbarProps) {
+export default function UndoSnackbar({
+  open,
+  availability,
+  session,
+  onClose,
+  onUndo,
+}: UndoSnackbarProps) {
   return (
     <Snackbar
       open={open}
       autoHideDuration={5000}
       onClose={onClose}
-      message={`Marked ${session?.student_first_name} ${session?.student_last_name}`}
+      message={session ? `Marked ${session.student_initials}` : ""}
       action={
         <IconButton
           size="small"
           color="inherit"
           onClick={onUndo}
+          disabled={availability === UndoAvailability.Pending}
           aria-label="Undo attendance marking"
         >
           <UndoIcon fontSize="small" />

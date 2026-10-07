@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { AbsenceReason, AttendanceStatus } from "@/client/attendance";
-import { markAttendance } from "@/client/attendance";
+import { clearAttendance, markAttendance } from "@/client/attendance";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import AbsenceReasonDialog from "@/client/components/my-day/AbsenceReasonDialog";
 import AttendanceProgressFooter from "@/client/components/my-day/AttendanceProgressFooter";
@@ -20,6 +20,7 @@ import SiteSessionGroup from "@/client/components/my-day/SiteSessionGroup";
 import type { SessionPhoto, SiteOption } from "@/client/components/my-day/types";
 import UndoSnackbar, {
   EMPTY_UNDO_STATE,
+  UndoAvailability,
   type UndoSnackbarState,
 } from "@/client/components/my-day/UndoSnackbar";
 import WeekAtAGlance from "@/client/components/my-day/WeekAtAGlance";
@@ -44,6 +45,8 @@ import {
   todayStrOrg,
 } from "@/client/utils/date";
 
+const DEFAULT_LATE_MINUTES = 10;
+
 export default function MyDayPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -54,7 +57,7 @@ export default function MyDayPage() {
   const [lateDialogOpen, setLateDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SessionForDay | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<AttendanceStatus | null>(null);
-  const [selectedLateMinutes, setSelectedLateMinutes] = useState<number>(10);
+  const [selectedLateMinutes, setSelectedLateMinutes] = useState<number>(DEFAULT_LATE_MINUTES);
   const [selectedReason, setSelectedReason] = useState<AbsenceReason | "">("");
   const [reasonText, setReasonText] = useState("");
   const [view, setView] = useState<"day" | "week">("day");
@@ -170,6 +173,13 @@ export default function MyDayPage() {
     },
   });
 
+  const clearAttendanceMutation = useMutation({
+    mutationFn: clearAttendance,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teachers", "myDay"] });
+    },
+  });
+
   const uploadPhotoMutation = useMutation({
     mutationFn: async () => {
       if (!photoFile || !photoLocationId) {
@@ -279,7 +289,7 @@ export default function MyDayPage() {
     } else if (status === "late") {
       setSelectedSession(session);
       setSelectedStatus(status);
-      setSelectedLateMinutes(10);
+      setSelectedLateMinutes(DEFAULT_LATE_MINUTES);
       setLateDialogOpen(true);
     } else {
       setSelectedSession(session);
@@ -347,23 +357,44 @@ export default function MyDayPage() {
     });
   };
 
-  const handleUndo = () => {
-    if (!undoSnackbar.session) return;
+  const closeUndo = () => {
+    setUndoSnackbar((current) => ({ ...current, open: false }));
+  };
 
+  const handleUndo = async () => {
     const { session, previousStatus, previousLateMinutes, previousSiblingIds } = undoSnackbar;
 
-    if (previousStatus) {
-      markAttendanceMutation.mutate({
-        student_id: session.student_id,
-        schedule_id: session.schedule_id,
-        session_date: session.session_date,
-        status: previousStatus,
-        late_minutes: previousStatus === "late" ? previousLateMinutes || 10 : undefined,
-        sibling_participant_ids: previousSiblingIds,
-      });
+    if (!session) {
+      return;
     }
 
-    setUndoSnackbar(EMPTY_UNDO_STATE);
+    const attendanceKey = {
+      student_id: session.student_id,
+      schedule_id: session.schedule_id,
+      session_date: session.session_date,
+    };
+
+    try {
+      if (!previousStatus) {
+        await clearAttendanceMutation.mutateAsync(attendanceKey);
+        closeUndo();
+        return;
+      }
+
+      await markAttendanceMutation.mutateAsync({
+        ...attendanceKey,
+        status: previousStatus,
+        late_minutes:
+          previousStatus === "late" ? (previousLateMinutes ?? DEFAULT_LATE_MINUTES) : undefined,
+        reason: session.attendance?.reason ?? undefined,
+        reason_text: session.attendance?.reason_text ?? undefined,
+        sibling_participant_ids: previousSiblingIds,
+      });
+
+      closeUndo();
+    } catch {
+      toast.error("Failed to undo attendance marking.");
+    }
   };
 
   const handleReasonChange = (event: SelectChangeEvent<string>) => {
@@ -675,8 +706,13 @@ export default function MyDayPage() {
 
       <UndoSnackbar
         open={undoSnackbar.open}
+        availability={
+          markAttendanceMutation.isPending || clearAttendanceMutation.isPending
+            ? UndoAvailability.Pending
+            : UndoAvailability.Ready
+        }
         session={undoSnackbar.session}
-        onClose={() => setUndoSnackbar(EMPTY_UNDO_STATE)}
+        onClose={closeUndo}
         onUndo={handleUndo}
       />
 

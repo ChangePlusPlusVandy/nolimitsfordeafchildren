@@ -1,5 +1,5 @@
 import type { AttendanceEntity } from "@/db/schema";
-import { markAttendance, updateAttendance } from "@/server/attendance/mark";
+import { clearAttendance, markAttendance, updateAttendance } from "@/server/attendance/mark";
 import { getTeacherDaySessions, getTeacherSessionsInRange } from "@/server/attendance/myDay";
 import {
   getAttendanceSummary,
@@ -14,6 +14,7 @@ export type {
   AttendanceRecentEntry,
   AttendanceStatus,
   AttendanceSummary,
+  ClearAttendanceInput,
   ListAttendanceQuery,
   MarkAttendanceInput,
   SessionForDay,
@@ -23,6 +24,10 @@ export type {
 } from "@/server/attendance/types";
 
 export class AttendanceService {
+  clear(input: Parameters<typeof clearAttendance>[0]) {
+    return clearAttendance(input);
+  }
+
   mark(input: Parameters<typeof markAttendance>[0]) {
     return markAttendance(input);
   }

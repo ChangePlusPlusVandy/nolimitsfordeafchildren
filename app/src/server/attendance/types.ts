@@ -19,6 +19,11 @@ export interface MarkAttendanceInput {
   marked_by: string;
 }
 
+export type ClearAttendanceInput = Pick<
+  MarkAttendanceInput,
+  "student_id" | "schedule_id" | "session_date"
+>;
+
 export interface UpdateAttendanceInput {
   status?: AttendanceStatus;
   late_minutes?: number | null;

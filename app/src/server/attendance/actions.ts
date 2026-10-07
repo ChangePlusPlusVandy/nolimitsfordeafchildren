@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   attendanceService,
+  type ClearAttendanceInput,
   type MarkAttendanceInput,
   type UpdateAttendanceInput,
 } from "@/server/attendance/service";
@@ -46,6 +47,27 @@ const updateAttendanceSchema = z
     sibling_participant_ids: z.array(z.string()).optional(),
   })
   .passthrough();
+
+const clearAttendanceSchema = markAttendanceSchema.pick({
+  student_id: true,
+  schedule_id: true,
+  session_date: true,
+});
+
+export async function clearAttendance(input: ClearAttendanceInput) {
+  const currentUser = await requireRole("teacher", "administrator");
+  const parsed = clearAttendanceSchema.parse(input);
+
+  if (currentUser.role === "teacher") {
+    await assertTeacherCanMarkStudentSchedule(
+      currentUser.id,
+      parsed.student_id,
+      parsed.schedule_id,
+    );
+  }
+
+  await attendanceService.clear(parsed);
+}
 
 export async function markAttendance(input: Omit<MarkAttendanceInput, "marked_by">) {
   const currentUser = await requireRole("teacher", "administrator");

@@ -1,6 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
-import { type AttendanceEntity, type AttendanceInsert, AttendanceTable } from "@/db/schema";
+import {
+  type AttendanceEntity,
+  type AttendanceInsert,
+  AttendanceSiblingParticipantTable,
+  AttendanceTable,
+} from "@/db/schema";
 import { db } from "@/lib/db";
 import { sendNoShowAlerts } from "@/server/attendance/alerts";
 import {
@@ -9,10 +14,37 @@ import {
 } from "@/server/attendance/siblings";
 import type {
   AbsenceReason,
+  ClearAttendanceInput,
   MarkAttendanceInput,
   UpdateAttendanceInput,
 } from "@/server/attendance/types";
 import { BadRequestError } from "@/server/shared/errors";
+
+export async function clearAttendance(input: ClearAttendanceInput): Promise<void> {
+  const [attendance] = await db
+    .select({ id: AttendanceTable.id })
+    .from(AttendanceTable)
+    .where(
+      and(
+        eq(AttendanceTable.student_id, input.student_id),
+        eq(AttendanceTable.schedule_id, input.schedule_id),
+        eq(AttendanceTable.session_date, input.session_date),
+      ),
+    )
+    .limit(1);
+
+  if (!attendance) {
+    return;
+  }
+
+  // Remove participant links and the mark atomically to restore an unmarked session.
+  await db.batch([
+    db
+      .delete(AttendanceSiblingParticipantTable)
+      .where(eq(AttendanceSiblingParticipantTable.attendance_id, attendance.id)),
+    db.delete(AttendanceTable).where(eq(AttendanceTable.id, attendance.id)),
+  ]);
+}
 
 export async function markAttendance(input: MarkAttendanceInput): Promise<AttendanceEntity> {
   const siblingParticipantIds = normalizeSiblingParticipantIds(input.sibling_participant_ids);
