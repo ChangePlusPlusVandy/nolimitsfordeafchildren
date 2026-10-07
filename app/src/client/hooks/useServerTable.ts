@@ -78,7 +78,7 @@ export function useServerTable(options: UseServerTableOptions = {}): ServerTable
     }
     // intentionally not depending on searchInput to avoid loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, searchInput]);
+  }, [params]);
 
   const debouncedSearch = useDebouncedValue(searchInput, debounceMs);
 
