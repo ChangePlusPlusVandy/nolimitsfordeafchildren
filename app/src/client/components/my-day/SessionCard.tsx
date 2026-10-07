@@ -64,7 +64,7 @@ export default function SessionCard({
 
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: "medium" }}>
-                {session.student_first_name} {session.student_last_name}
+                {session.student_initials}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {formatTime(session.start_time)} - {formatTime(session.end_time)}

@@ -409,12 +409,7 @@ export default function TeacherDetailsPage({ params }: { params: Promise<{ id: s
                 <Box key={student.id}>
                   {idx > 0 && <Divider />}
                   <ListItem>
-                    <ListItemText
-                      primary={
-                        isAdmin ? `${student.first_name} ${student.last_name}` : student.initials
-                      }
-                      secondary={student.site.name}
-                    />
+                    <ListItemText primary={student.initials} secondary={student.site.name} />
                     <ListItemSecondaryAction>
                       <Button
                         component={NextLinkBehavior}

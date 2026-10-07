@@ -99,7 +99,7 @@ function ChildCard({ child }: { child: LinkedChild }) {
               </Avatar>
               <Box>
                 <Typography variant="h6" component="div">
-                  {child.first_name} {child.last_name}
+                  {child.initials}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {child.site.name}
