@@ -255,7 +255,7 @@ function NewTeacherPageContent() {
 
 export default function NewTeacherPage() {
   return (
-    <RequireAdmin redirectTo="/my-day">
+    <RequireAdmin>
       <NewTeacherPageContent />
     </RequireAdmin>
   );

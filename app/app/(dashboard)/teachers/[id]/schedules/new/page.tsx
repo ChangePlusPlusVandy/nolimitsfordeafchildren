@@ -576,7 +576,7 @@ function TeacherScheduleWizardPageContent({ params }: { params: Promise<{ id: st
 
 export default function TeacherScheduleWizardPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <RequireAdmin redirectTo="/my-day">
+    <RequireAdmin>
       <TeacherScheduleWizardPageContent params={params} />
     </RequireAdmin>
   );

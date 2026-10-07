@@ -9,7 +9,7 @@ import RequireRole from "@/client/components/RequireRole";
  */
 export default function RequireAdmin({
   children,
-  redirectTo = "/my-day",
+  redirectTo = "/",
 }: {
   children: ReactNode;
   redirectTo?: string;

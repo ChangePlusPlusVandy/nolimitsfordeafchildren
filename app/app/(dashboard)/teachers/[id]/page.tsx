@@ -168,7 +168,7 @@ export default function TeacherDetailsPage({ params }: { params: Promise<{ id: s
   if (error || !teacher) {
     return (
       <PageContainer>
-        <ErrorAlert message="Failed to load teacher details." onRetry={() => refetch()} />
+        <ErrorAlert message="Teacher not found or access denied." onRetry={() => refetch()} />
       </PageContainer>
     );
   }

@@ -157,16 +157,7 @@ export default function StudentDetailView({
     return (
       <PageContainer>
         <PageHeader title="Student Details" breadcrumbs={breadcrumbs} back={backHref} />
-        <ErrorAlert
-          message={
-            error instanceof Error
-              ? error.message
-              : mode === "teacher"
-                ? "Student not found or access denied"
-                : "Student not found"
-          }
-          onRetry={() => refetch()}
-        />
+        <ErrorAlert message="Student not found or access denied." onRetry={() => refetch()} />
       </PageContainer>
     );
   }

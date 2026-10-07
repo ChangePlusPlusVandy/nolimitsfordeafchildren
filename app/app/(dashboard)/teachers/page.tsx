@@ -26,7 +26,7 @@ export default async function TeachersIndexPage() {
     : [null, null];
 
   return (
-    <RequireAdmin redirectTo="/my-day">
+    <RequireAdmin>
       <TeachersClient
         initialTeachers={initialTeachers}
         initialLocations={initialLocationsResult?.items ?? null}

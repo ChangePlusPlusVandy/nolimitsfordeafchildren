@@ -285,7 +285,7 @@ function EditTeacherPageContent({ params }: { params: Promise<{ id: string }> })
 
 export default function EditTeacherPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <RequireAdmin redirectTo="/my-day">
+    <RequireAdmin>
       <EditTeacherPageContent params={params} />
     </RequireAdmin>
   );
