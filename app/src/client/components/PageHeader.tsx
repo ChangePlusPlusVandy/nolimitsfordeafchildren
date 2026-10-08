@@ -53,14 +53,18 @@ export default function PageHeader({
         spacing={1}
         sx={{ alignItems: { xs: "flex-start", sm: "center" }, justifyContent: "space-between" }}
       >
-        <Stack direction="row" spacing={1} sx={{ minWidth: 0, alignItems: "center" }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ minWidth: 0, maxWidth: "100%", alignItems: "center" }}
+        >
           {back && (
             <IconButton onClick={handleBack} size="small" aria-label="Go back" sx={{ mr: 0.5 }}>
               <ArrowBackIcon />
             </IconButton>
           )}
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h4" noWrap>
+            <Typography variant="h4" noWrap sx={{ whiteSpace: { xs: "normal", sm: "nowrap" } }}>
               {title}
             </Typography>
             {subtitle && (
