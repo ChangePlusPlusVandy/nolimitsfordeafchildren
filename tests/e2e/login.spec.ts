@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /**
  * Login smoke — the only non-skipped suite in the scaffold.
@@ -6,6 +6,18 @@ import { expect, test } from "@playwright/test";
  * rendering, validation, bad-credentials error, and middleware redirects.
  */
 test.describe("login smoke", () => {
+  // Client state (controlled inputs, mode toggle) only works after
+  // hydration. The session fetch proves React mounted; without this gate
+  // fills land in SSR HTML and get wiped on hydrate (flaky submit).
+  async function gotoHydratedLogin(page: Page): Promise<void> {
+    const session = page.waitForResponse(
+      (response) => response.url().includes("/api/auth/get-session"),
+      { timeout: 30_000 },
+    );
+    await page.goto("/login");
+    await session;
+  }
+
   test("renders the sign-in form", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible();
@@ -20,9 +32,10 @@ test.describe("login smoke", () => {
   });
 
   test("shows an error for invalid credentials", async ({ page }) => {
-    await page.goto("/login");
+    await gotoHydratedLogin(page);
     await page.getByLabel(/email/i).fill("nobody@example.com");
     await page.getByLabel(/^password/i).fill("wrong-password-123");
+    await expect(page.getByRole("button", { name: /^sign in$/i })).toBeEnabled();
     await page.getByRole("button", { name: /^sign in$/i }).click();
     // better-auth returns an error alert; assert *some* error surfaces
     // without pinning the exact copy (copy changes often).
@@ -30,7 +43,7 @@ test.describe("login smoke", () => {
   });
 
   test("can switch to signup mode", async ({ page }) => {
-    await page.goto("/login");
+    await gotoHydratedLogin(page);
     await page.getByRole("button", { name: /sign up/i }).click();
     await expect(page.getByRole("heading", { name: /create your account/i })).toBeVisible();
     await expect(page.getByLabel(/full name/i)).toBeVisible();

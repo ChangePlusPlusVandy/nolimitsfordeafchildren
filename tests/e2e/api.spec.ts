@@ -15,11 +15,19 @@ test.describe("api", () => {
     // TODO: POST /api/auth/sign-in/email with bad creds → expect 4xx.
   });
 
-  test.skip("files upload requires auth", async () => {
-    // TODO: unauthenticated POST /api/files/upload → expect 401.
+  test("files upload requires auth", async ({ request }) => {
+    const res = await request.post("/api/files/upload?key=documents/student/x/doc.pdf", {
+      multipart: {
+        file: { name: "doc.pdf", mimeType: "application/pdf", buffer: Buffer.from("x") },
+      },
+    });
+    expect(res.status()).toBe(401);
+    await expect(await res.json()).toMatchObject({ code: "UNAUTHORIZED" });
+    expect(res.headers()["x-auth-error-code"]).toBe("UNAUTHORIZED");
   });
 
-  test.skip("files download requires auth + returns object", async () => {
-    // TODO: authed GET /api/files/:key → expect 200 + bytes (R2 emulated).
+  test("files download requires auth and stays private", async ({ request }) => {
+    const res = await request.get("/api/files/documents/student/x/doc.pdf");
+    expect(res.status()).toBe(401);
   });
 });
