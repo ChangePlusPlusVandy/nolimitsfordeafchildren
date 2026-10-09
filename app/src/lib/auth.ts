@@ -1,4 +1,3 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer } from "better-auth/plugins/bearer";
@@ -7,28 +6,16 @@ import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { ParentProfileTable, TeacherProfileTable, UserTable } from "@/db/schema";
 import { db } from "@/lib/db";
+import { getEnvValue } from "@/lib/env";
 
 /**
  * better-auth for the Cloudflare runtime.
  *
  * The instance is created lazily via `getAuth()` (NOT at module top-level) so
  * that configuration (and any adapter queries) only run inside a request
- * handler where `getCloudflareContext()` is available. The `db` from
+ * handler where the worker env is available. The `db` from
  * `@/lib/db` is the lazy proxy — queries resolve the D1 binding at call time.
  */
-
-function getEnvValue(key: string): string | undefined {
-  // Bindings/config vars live in the worker env; `process.env` is the
-  // fallback for `next dev` flows where OpenNext has not populated it.
-  try {
-    const env = getCloudflareContext().env as unknown as Record<string, string | undefined>;
-    const value = env[key];
-    if (value !== undefined && value !== "") return value;
-  } catch {
-    // No request context (e.g. module evaluation or non-worker runtime).
-  }
-  return process.env[key];
-}
 
 function getEnvConfig(): {
   bootstrapAdminEmails: string[];

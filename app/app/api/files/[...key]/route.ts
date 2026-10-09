@@ -1,7 +1,7 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { getBinding } from "@/lib/env";
 import { requireRole } from "@/server/shared/auth-guard";
 import { NotFoundError } from "@/server/shared/errors";
 import { authorizeObjectKey } from "@/server/shared/file-access";
@@ -26,7 +26,7 @@ export async function GET(
     const key = (await params).key.join("/");
     await authorizeObjectKey(currentUser, key);
 
-    const bucket = getCloudflareContext().env.BUCKET;
+    const bucket = getBinding<R2Bucket>("BUCKET");
     if (!bucket) {
       throw new Error("[files] BUCKET binding not configured (see wrangler.jsonc)");
     }

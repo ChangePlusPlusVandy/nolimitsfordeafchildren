@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getBinding, getEnvValue } from "@/lib/env";
 
 /**
  * Email senders using the Cloudflare `send_email` binding (`EMAIL` in
@@ -29,16 +29,8 @@ export interface EmailResult {
 }
 
 function getConfig(key: string): string | undefined {
-  // Bindings/vars live in the worker env; `process.env` is a fallback for
-  // environments where OpenNext has not populated it (e.g. some dev flows).
-  try {
-    const ctxEnv = getCloudflareContext().env as unknown as Record<string, string | undefined>;
-    const value = ctxEnv[key];
-    if (value !== undefined && value !== "") return value;
-  } catch {
-    // No request context (e.g. module evaluation or non-worker runtime).
-  }
-  return process.env[key];
+  // Worker env first; `process.env` fallback for non-worker contexts.
+  return getEnvValue(key);
 }
 
 function getFromAddress(): string | null {
@@ -49,12 +41,7 @@ function getFromAddress(): string | null {
 }
 
 function getEmailBinding(): SendEmail | null {
-  try {
-    const binding = getCloudflareContext().env.EMAIL as SendEmail | undefined;
-    return binding ?? null;
-  } catch {
-    return null;
-  }
+  return getBinding<SendEmail>("EMAIL") ?? null;
 }
 
 async function sendEmail(input: {

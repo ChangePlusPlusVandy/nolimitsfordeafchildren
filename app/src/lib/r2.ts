@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getBinding } from "@/lib/env";
 
 /**
  * R2 storage helpers (replacing the old DigitalOcean-Spaces/S3 module from
@@ -17,7 +17,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  */
 
 function getBucket(): R2Bucket {
-  const bucket = getCloudflareContext().env.BUCKET;
+  const bucket = getBinding<R2Bucket>("BUCKET");
   if (!bucket) {
     throw new Error("[r2] BUCKET binding not configured (see wrangler.jsonc)");
   }

@@ -6,7 +6,7 @@
  *
  * Wipes all tables in the LOCAL wrangler-emulated D1 and reseeds a known
  * dataset. Uses wrangler's `getPlatformProxy()` so it operates on the exact
- * same local D1/R2 state (.wrangler/state/v3) that `next dev` uses — the dev
+ * same local D1/R2 state (.wrangler/state/v3) that `vite dev` uses — the dev
  * server does not need to be running.
  *
  * Seeded dataset:
