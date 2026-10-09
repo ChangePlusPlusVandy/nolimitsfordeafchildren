@@ -52,15 +52,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Restore Next.js build cache
+      - name: Restore Vite build cache
         uses: actions/cache@v4
         with:
-          path: app/.next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          path: app/node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            vite-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      - name: Build (OpenNext)
+      - name: Build (Vinext)
         run: pnpm --filter nolimits-app build
 
       # Apply pending D1 migrations before shipping code that expects them.
@@ -69,4 +69,4 @@ jobs:
         run: pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-d1-staging --remote
 
       - name: Deploy to Cloudflare Workers
-        run: pnpm --filter nolimits-app exec wrangler deploy
+        run: pnpm --filter nolimits-app exec vinext-cloudflare deploy --config dist/server/wrangler.json

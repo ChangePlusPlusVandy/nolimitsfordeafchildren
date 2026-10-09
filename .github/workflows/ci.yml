@@ -44,7 +44,7 @@ jobs:
         run: pnpm format:check
 
   build:
-    name: Build (OpenNext)
+    name: Build (Vinext)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -66,19 +66,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Restore Next.js build cache
+      - name: Restore Vite build cache
         uses: actions/cache@v4
         with:
-          path: app/.next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          path: app/node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            vite-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - name: Apply local D1 migrations (unit-test prerequisite)
+        run: pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-d1-staging --local
+
+      - name: Unit tests
+        run: pnpm --filter nolimits-app test:unit
 
       - name: Build
         run: pnpm --filter nolimits-app build
 
-      - name: Validate wrangler config (dry-run deploy)
-        run: pnpm --filter nolimits-app exec wrangler deploy --dry-run --outdir /tmp/wrangler-dry-run
+      - name: Validate Worker bundle and cron wiring
+        run: pnpm --filter nolimits-app exec node scripts/check-bundle.mjs
+
+      - name: Validate generated config and bundle (wrangler dry-run, no upload)
+        run: pnpm --filter nolimits-app exec wrangler deploy --dry-run --config dist/server/wrangler.json
 
   e2e:
     name: e2e (Playwright smoke)
@@ -102,6 +111,14 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm --filter nolimits-e2e exec playwright install --with-deps chromium
+
+      # Authenticated suites (navigation) need the deterministic fake seed.
+      # Local-only D1/R2 state; never touches remote resources.
+      - name: Apply local D1 migrations
+        run: pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-d1-staging --local
+
+      - name: Seed local fake data
+        run: pnpm --filter nolimits-app db:seed
 
       - name: Run Playwright
         run: pnpm test:e2e

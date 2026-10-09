@@ -18,7 +18,12 @@ pnpm --filter nolimits-e2e test:ui
 
 - `e2e/login.spec.ts` — real smoke: form renders, middleware redirects `/`
   → `/login`, bad-credentials error, signup-mode toggle.
-- `e2e/api.spec.ts` — real `GET /api/health` check; rest skipped.
+- `e2e/api.spec.ts` — real `GET /api/health` check plus unauthenticated
+  `/api/files/*` denials (401 + `UNAUTHORIZED` code, no bytes).
+- `e2e/navigation.spec.ts` — authenticated admin sign-in, then client
+  navigation users → students → users plus reload with zero module errors.
+  Needs the fake seed first: `pnpm --filter nolimits-app db:seed` (same
+  isolated local D1/R2 the dev server uses).
 - Everything else is `test.skip` TODO stubs, one per route group:
   `auth-redirects`, `home-dashboard`, `locations`, `students`, `teachers`,
   `users`, `parents`, `admin`, `daily-work` (my-day / my-students /
