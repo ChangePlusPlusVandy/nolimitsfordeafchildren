@@ -53,7 +53,8 @@ schema change (`app/src/db/schema.ts` + `pnpm db:generate`) if needed.
    `requireRole("administrator", ...)` (or `getCurrentUser()` for explicit public
    exemptions). Role checks run server-side only.
 4. **Validation**: zod schemas in `actions.ts` before any service call.
-5. **Bindings**: `getCloudflareContext()` inside handlers/components only, never
+5. **Bindings**: `getBinding()` / `getEnvValue()` from `app/src/lib/env.ts`
+   inside handlers/components only, never
    module top-level (`app/src/lib/db.ts`, `app/src/lib/auth.ts` use lazy access).
    Cron injects D1 via `setDb(env.DB)` (no request context).
 6. **Naming**: `PascalCase.tsx` components, `camelCase.ts` logic, lowercase
@@ -67,6 +68,7 @@ schema change (`app/src/db/schema.ts` + `pnpm db:generate`) if needed.
 ```bash
 pnpm typecheck
 pnpm check
+pnpm --filter nolimits-app test:unit
 pnpm --filter nolimits-app build
 pnpm test:e2e
 ```

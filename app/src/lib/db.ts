@@ -1,13 +1,13 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/d1";
 
 import * as schema from "@/db/schema";
+import { getBinding } from "@/lib/env";
 
 /**
- * Thin D1 access layer for the OpenNext (Cloudflare) runtime.
+ * Thin D1 access layer for the Vinext (Cloudflare) runtime.
  *
  * IMPORTANT: bindings must be accessed INSIDE handlers/components, never at
- * module top-level. The `db` proxy below defers `getCloudflareContext()`
+ * module top-level. The `db` proxy below defers `getBinding("DB")`
  * until the first query actually runs (i.e. inside a request / cron handler).
  */
 
@@ -32,7 +32,7 @@ let injectedD1: D1Database | null = null;
 
 /**
  * Explicitly provide the D1 binding. Used by `worker.ts`'s `scheduled`
- * handler, where there is no request context for `getCloudflareContext()`.
+ * handler, which runs outside any request.
  */
 export function setDb(d1: D1Database): void {
   injectedD1 = d1;
@@ -40,11 +40,11 @@ export function setDb(d1: D1Database): void {
 
 /**
  * Resolve the D1 binding and return a drizzle instance.
- * - In request handlers: `getCloudflareContext().env.DB` (set up by OpenNext).
+ * - In request handlers: the `DB` binding from the worker env.
  * - In cron handlers: the binding injected via `setDb(env.DB)`.
  */
 export function getDb(): Database {
-  const d1 = injectedD1 ?? getCloudflareContext().env.DB;
+  const d1 = injectedD1 ?? getBinding<D1Database>("DB");
   if (!d1) {
     throw new Error(
       "[db] No D1 binding available. In a request, ensure the DB binding is configured in wrangler.jsonc; in a cron handler, call setDb(env.DB) first.",

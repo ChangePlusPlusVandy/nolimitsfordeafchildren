@@ -43,8 +43,8 @@ export type CurrentUserResult =
 type AuthSession = Awaited<ReturnType<ReturnType<typeof getAuth>["api"]["getSession"]>>;
 
 export async function resolveCurrentUser(): Promise<CurrentUserResult> {
-  // Opt out of prerender before `getAuth()` / D1 touch `getCloudflareContext()`
-  // in sync mode (OpenNext forbids that on static routes during `next build`).
+  // Opt out of prerender before `getAuth()` / D1 touch the worker env
+  // (bindings are unavailable on static routes during build).
   await connection();
 
   let session: AuthSession | null = null;

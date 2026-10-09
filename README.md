@@ -6,7 +6,7 @@ pnpm monorepo (`app/` + `tests/`). Versioning via release-please (see `release-p
 
 ## Stack
 
-**`app/`** — Next.js 16 (App Router) on Cloudflare Workers via OpenNext:
+**`app/`** — Next.js 16 (App Router) on Cloudflare Workers via Vinext:
 
 - **Frontend**: React 19, MUI 9, React Query
 - **Backend**: Server Components, Server Actions, Route Handlers (no Express)
@@ -56,23 +56,24 @@ Run wrangler commands from `app/` (or via `--filter nolimits-app`); `migrations_
 pnpm dev
 ```
 
-Runs `next dev` at **http://localhost:3000**. `app/next.config.ts` boots `initOpenNextCloudflareForDev()`, which wires the live local D1/R2 emulation into the dev server — no containers needed.
+Runs `vite dev` at **http://localhost:3000**. The Cloudflare Vite plugin
+wires the live local D1/R2 emulation into the dev server — no containers needed.
 
 ## Common Commands (repo root)
 
-| Command                             | Description                                                           |
-| ----------------------------------- | --------------------------------------------------------------------- |
-| `pnpm dev`                          | Run `app` dev server with emulated Cloudflare bindings                |
-| `pnpm typecheck`                    | `tsc --noEmit` in every workspace with a typecheck script             |
-| `pnpm lint` / `pnpm lint:fix`       | `oxlint` / `oxlint --fix` per workspace                               |
-| `pnpm format:check` / `pnpm format` | `oxfmt --check .` / `oxfmt --write .` from root                       |
-| `pnpm check`                        | `oxlint && oxfmt --check .`                                           |
-| `pnpm build`                        | `opennextjs-cloudflare build` for `app/` (produces `app/.open-next/`) |
-| `pnpm preview`                      | Build + `wrangler dev` preview with real emulated bindings            |
-| `pnpm deploy`                       | `wrangler deploy` from `app/` — **manual**; requires `wrangler login` |
-| `pnpm db:generate`                  | Generate D1 migrations (drizzle-kit, sqlite)                          |
-| `pnpm cf-typegen`                   | Regenerate `app/cloudflare-env.d.ts` from `app/wrangler.jsonc`        |
-| `pnpm test:e2e`                     | Playwright suite in `tests/` (boots app dev server automatically)     |
+| Command                             | Description                                                                        |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `pnpm dev`                          | Run `app` dev server with emulated Cloudflare bindings                             |
+| `pnpm typecheck`                    | `tsc --noEmit` in every workspace with a typecheck script                          |
+| `pnpm lint` / `pnpm lint:fix`       | `oxlint` / `oxlint --fix` per workspace                                            |
+| `pnpm format:check` / `pnpm format` | `oxfmt --check .` / `oxfmt --write .` from root                                    |
+| `pnpm check`                        | `oxlint && oxfmt --check .`                                                        |
+| `pnpm build`                        | `vite build` for `app/` (produces `app/dist/`)                                     |
+| `pnpm preview`                      | Serve the Vinext build with `wrangler dev` + emulated bindings                     |
+| `pnpm deploy`                       | `vinext-cloudflare deploy` from `app/dist/` — **manual**; requires Cloudflare auth |
+| `pnpm db:generate`                  | Generate D1 migrations (drizzle-kit, sqlite)                                       |
+| `pnpm cf-typegen`                   | Regenerate `app/cloudflare-env.d.ts` from `app/wrangler.jsonc`                     |
+| `pnpm test:e2e`                     | Playwright suite in `tests/` (boots app dev server automatically)                  |
 
 ## Database (D1)
 
@@ -94,7 +95,7 @@ The `send_email` binding requires the **FROM address to be verified in the Cloud
 
 ## CI
 
-- `.github/workflows/ci.yml`: install → typecheck → lint → format-check → OpenNext build (+ wrangler dry-run) → Playwright smoke (chromium).
+- `.github/workflows/ci.yml`: install → typecheck → lint → format-check → unit tests → Vinext build (+ bundle check + deploy dry-run) → Playwright smoke (chromium).
 - `.github/workflows/deploy.yml`: build → D1 migrate → deploy (manual / push to `main`).
 - `.github/workflows/release-please.yml`: opens version-bump PRs for `app/` (`app-vX.Y.Z` tags + GitHub releases). Deployment is manual and is **not** part of CI.
 
@@ -106,15 +107,15 @@ The `send_email` binding requires the **FROM address to be verified in the Cloud
 │   ├── src/
 │   │   ├── client/         # Client components, hooks, per-domain client layers
 │   │   ├── db/schema.ts    # Drizzle schema (sqlite/D1)
-│   │   ├── lib/            # auth, db (D1 proxy), email, r2 helpers
+│   │   ├── lib/            # auth, db (D1 proxy), email, r2, env (worker bindings)
 │   │   ├── server/         # Domain slices: {domain}/{service,queries,actions}.ts
 │   │   └── utils/          # Shared utilities
 │   ├── middleware.ts       # Cookie-presence auth guard
-│   ├── worker.ts           # Wrangler entry: OpenNext handler + scheduled cron
+│   ├── worker.ts           # Custom Worker entry: Vinext fetch + scheduled cron
 │   ├── wrangler.jsonc      # Bindings (DB/BUCKET/EMAIL) + cron triggers
 │   ├── drizzle.config.ts   # drizzle-kit config (sqlite)
-│   ├── next.config.ts      # Next config + initOpenNextCloudflareForDev()
-│   └── open-next.config.ts # OpenNext Cloudflare config
+│   ├── next.config.ts      # Next config (no adapter glue)
+│   └── vite.config.ts      # Vinext + Cloudflare Vite plugin
 ├── tests/                  # Playwright workspace (package: nolimits-e2e)
 │   ├── e2e/                # login smoke + TODO stubs for all routes
 │   └── playwright.config.ts
