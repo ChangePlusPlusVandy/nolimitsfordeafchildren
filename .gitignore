@@ -30,6 +30,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 **/.wrangler
 worker-configuration.d.ts
 
+# OpenTofu local cache and state (keep .terraform.lock.hcl tracked)
+.terraform/
+*.tfstate*
+
 # caches
 .eslintcache
 .cache

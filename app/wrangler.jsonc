@@ -49,4 +49,52 @@
   "triggers": {
     "crons": ["0 16 * * *", "0 17 * * 1"],
   },
+  // Selected by CLOUDFLARE_ENV at Vite build time, not deployment time.
+  // Bindings are non-inheritable, so each environment declares them.
+  "env": {
+    "staging": {
+      // Preserve the existing staging Worker and its runtime secrets.
+      "name": "nolimitsfordeafchildren",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "nolimits-d1-staging",
+          "database_id": "dfbcb92f-3dc5-45e3-ba81-4067ce11cc32",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "nolimits-r2-staging",
+        },
+      ],
+      "send_email": [{ "name": "EMAIL" }],
+      "triggers": {
+        "crons": ["0 16 * * *", "0 17 * * 1"],
+      },
+    },
+    "production": {
+      "name": "nolimitsfordeafchildren-production",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "nolimits-d1-production",
+          // Replace with d1_id.value from `tofu output -json` in infra/.
+          "database_id": "TODO_TOFU_OUTPUT_production",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "nolimits-r2-production",
+        },
+      ],
+      "send_email": [{ "name": "EMAIL" }],
+      "triggers": {
+        "crons": ["0 16 * * *", "0 17 * * 1"],
+      },
+    },
+  },
 }
