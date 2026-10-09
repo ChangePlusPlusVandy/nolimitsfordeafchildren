@@ -1,5 +1,6 @@
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import type { Metadata } from "next";
+
+import EmotionCacheProvider from "@/client/components/EmotionCacheProvider";
 
 import Providers from "./providers";
 
@@ -8,9 +9,8 @@ export const metadata: Metadata = {
   description: "Help deaf children speak, learn, and dream.",
 };
 
-// Auth + D1/R2 bindings are request-scoped (`getCloudflareContext` is sync).
-// Without this, `next build` prerenders RSC pages like /users and the
-// OpenNext sync context throws, failing CI.
+// Auth + D1/R2 bindings are request-scoped. Without this, the build
+// prerenders RSC pages like /users without bindings, failing CI.
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({
@@ -21,9 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppRouterCacheProvider>
+        <EmotionCacheProvider>
           <Providers>{children}</Providers>
-        </AppRouterCacheProvider>
+        </EmotionCacheProvider>
       </body>
     </html>
   );
