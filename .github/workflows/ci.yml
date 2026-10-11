@@ -86,7 +86,7 @@ jobs:
       - name: Validate Worker bundle and cron wiring
         shell: bash
         run: |
-          crons=$(grep -oP '_CRON = "\K[^"]+' src/server/cron/index.ts)
+          crons=$(grep -oP '_CRON = "\K[^"]+' app/_jobs/cron/index.ts)
           config=$(node -e '
             const raw = require("node:fs").readFileSync("wrangler.jsonc", "utf8");
             console.log(raw.split("\n").filter((line) => !line.trimStart().startsWith("//"))

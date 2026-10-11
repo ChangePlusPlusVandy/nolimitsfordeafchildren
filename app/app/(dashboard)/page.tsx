@@ -4,7 +4,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { useAuth } from "@/client/auth";
+import { useAuth } from "@/(auth)/_domain/client";
 
 /**
  * Redirects authenticated users to their role-appropriate landing page

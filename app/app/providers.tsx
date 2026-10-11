@@ -5,9 +5,9 @@ import { ThemeProvider } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
-import { AuthProvider } from "@/client/auth";
-import ErrorBoundary from "@/client/components/ErrorBoundary";
-import { ToastProvider } from "@/client/components/ToastProvider";
+import { AuthProvider } from "@/(auth)/_domain/client";
+import ErrorBoundary from "@/_shared/ui/ErrorBoundary";
+import { ToastProvider } from "@/_shared/ui/ToastProvider";
 
 import theme from "./theme";
 

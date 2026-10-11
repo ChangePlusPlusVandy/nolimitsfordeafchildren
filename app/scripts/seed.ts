@@ -32,6 +32,8 @@ import { eq, inArray } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import { getPlatformProxy } from "wrangler";
 
+import { getAuth } from "@/_platform/auth/server";
+import { db, initD1, setDb } from "@/_platform/db";
 import {
   AssessmentFocusTable,
   AssessmentTable,
@@ -51,10 +53,8 @@ import {
   TeacherStudentTable,
   type UserRole,
   UserTable,
-} from "@/db/schema";
-import { getAuth } from "@/lib/auth";
-import { db, initD1, setDb } from "@/lib/db";
-import { addDaysStr, dayOfWeek, todayStr } from "@/server/shared/dates";
+} from "@/_platform/db/schema";
+import { addDaysStr, dayOfWeek, todayStr } from "@/_shared/server/dates";
 
 const SEED_PASSWORD = "NoLimits!2026";
 const AUDIOGRAM_MIME_TYPE = "application/pdf";

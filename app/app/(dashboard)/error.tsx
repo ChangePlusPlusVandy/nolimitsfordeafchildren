@@ -3,7 +3,7 @@
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { Alert, Box, Button, Typography } from "@mui/material";
 
-import PageContainer from "@/client/components/PageContainer";
+import PageContainer from "@/_shared/ui/PageContainer";
 
 export default function DashboardError({
   error,

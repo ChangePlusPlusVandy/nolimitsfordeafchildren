@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import type { UserEntity } from "@/db/schema";
-import { getBinding } from "@/lib/env";
-import { requireRole } from "@/server/shared/auth-guard";
-import { BadRequestError, PayloadTooLargeError } from "@/server/shared/errors";
-import { authorizeObjectKey } from "@/server/shared/file-access";
+import { requireRole } from "@/_platform/auth/guard";
+import type { UserEntity } from "@/_platform/db/schema";
+import { getBinding } from "@/_platform/env";
+import { BadRequestError, PayloadTooLargeError } from "@/_shared/server/errors";
 
+import { authorizeObjectKey } from "../_services/file-access";
 import { errorResponse, purposeFromKey } from "../_shared";
 
 /**

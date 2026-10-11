@@ -1,6 +1,6 @@
 import { Box, CircularProgress } from "@mui/material";
 
-import PageContainer from "@/client/components/PageContainer";
+import PageContainer from "@/_shared/ui/PageContainer";
 
 export default function DashboardLoading() {
   return (
