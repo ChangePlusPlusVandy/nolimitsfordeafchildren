@@ -84,7 +84,35 @@ jobs:
         run: pnpm --filter nolimits-app build
 
       - name: Validate Worker bundle and cron wiring
-        run: pnpm --filter nolimits-app exec node scripts/check-bundle.mjs
+        shell: bash
+        run: |
+          crons=$(grep -oP '_CRON = "\K[^"]+' src/server/cron/index.ts)
+          config=$(node -e '
+            const raw = require("node:fs").readFileSync("wrangler.jsonc", "utf8");
+            console.log(raw.split("\n").filter((line) => !line.trimStart().startsWith("//"))
+              .join("\n").replace(/,(\s*[}\]])/g, (_, close) => close));
+          ')
+          generated=dist/server/wrangler.json
+          while IFS= read -r cron; do
+            jq -e --arg cron "$cron" '(.triggers.crons // []) | index($cron) != null' <<< "$config"
+            jq -e --arg cron "$cron" '(.triggers.crons // []) | index($cron) != null' "$generated"
+          done <<< "$crons"
+          for binding in DB BUCKET EMAIL; do
+            jq -e --arg binding "$binding" '
+              [.d1_databases // [], .r2_buckets // [], .send_email // []]
+              | any(.[]; tojson | contains("\"" + $binding + "\""))
+            ' "$generated"
+          done
+          bundle=dist/server/index.js
+          grep -Fq '[Cron] scheduled event' "$bundle"
+          node -e '
+            const bundle = require("node:fs").readFileSync(process.argv[1], "utf8");
+            const assert = require("node:assert/strict");
+            const defaultAlias = bundle.match(/export\{[^}]*\b(\w+) as default\b[^}]*\}/)?.[1];
+            assert(defaultAlias, "Worker bundle has no default export");
+            const composed = new RegExp("(var|const|let)\\s+" + defaultAlias + "\\s*=\\s*\\{[^}]*\\bscheduled\\b");
+            assert(composed.test(bundle), "Worker default export does not compose scheduled");
+          ' "$bundle"
 
       - name: Validate generated config and bundle (wrangler dry-run, no upload)
         run: pnpm --filter nolimits-app exec wrangler deploy --dry-run --config dist/server/wrangler.json

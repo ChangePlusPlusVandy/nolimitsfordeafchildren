@@ -28,7 +28,8 @@
  * Safe to run repeatedly (fully deterministic re-seed).
  */
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import { getPlatformProxy } from "wrangler";
 
 import {
@@ -48,6 +49,7 @@ import {
   TeacherLocationTable,
   TeacherProfileTable,
   TeacherStudentTable,
+  type UserRole,
   UserTable,
 } from "@/db/schema";
 import { getAuth } from "@/lib/auth";
@@ -55,6 +57,10 @@ import { db, initD1, setDb } from "@/lib/db";
 import { addDaysStr, dayOfWeek, todayStr } from "@/server/shared/dates";
 
 const SEED_PASSWORD = "NoLimits!2026";
+const AUDIOGRAM_MIME_TYPE = "application/pdf";
+const SEED_GUARDIAN_SUMMARY = "Seed data; not a real student.";
+
+type SeedUser = { email: string; name: string; role?: UserRole };
 
 /** Staff logins, one account per organization email domain. */
 const STAFF_SEED_USERS = [
@@ -62,23 +68,20 @@ const STAFF_SEED_USERS = [
   { name: "Jeannette", localPart: "jeannette" },
 ] as const;
 const STAFF_EMAIL_DOMAINS = ["nolimitsfordeafchildren.org", "kidswithnolimits.org"] as const;
-const staffSeedAccounts = STAFF_SEED_USERS.flatMap((person) =>
-  STAFF_EMAIL_DOMAINS.map((domain) => ({
-    email: `${person.localPart}@${domain}`,
-    name: person.name,
-  })),
-);
-
-const SEED_EMAILS = [
-  "admin@nolimits.test",
-  "teacher@nolimits.test",
-  "parent@nolimits.test",
-  "stranger@nolimits.test",
-  "pending@nolimits.test",
-  ...staffSeedAccounts.map((account) => account.email),
+const SEED_USERS: SeedUser[] = [
+  { email: "admin@nolimits.test", name: "admin" },
+  { email: "teacher@nolimits.test", name: "teacher", role: "teacher" },
+  { email: "parent@nolimits.test", name: "parent", role: "parent" },
+  { email: "stranger@nolimits.test", name: "stranger", role: "parent" },
+  { email: "pending@nolimits.test", name: "pending" },
+  ...STAFF_SEED_USERS.flatMap((person) =>
+    STAFF_EMAIL_DOMAINS.map((domain) => ({
+      email: `${person.localPart}@${domain}`,
+      name: person.name,
+      role: "administrator" as const,
+    })),
+  ),
 ];
-
-const seedNameByEmail = new Map(staffSeedAccounts.map((account) => [account.email, account.name]));
 
 const AUDIOGRAM_CONTENT = `%PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
@@ -91,6 +94,7 @@ endobj
 trailer<</Root 1 0 R>>
 %%EOF
 `;
+const AUDIOGRAM_SIZE = new TextEncoder().encode(AUDIOGRAM_CONTENT).length;
 
 /** Full-table wipe in FK-safe dependency order (children first). */
 async function wipeAllTables(d1: D1Database): Promise<void> {
@@ -130,9 +134,32 @@ async function wipeAllTables(d1: D1Database): Promise<void> {
     "auth_users",
   ] as const;
 
-  for (const table of tables) {
-    await d1.exec(`DELETE FROM ${table}`);
-  }
+  await d1.batch(tables.map((table) => d1.prepare(`DELETE FROM ${table}`)));
+}
+
+function setRole(role: UserRole) {
+  const emails = SEED_USERS.filter((user) => user.role === role).map((user) => user.email);
+  return db
+    .update(UserTable)
+    .set({ role, updated_at: new Date() })
+    .where(inArray(UserTable.email, emails));
+}
+
+async function insertReturning<T extends SQLiteTable>(
+  table: T,
+  values: T["$inferInsert"][],
+  key: keyof T["$inferInsert"] & keyof T["$inferSelect"],
+): Promise<T["$inferSelect"][]> {
+  const rows: T["$inferSelect"][] = await db.insert(table).values(values).returning();
+
+  // Match a unique seed field because SQLite RETURNING does not guarantee order.
+  return values.map((value) => {
+    const row = rows.find((candidate) => candidate[key] === value[key]);
+    if (!row) {
+      throw new Error(`seed: inserted row missing for ${String(value[key])}`);
+    }
+    return row;
+  });
 }
 
 /** Bitmask of weekday bits (Sun=1 … Sat=64) for org-calendar date-only strings. */
@@ -150,114 +177,77 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
 
   // ----- users (via better-auth so password hashing matches production) -----
   const auth = getAuth();
-  for (const email of SEED_EMAILS) {
+  for (const { email, name } of SEED_USERS) {
     await auth.api.signUpEmail({
       body: {
         email,
         password: SEED_PASSWORD,
-        name: seedNameByEmail.get(email) ?? email.split("@")[0] ?? email,
+        name,
       },
     });
   }
 
-  const users = new Map<string, { id: string; name: string; email: string; role: string }>();
-  for (const email of SEED_EMAILS) {
-    const [row] = await db
-      .select({
-        id: UserTable.id,
-        name: UserTable.name,
-        email: UserTable.email,
-        role: UserTable.role,
-      })
-      .from(UserTable)
-      .where(eq(UserTable.email, email))
-      .limit(1);
-    if (!row) throw new Error(`seed: app user missing for ${email}`);
-    users.set(email, row);
-  }
-
-  // admin is granted by BOOTSTRAP_ADMIN_EMAILS on signup; fix the rest.
+  // Leave bootstrap-only roles unchanged and read the final roles for the summary.
+  await db.batch([setRole("teacher"), setRole("parent"), setRole("administrator")]);
+  const userRows = await db
+    .select({ id: UserTable.id, role: UserTable.role, email: UserTable.email })
+    .from(UserTable);
+  const usersByEmail = new Map(userRows.map((user) => [user.email, user]));
   const getSeededUser = (email: string) => {
-    const user = users.get(email);
-    if (!user) throw new Error(`seed: missing seeded user ${email}`);
+    const user = usersByEmail.get(email);
+    if (!user) {
+      throw new Error(`seed: app user missing for ${email}`);
+    }
     return user;
   };
+  const users = new Map(SEED_USERS.map(({ email }) => [email, getSeededUser(email)]));
   const teacherUser = getSeededUser("teacher@nolimits.test");
   const parentUser = getSeededUser("parent@nolimits.test");
   const strangerUser = getSeededUser("stranger@nolimits.test");
   const adminUser = getSeededUser("admin@nolimits.test");
 
-  await db
-    .update(UserTable)
-    .set({ role: "teacher", updated_at: new Date() })
-    .where(eq(UserTable.id, teacherUser.id));
-  await db
-    .update(UserTable)
-    .set({ role: "parent", updated_at: new Date() })
-    .where(eq(UserTable.id, parentUser.id));
-  await db
-    .update(UserTable)
-    .set({ role: "parent", updated_at: new Date() })
-    .where(eq(UserTable.id, strangerUser.id));
-
-  // Keep the summary map in sync with the role updates above.
-  users.set("teacher@nolimits.test", { ...teacherUser, role: "teacher" });
-  users.set("parent@nolimits.test", { ...parentUser, role: "parent" });
-  users.set("stranger@nolimits.test", { ...strangerUser, role: "parent" });
-
-  for (const account of staffSeedAccounts) {
-    const user = getSeededUser(account.email);
-    await db
-      .update(UserTable)
-      .set({ role: "administrator", updated_at: new Date() })
-      .where(eq(UserTable.id, user.id));
-    users.set(account.email, { ...user, role: "administrator" });
-  }
-
-  const [teacherProfile] = await db
-    .insert(TeacherProfileTable)
-    .values({ user_id: teacherUser.id, age_group_specialty: "all_ages" })
-    .returning();
-  const [parentProfile] = await db
-    .insert(ParentProfileTable)
-    .values({ user_id: parentUser.id, preferred_contact_method: "email" })
-    .returning();
-  await db.insert(ParentProfileTable).values({ user_id: strangerUser.id });
+  const [teacherProfile] = await insertReturning(
+    TeacherProfileTable,
+    [{ user_id: teacherUser.id, age_group_specialty: "all_ages" }],
+    "user_id",
+  );
+  const [parentProfile] = await insertReturning(
+    ParentProfileTable,
+    [{ user_id: parentUser.id, preferred_contact_method: "email" }, { user_id: strangerUser.id }],
+    "user_id",
+  );
 
   // ----- locations -----
-  const [center] = await db
-    .insert(LocationTable)
-    .values({
-      name: "Main Education Center",
-      type: "education_center",
-      address_line1: "1410 Oak Street",
-      city: "Sacramento",
-      state: "CA",
-      postal_code: "95814",
-    })
-    .returning();
-  const [popup] = await db
-    .insert(LocationTable)
-    .values({
-      name: "Harbor Pop-Up Library",
-      type: "pop_up",
-      address_line1: "500 Harbor Blvd",
-      city: "West Sacramento",
-      state: "CA",
-      postal_code: "95691",
-    })
-    .returning();
-  const [remote] = await db
-    .insert(LocationTable)
-    .values({
-      name: "Rosewood Remote",
-      type: "remote",
-      address_line1: "Remote",
-      city: "Sacramento",
-      state: "CA",
-      postal_code: "95814",
-    })
-    .returning();
+  const [center, popup, remote] = await insertReturning(
+    LocationTable,
+    [
+      {
+        name: "Main Education Center",
+        type: "education_center",
+        address_line1: "1410 Oak Street",
+        city: "Sacramento",
+        state: "CA",
+        postal_code: "95814",
+      },
+      {
+        name: "Harbor Pop-Up Library",
+        type: "pop_up",
+        address_line1: "500 Harbor Blvd",
+        city: "West Sacramento",
+        state: "CA",
+        postal_code: "95691",
+      },
+      {
+        name: "Rosewood Remote",
+        type: "remote",
+        address_line1: "Remote",
+        city: "Sacramento",
+        state: "CA",
+        postal_code: "95814",
+      },
+    ],
+    "type",
+  );
 
   await db
     .update(TeacherProfileTable)
@@ -269,59 +259,51 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   ]);
 
   // ----- students -----
-  const [mia] = await db
-    .insert(StudentTable)
-    .values({
-      site_id: center.id,
-      first_name: "Mia",
-      last_name: "Chen",
-      initials: "MC",
-      dob: "2016-04-10",
-      hearing_loss_type: "moderate",
-      current_school: "Lincoln Elementary",
-      preferred_language: "English",
-      guardian_summary: "Seed data; not a real student.",
-    })
-    .returning();
-  const [leo] = await db
-    .insert(StudentTable)
-    .values({
-      site_id: center.id,
-      first_name: "Leo",
-      last_name: "Nguyen",
-      initials: "LN",
-      dob: "2018-11-02",
-      hearing_loss_type: "severe",
-      current_school: "Turtle Creek Elementary",
-      guardian_summary: "Seed data; not a real student.",
-    })
-    .returning();
-  const [ava] = await db
-    .insert(StudentTable)
-    .values({
-      site_id: popup.id,
-      first_name: "Ava",
-      last_name: "Park",
-      initials: "AP",
-      dob: "2015-07-19",
-      hearing_loss_type: "mild",
-      current_school: "Riverview Middle",
-      guardian_summary: "Seed data; not a real student.",
-    })
-    .returning();
-  const [noah] = await db
-    .insert(StudentTable)
-    .values({
-      site_id: remote.id,
-      first_name: "Noah",
-      last_name: "Reyes",
-      initials: "NR",
-      dob: "2017-01-25",
-      hearing_loss_type: "unknown",
-      current_school: "Capitol Elementary",
-      guardian_summary: "Seed data; not a real student.",
-    })
-    .returning();
+  const [mia, leo, ava, noah] = await insertReturning(
+    StudentTable,
+    (
+      [
+        {
+          site_id: center.id,
+          first_name: "Mia",
+          last_name: "Chen",
+          initials: "MC",
+          dob: "2016-04-10",
+          hearing_loss_type: "moderate",
+          current_school: "Lincoln Elementary",
+          preferred_language: "English",
+        },
+        {
+          site_id: center.id,
+          first_name: "Leo",
+          last_name: "Nguyen",
+          initials: "LN",
+          dob: "2018-11-02",
+          hearing_loss_type: "severe",
+          current_school: "Turtle Creek Elementary",
+        },
+        {
+          site_id: popup.id,
+          first_name: "Ava",
+          last_name: "Park",
+          initials: "AP",
+          dob: "2015-07-19",
+          hearing_loss_type: "mild",
+          current_school: "Riverview Middle",
+        },
+        {
+          site_id: remote.id,
+          first_name: "Noah",
+          last_name: "Reyes",
+          initials: "NR",
+          dob: "2017-01-25",
+          hearing_loss_type: "unknown",
+          current_school: "Capitol Elementary",
+        },
+      ] as const
+    ).map((student) => ({ ...student, guardian_summary: SEED_GUARDIAN_SUMMARY })),
+    "initials",
+  );
 
   // One sibling on Mia (exercises the sibling-participant UI).
   await db.insert(SiblingTable).values({
@@ -350,43 +332,29 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   const today = todayStr();
   const cycleStart = addDaysStr(today, -7);
   const cycleEnd = addDaysStr(today, 63);
-  const [cycleSession] = await db
-    .insert(SessionTable)
-    .values({
-      name: "Fall 2026 Seed Cycle",
-      start_date: cycleStart,
-      end_date: cycleEnd,
-    })
-    .returning();
+  const [cycleSession] = await insertReturning(
+    SessionTable,
+    [{ name: "Fall 2026 Seed Cycle", start_date: cycleStart, end_date: cycleEnd }],
+    "name",
+  );
 
   // Schedule days: today, today+2, today+4 (always includes TODAY in org TZ).
   const mask = maskForDateStrs([today, addDaysStr(today, 2), addDaysStr(today, 4)]);
-  const [centerSchedule] = await db
-    .insert(ScheduleTable)
-    .values({
+  const [centerSchedule, popupSchedule] = await insertReturning(
+    ScheduleTable,
+    [
+      { site_id: center.id, start_time: "09:00", end_time: "10:00" },
+      { site_id: popup.id, start_time: "10:30", end_time: "11:30" },
+    ].map((schedule) => ({
+      ...schedule,
       teacher_id: teacherProfile.id,
-      site_id: center.id,
       session_id: cycleSession.id,
       day_of_week_mask: mask,
-      start_time: "09:00",
-      end_time: "10:00",
       cycle_start_date: cycleStart,
       cycle_end_date: cycleEnd,
-    })
-    .returning();
-  const [popupSchedule] = await db
-    .insert(ScheduleTable)
-    .values({
-      teacher_id: teacherProfile.id,
-      site_id: popup.id,
-      session_id: cycleSession.id,
-      day_of_week_mask: mask,
-      start_time: "10:30",
-      end_time: "11:30",
-      cycle_start_date: cycleStart,
-      cycle_end_date: cycleEnd,
-    })
-    .returning();
+    })),
+    "site_id",
+  );
 
   await db.insert(EnrollmentTable).values([
     { student_id: mia.id, schedule_id: centerSchedule.id },
@@ -425,55 +393,43 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   });
 
   // ----- pre-assessments -----
-  const [miaPre] = await db
-    .insert(AssessmentTable)
-    .values({
-      student_id: mia.id,
+  const [miaPre, leoPre] = await insertReturning(
+    AssessmentTable,
+    [
+      { student_id: mia.id, teaching_focus: "Speech articulation", score: 14 },
+      { student_id: leo.id, teaching_focus: "Auditory discrimination", score: 12 },
+    ].map((assessment) => ({
+      ...assessment,
       teacher_id: teacherProfile.id,
       cycle_start_date: cycleStart,
-      assessment_type: "pre",
-      teaching_focus: "Speech articulation",
+      assessment_type: "pre" as const,
       summary: "Baseline for Fall 2026 cycle.",
-      score: 14,
       assessed_at: noonUtc(cycleStart),
-    })
-    .returning();
+    })),
+    "student_id",
+  );
   await db.insert(AssessmentFocusTable).values([
     { assessment_id: miaPre.id, goal: "Initial /s/", score: 7, max_score: 10, sort_order: 1 },
     { assessment_id: miaPre.id, goal: "Initial /sh/", score: 7, max_score: 10, sort_order: 2 },
-  ]);
-  const [leoPre] = await db
-    .insert(AssessmentTable)
-    .values({
-      student_id: leo.id,
-      teacher_id: teacherProfile.id,
-      cycle_start_date: cycleStart,
-      assessment_type: "pre",
-      teaching_focus: "Auditory discrimination",
-      summary: "Baseline for Fall 2026 cycle.",
+    {
+      assessment_id: leoPre.id,
+      goal: "Minimal pairs discrimination",
       score: 12,
-      assessed_at: noonUtc(cycleStart),
-    })
-    .returning();
-  await db.insert(AssessmentFocusTable).values({
-    assessment_id: leoPre.id,
-    goal: "Minimal pairs discrimination",
-    score: 12,
-    max_score: 20,
-    sort_order: 1,
-  });
+      max_score: 20,
+      sort_order: 1,
+    },
+  ]);
 
   // ----- audiogram documents + R2 objects (due soon / overdue) -----
   const miaDue = addDaysStr(today, 25); // inside the 30-day reminder window
   const leoDue = addDaysStr(today, -17); // overdue
   const miaKey = `documents/student/${mia.id}/audiogram/seed-audiogram.pdf`;
   const leoKey = `documents/student/${leo.id}/audiogram/seed-audiogram-overdue.pdf`;
-  await bucket.put(miaKey, AUDIOGRAM_CONTENT, {
-    httpMetadata: { contentType: "application/pdf" },
-  });
-  await bucket.put(leoKey, AUDIOGRAM_CONTENT, {
-    httpMetadata: { contentType: "application/pdf" },
-  });
+  for (const key of [miaKey, leoKey]) {
+    await bucket.put(key, AUDIOGRAM_CONTENT, {
+      httpMetadata: { contentType: AUDIOGRAM_MIME_TYPE },
+    });
+  }
 
   await db.insert(DocumentTable).values([
     {
@@ -482,8 +438,8 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
       document_type: "audiogram",
       file_url: `/api/files/${miaKey}`,
       file_name: "seed-audiogram.pdf",
-      file_size: new TextEncoder().encode(AUDIOGRAM_CONTENT).length,
-      mime_type: "application/pdf",
+      file_size: AUDIOGRAM_SIZE,
+      mime_type: AUDIOGRAM_MIME_TYPE,
       document_date: addDaysStr(today, -158),
       next_due_date: miaDue,
       review_status: "approved",
@@ -495,8 +451,8 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
       document_type: "audiogram",
       file_url: `/api/files/${leoKey}`,
       file_name: "seed-audiogram-overdue.pdf",
-      file_size: new TextEncoder().encode(AUDIOGRAM_CONTENT).length,
-      mime_type: "application/pdf",
+      file_size: AUDIOGRAM_SIZE,
+      mime_type: AUDIOGRAM_MIME_TYPE,
       document_date: addDaysStr(today, -200),
       next_due_date: leoDue,
       review_status: "approved",

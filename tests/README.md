@@ -1,42 +1,53 @@
-# e2e
+# End-to-end tests
 
-Playwright scaffold for the No Limits monorepo. App under test is `../app`.
+Playwright tests for `../app`: 8 active checks (login, API, admin navigation)
+and 47 skipped route-group specs awaiting implementation. Chromium only.
 
-## Run
+## Prerequisites
+
+Use the repository's Node.js and pnpm versions. From the repo root:
 
 ```bash
-pnpm install                    # from repo root (installs browsers via postinstall)
-pnpm test:e2e                   # from root, boots app dev server automatically
-pnpm --filter nolimits-e2e test # same, from this dir
-pnpm --filter nolimits-e2e test:ui
+pnpm install
+cp app/.dev.vars.example app/.dev.vars # only if not already configured
+pnpm --filter nolimits-e2e exec playwright install chromium
+pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-d1-staging --local
+pnpm --filter nolimits-app db:seed
 ```
 
-`playwright.config.ts` boots `pnpm --filter nolimits-app dev` via `webServer`
-(baseURL `http://localhost:3000`, override with `PLAYWRIGHT_BASE_URL`).
+Seed replaces local D1 data in `app/.wrangler/state` and adds fake R2 files.
+Use a disposable checkout if local development data matters; never use remote
+D1/R2 or production URLs. Reseed before runs, not while tests are running.
 
-## What's covered now
+## Commands
 
-- `e2e/login.spec.ts` — real smoke: form renders, middleware redirects `/`
-  → `/login`, bad-credentials error, signup-mode toggle.
-- `e2e/api.spec.ts` — real `GET /api/health` check plus unauthenticated
-  `/api/files/*` denials (401 + `UNAUTHORIZED` code, no bytes).
-- `e2e/navigation.spec.ts` — authenticated admin sign-in, then client
-  navigation users → students → users plus reload with zero module errors.
-  Needs the fake seed first: `pnpm --filter nolimits-app db:seed` (same
-  isolated local D1/R2 the dev server uses).
-- Everything else is `test.skip` TODO stubs, one per route group:
-  `auth-redirects`, `home-dashboard`, `locations`, `students`, `teachers`,
-  `users`, `parents`, `admin`, `daily-work` (my-day / my-students /
-  my-profile / bulletin / chat / pending-approval).
+```bash
+pnpm test:e2e                              # boots the local app on port 3000
+pnpm --filter nolimits-e2e test:ui
+pnpm --filter nolimits-e2e test --list      # discovery only, no server needed
+pnpm --filter nolimits-e2e typecheck
+pnpm --filter nolimits-e2e lint
+```
 
-## Adding real coverage (next steps)
+`playwright.config.ts` starts `pnpm --filter nolimits-app dev --port 3000`.
+Default baseURL is `http://localhost:3000`; `PLAYWRIGHT_BASE_URL` changes the
+test target only, not the server command. Keep it pointed at isolated local data.
 
-1. Add `fixtures/<role>.ts` that create `storageState` files per role
-   (administrator / teacher / parent / unassigned) via `page.request`
-   against better-auth + `app/db:seed`.
-2. Unskip suites one file at a time; seed via `app/scripts/seed.ts` or
-   D1 SQL fixtures (never production D1).
-3. Keep PII assertions: lists show initials only; full PII only on detail
-   pages for authorized roles.
-4. Mobile-first: add a `Pixel 7` project for parent flows (most families
-   are smartphone-only).
+## Implementing skipped specs
+
+- Keep specs grouped by route; implement and unskip only the intended scenario.
+- Import `signIn` or `signInAsAdmin` from `./fixtures`; call
+  `await signIn(page, "teacher")` with a fresh Playwright page/context.
+- `ROLE_CREDS` includes admin, teacher, parent, stranger (parent without linked
+  children), and pending (unassigned). All use password `NoLimits!2026`.
+- `fixtures.ts` includes optional setup/project snippets using `saveSession`
+  and `sessionPath`. Role projects use `e2e/<role>/` and disjoint test matches;
+  no setup projects run until configured. State files are gitignored under
+  `playwright/.cache/auth`; regenerate after reseeding and never share them.
+- Browser contexts isolate sessions, not D1/R2. Mutation tests need unique
+  records and cleanup; use `--workers=1` when sharing seeded records.
+- Assert student initials in lists, full PII only in authorized details, and
+  parent/teacher access limited to linked/assigned students. Files stay behind
+  authenticated `/api/files/*` routes.
+- Add a `Pixel 7` project when implementing parent flows; keep mobile layouts
+  usable for smartphone-only families.

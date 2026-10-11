@@ -1,7 +1,8 @@
 name: Deploy
 
-# Deploys to Cloudflare Workers. Runs automatically on pushes to main and can
-# be triggered manually from the Actions tab (workflow_dispatch).
+# Pushes to main deploy staging. Manual dispatch redeploys staging.
+# Single environment, hand-rolled in the Cloudflare dashboard
+# (D1 nolimits-d1-staging, R2 nolimits-r2-staging).
 #
 # Required repository secrets:
 #   CLOUDFLARE_API_TOKEN  — API token with Workers Scripts:Edit, D1:Edit,
@@ -29,7 +30,7 @@ jobs:
     name: Build · Migrate D1 · Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
+    environment: staging
     defaults:
       run:
         working-directory: app

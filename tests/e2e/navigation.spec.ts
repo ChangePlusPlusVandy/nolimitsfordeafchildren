@@ -1,4 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
+import { signInAsAdmin } from "./fixtures";
 
 /**
  * Authenticated client navigation (requires seeded admin:
@@ -8,20 +10,6 @@ import { expect, type Page, test } from "@playwright/test";
  * raw CJS transitives (e.g. `prop-types` default import) that crash
  * hydration on navigation while direct loads work.
  */
-async function signInAsAdmin(page: Page): Promise<void> {
-  const session = page.waitForResponse(
-    (response) => response.url().includes("/api/auth/get-session"),
-    { timeout: 30_000 },
-  );
-  await page.goto("/login");
-  await session;
-  await page.getByLabel(/email/i).fill("admin@nolimits.test");
-  await page.getByLabel(/^password/i).fill("NoLimits!2026");
-  await expect(page.getByRole("button", { name: /^sign in$/i })).toBeEnabled();
-  await page.getByRole("button", { name: /^sign in$/i }).click();
-  await expect(page).toHaveURL(/\/users/, { timeout: 30_000 });
-}
-
 test.describe("authenticated navigation", () => {
   test("admin goes users -> students -> users plus reload without module errors", async ({
     page,

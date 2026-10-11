@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3f1ebeac-b97c-491b-9c24-4c5dd281ebab",
+  "id": "17e8865d-e914-4c2a-8165-af1c61827a5a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assessment_focuses": {
@@ -361,7 +361,23 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "attendance_student_schedule_date_unique": {
+          "name": "attendance_student_schedule_date_unique",
+          "columns": ["student_id", "schedule_id", "session_date"],
+          "isUnique": true
+        },
+        "attendance_schedule_date_idx": {
+          "name": "attendance_schedule_date_idx",
+          "columns": ["schedule_id", "session_date"],
+          "isUnique": false
+        },
+        "attendance_student_date_idx": {
+          "name": "attendance_student_date_idx",
+          "columns": ["student_id", "session_date"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "attendance_student_id_students_id_fk": {
           "name": "attendance_student_id_students_id_fk",
@@ -442,6 +458,13 @@
         },
         "id_token": {
           "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "issuer": {
+          "name": "issuer",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -1186,7 +1209,13 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "chat_messages_channel_created_at_idx": {
+          "name": "chat_messages_channel_created_at_idx",
+          "columns": ["channel", "created_at"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "chat_messages_created_by_users_id_fk": {
           "name": "chat_messages_created_by_users_id_fk",
@@ -1349,7 +1378,23 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "documents_entity_idx": {
+          "name": "documents_entity_idx",
+          "columns": ["entity_type", "entity_id"],
+          "isUnique": false
+        },
+        "documents_review_status_idx": {
+          "name": "documents_review_status_idx",
+          "columns": ["review_status"],
+          "isUnique": false
+        },
+        "documents_type_due_date_idx": {
+          "name": "documents_type_due_date_idx",
+          "columns": ["document_type", "next_due_date"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "documents_reviewed_by_users_id_fk": {
           "name": "documents_reviewed_by_users_id_fk",
@@ -1427,7 +1472,18 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "enrollments_student_id_idx": {
+          "name": "enrollments_student_id_idx",
+          "columns": ["student_id"],
+          "isUnique": false
+        },
+        "enrollments_schedule_id_idx": {
+          "name": "enrollments_schedule_id_idx",
+          "columns": ["schedule_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "enrollments_student_id_students_id_fk": {
           "name": "enrollments_student_id_students_id_fk",
@@ -2071,7 +2127,18 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "parent_student_link_parent_id_idx": {
+          "name": "parent_student_link_parent_id_idx",
+          "columns": ["parent_id"],
+          "isUnique": false
+        },
+        "parent_student_link_student_id_idx": {
+          "name": "parent_student_link_student_id_idx",
+          "columns": ["student_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "parent_student_link_parent_id_parent_profiles_id_fk": {
           "name": "parent_student_link_parent_id_parent_profiles_id_fk",
@@ -2623,7 +2690,23 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "schedules_teacher_active_idx": {
+          "name": "schedules_teacher_active_idx",
+          "columns": ["teacher_id", "is_active"],
+          "isUnique": false
+        },
+        "schedules_site_id_idx": {
+          "name": "schedules_site_id_idx",
+          "columns": ["site_id"],
+          "isUnique": false
+        },
+        "schedules_session_id_idx": {
+          "name": "schedules_session_id_idx",
+          "columns": ["session_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "schedules_teacher_id_teacher_profiles_id_fk": {
           "name": "schedules_teacher_id_teacher_profiles_id_fk",
@@ -2824,7 +2907,13 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "sessions_active_start_date_idx": {
+          "name": "sessions_active_start_date_idx",
+          "columns": ["is_active", "start_date"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -2913,7 +3002,13 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "siblings_student_id_idx": {
+          "name": "siblings_student_id_idx",
+          "columns": ["student_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "siblings_student_id_students_id_fk": {
           "name": "siblings_student_id_students_id_fk",
@@ -3402,7 +3497,18 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "teacher_student_teacher_id_idx": {
+          "name": "teacher_student_teacher_id_idx",
+          "columns": ["teacher_id"],
+          "isUnique": false
+        },
+        "teacher_student_student_id_idx": {
+          "name": "teacher_student_student_id_idx",
+          "columns": ["student_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "teacher_student_teacher_id_teacher_profiles_id_fk": {
           "name": "teacher_student_teacher_id_teacher_profiles_id_fk",

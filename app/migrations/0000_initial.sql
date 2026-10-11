@@ -58,6 +58,9 @@ CREATE TABLE `attendance` (
 	FOREIGN KEY (`marked_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `attendance_student_schedule_date_unique` ON `attendance` (`student_id`,`schedule_id`,`session_date`);--> statement-breakpoint
+CREATE INDEX `attendance_schedule_date_idx` ON `attendance` (`schedule_id`,`session_date`);--> statement-breakpoint
+CREATE INDEX `attendance_student_date_idx` ON `attendance` (`student_id`,`session_date`);--> statement-breakpoint
 CREATE TABLE `auth_accounts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`account_id` text NOT NULL,
@@ -66,6 +69,7 @@ CREATE TABLE `auth_accounts` (
 	`access_token` text,
 	`refresh_token` text,
 	`id_token` text,
+	`issuer` text,
 	`access_token_expires_at` integer,
 	`refresh_token_expires_at` integer,
 	`scope` text,
@@ -184,6 +188,7 @@ CREATE TABLE `chat_messages` (
 	FOREIGN KEY (`deleted_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE INDEX `chat_messages_channel_created_at_idx` ON `chat_messages` (`channel`,`created_at`);--> statement-breakpoint
 CREATE TABLE `documents` (
 	`id` text PRIMARY KEY NOT NULL,
 	`entity_type` text NOT NULL,
@@ -208,6 +213,9 @@ CREATE TABLE `documents` (
 	FOREIGN KEY (`uploaded_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE INDEX `documents_entity_idx` ON `documents` (`entity_type`,`entity_id`);--> statement-breakpoint
+CREATE INDEX `documents_review_status_idx` ON `documents` (`review_status`);--> statement-breakpoint
+CREATE INDEX `documents_type_due_date_idx` ON `documents` (`document_type`,`next_due_date`);--> statement-breakpoint
 CREATE TABLE `enrollments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`student_id` text NOT NULL,
@@ -220,6 +228,8 @@ CREATE TABLE `enrollments` (
 	FOREIGN KEY (`schedule_id`) REFERENCES `schedules`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE INDEX `enrollments_student_id_idx` ON `enrollments` (`student_id`);--> statement-breakpoint
+CREATE INDEX `enrollments_schedule_id_idx` ON `enrollments` (`schedule_id`);--> statement-breakpoint
 CREATE TABLE `locations` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -317,6 +327,8 @@ CREATE TABLE `parent_student_link` (
 	FOREIGN KEY (`student_id`) REFERENCES `students`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE INDEX `parent_student_link_parent_id_idx` ON `parent_student_link` (`parent_id`);--> statement-breakpoint
+CREATE INDEX `parent_student_link_student_id_idx` ON `parent_student_link` (`student_id`);--> statement-breakpoint
 CREATE TABLE `photos` (
 	`id` text PRIMARY KEY NOT NULL,
 	`location_id` text NOT NULL,
@@ -400,6 +412,9 @@ CREATE TABLE `schedules` (
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE INDEX `schedules_teacher_active_idx` ON `schedules` (`teacher_id`,`is_active`);--> statement-breakpoint
+CREATE INDEX `schedules_site_id_idx` ON `schedules` (`site_id`);--> statement-breakpoint
+CREATE INDEX `schedules_session_id_idx` ON `schedules` (`session_id`);--> statement-breakpoint
 CREATE TABLE `session_notes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`student_id` text NOT NULL,
@@ -427,6 +442,7 @@ CREATE TABLE `sessions` (
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
+CREATE INDEX `sessions_active_start_date_idx` ON `sessions` (`is_active`,`start_date`);--> statement-breakpoint
 CREATE TABLE `siblings` (
 	`id` text PRIMARY KEY NOT NULL,
 	`student_id` text NOT NULL,
@@ -442,6 +458,7 @@ CREATE TABLE `siblings` (
 	FOREIGN KEY (`student_id`) REFERENCES `students`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE INDEX `siblings_student_id_idx` ON `siblings` (`student_id`);--> statement-breakpoint
 CREATE TABLE `students` (
 	`id` text PRIMARY KEY NOT NULL,
 	`site_id` text NOT NULL,
@@ -518,6 +535,8 @@ CREATE TABLE `teacher_student` (
 	FOREIGN KEY (`student_id`) REFERENCES `students`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE INDEX `teacher_student_teacher_id_idx` ON `teacher_student` (`teacher_id`);--> statement-breakpoint
+CREATE INDEX `teacher_student_student_id_idx` ON `teacher_student` (`student_id`);--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`auth_user_id` text,
