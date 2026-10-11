@@ -19,7 +19,7 @@
       // emulated D1 (remote=false) — remote migrations are never applied
       // automatically, only via `wrangler d1 migrations apply --remote`.
       "database_name": "nolimits-d1-staging",
-      "database_id": "dfbcb92f-3dc5-45e3-ba81-4067ce11cc32",
+      "database_id": "98239d92-112e-4adf-b1f8-a94ad6643f78",
       "migrations_dir": "migrations",
     },
   ],
