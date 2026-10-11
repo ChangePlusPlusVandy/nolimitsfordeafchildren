@@ -1,7 +1,8 @@
 name: Deploy
 
-# Pushes to main deploy staging; published releases deploy production.
-# Manual dispatch selects either environment.
+# Pushes to main deploy staging. Manual dispatch redeploys staging.
+# Single environment, hand-rolled in the Cloudflare dashboard
+# (D1 nolimits-d1-staging, R2 nolimits-r2-staging).
 #
 # Required repository secrets:
 #   CLOUDFLARE_API_TOKEN  — API token with Workers Scripts:Edit, D1:Edit,
@@ -14,16 +15,7 @@ name: Deploy
 on:
   push:
     branches: [main]
-  release:
-    types: [published]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: Deployment environment
-        type: choice
-        required: true
-        default: staging
-        options: [staging, production]
 
 # Serialize deploys — never cancel one mid-flight, queue the next instead.
 concurrency:
@@ -38,27 +30,16 @@ jobs:
     name: Build · Migrate D1 · Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ github.event_name == 'release' && 'production' || inputs.environment || 'staging' }}
+    environment: staging
     defaults:
       run:
         working-directory: app
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_ENV: ${{ github.event_name == 'release' && 'production' || inputs.environment || 'staging' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      # TODO: after provisioning, copy tofu output -json d1_id.value into
-      # wrangler.jsonc env.production before building the flattened config.
-      - name: Require provisioned production D1
-        if: env.CLOUDFLARE_ENV == 'production'
-        run: |
-          if grep -q 'TODO_TOFU_OUTPUT_production' wrangler.jsonc; then
-            echo 'Set the production D1 ID from infra/ tofu output -json before deploying.' >&2
-            exit 1
-          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -81,13 +62,12 @@ jobs:
             vite-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Build (Vinext)
-        # CLOUDFLARE_ENV selects bindings at build time, not deploy time.
         run: pnpm --filter nolimits-app build
 
       # Apply pending D1 migrations before shipping code that expects them.
       # `migrations apply` is a no-op when the database is already current.
       - name: Apply D1 migrations
-        run: pnpm --filter nolimits-app exec wrangler d1 migrations apply DB --env "$CLOUDFLARE_ENV" --remote
+        run: pnpm --filter nolimits-app exec wrangler d1 migrations apply nolimits-d1-staging --remote
 
       - name: Deploy to Cloudflare Workers
         run: pnpm --filter nolimits-app exec vinext-cloudflare deploy --config dist/server/wrangler.json
