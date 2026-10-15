@@ -13,6 +13,7 @@ import {
   getPagination,
   type PaginatedResponse,
 } from "@/_shared/server/pagination";
+import { ForbiddenError, NotFoundError } from "@/_shared/server/errors";
 
 import type { AttendanceStatus, MakeupSessionWithDetails } from "./types";
 
@@ -32,6 +33,41 @@ export async function isTeacherAuthorizedForSession(
     .limit(1);
 
   return profile.length > 0;
+}
+
+/**
+ * Assert that the authenticated teacher (by user ID) owns the given make-up
+ * session. Admins bypass this check — callers only invoke this for teacher
+ * role; see `markMakeupSessionAttendance` in actions.ts.
+ *
+ * - Session not found        → NotFoundError  (no information about the ID)
+ * - Profile missing / mismatched → ForbiddenError (no session details leaked)
+ */
+export async function assertTeacherOwnsMakeupSession(
+  teacherUserId: string,
+  sessionId: string,
+): Promise<MakeupSessionEntity> {
+  const [session] = await db
+    .select()
+    .from(MakeupSessionTable)
+    .where(eq(MakeupSessionTable.id, sessionId))
+    .limit(1);
+
+  if (!session) {
+    throw new NotFoundError("Makeup session not found");
+  }
+
+  const [profile] = await db
+    .select({ id: TeacherProfileTable.id })
+    .from(TeacherProfileTable)
+    .where(eq(TeacherProfileTable.user_id, teacherUserId))
+    .limit(1);
+
+  if (!profile || profile.id !== session.teacher_id) {
+    throw new ForbiddenError("You can only mark attendance for your own make-up sessions");
+  }
+
+  return session;
 }
 
 export async function listSessionsForTeacher(
