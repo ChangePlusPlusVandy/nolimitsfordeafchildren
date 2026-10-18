@@ -1,30 +1,34 @@
 "use client";
 
-import { PhotoLibrary as PhotoLibraryIcon } from "@mui/icons-material";
+import { Delete as DeleteIcon, PhotoLibrary as PhotoLibraryIcon } from "@mui/icons-material";
 import {
   Box,
   CardContent,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
   TablePagination,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
-import { Suspense } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Suspense, useState } from "react";
 
+import ConfirmDialog from "@/client/components/ConfirmDialog";
 import EmptyState from "@/client/components/EmptyState";
 import ErrorAlert from "@/client/components/ErrorAlert";
 import PageContainer from "@/client/components/PageContainer";
 import PageHeader from "@/client/components/PageHeader";
 import SectionCard from "@/client/components/SectionCard";
 import CardGridSkeleton from "@/client/components/skeletons/CardGridSkeleton";
+import { useToast } from "@/client/components/ToastProvider";
 import { useServerTable } from "@/client/hooks/useServerTable";
 import { listAllLocations } from "@/client/locations";
-import { listPhotos } from "@/client/sessions";
+import { deletePhoto, listPhotos } from "@/client/sessions";
 import { formatDate } from "@/client/utils/formatDate";
 
 interface GalleryPhoto {
@@ -49,6 +53,9 @@ interface GalleryPhoto {
 
 function PhotoGalleryPage() {
   const table = useServerTable({ defaultLimit: 18 });
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [deleteTarget, setDeleteTarget] = useState<GalleryPhoto | null>(null);
   const locationFilter = table.getFilter("location_id");
   const dateFilter = table.getFilter("session_date");
 
@@ -75,6 +82,24 @@ function PhotoGalleryPage() {
   });
 
   const photos = data?.items ?? [];
+
+  const deleteMutation = useMutation({
+    mutationFn: (photoId: string) => deletePhoto(photoId),
+    onSuccess: () => {
+      const wasLastOnPage = photos.length === 1 && table.page > 1;
+      queryClient.invalidateQueries({ queryKey: ["admin-photo-gallery"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher-session-photos"] });
+      queryClient.invalidateQueries({ queryKey: ["parent-child-photos"] });
+      toast.success("Photo deleted");
+      setDeleteTarget(null);
+      if (wasLastOnPage) {
+        table.setPage(table.page - 1);
+      }
+    },
+    onError: () => {
+      toast.error("Failed to delete photo. Please try again.");
+    },
+  });
 
   return (
     <PageContainer>
@@ -158,6 +183,18 @@ function PhotoGalleryPage() {
                       Uploaded by {photo.uploaded_by_user.name}
                     </Typography>
                     {photo.caption && <Typography variant="body2">{photo.caption}</Typography>}
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label={`Delete ${photo.file_name}`}
+                          onClick={() => setDeleteTarget(photo)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </CardContent>
                 </SectionCard>
               ))}
@@ -174,6 +211,19 @@ function PhotoGalleryPage() {
           </>
         )}
       </Stack>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete photo?"
+        message={`Are you sure you want to delete "${deleteTarget?.file_name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmColor="error"
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </PageContainer>
   );
 }

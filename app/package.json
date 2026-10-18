@@ -12,7 +12,7 @@
     "build:next": "next build",
     "cf-typegen": "wrangler types",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx --test src/lib/env.test.ts src/server/cron/dispatch.test.ts src/server/cron/scheduled.test.ts",
+    "test:unit": "tsx --test src/lib/env.test.ts src/server/cron/dispatch.test.ts src/server/cron/scheduled.test.ts src/lib/r2.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:seed": "tsx scripts/seed.ts",
     "lint": "oxlint",

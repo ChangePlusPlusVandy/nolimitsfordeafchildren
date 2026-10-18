@@ -29,10 +29,6 @@ test.describe("admin queues", () => {
     // TODO: seed post → /admin/bulletin-moderation → approve/hide.
   });
 
-  test.skip("photo gallery moderation", async () => {
-    // TODO: admin → /admin/photo-gallery → expect images + actions.
-  });
-
   test.skip("parent zip report renders", async () => {
     // TODO: admin → /admin/parent-zip-report → expect export.
   });
