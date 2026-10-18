@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, ne, sql } from "drizzle-orm";
 
 import {
   EnrollmentTable,
@@ -35,7 +35,7 @@ export interface CreateScheduleInput {
 
 export interface UpdateScheduleInput {
   site_id?: string;
-  session_id?: string;
+  session_id?: string | null;
   day_of_week_mask?: number;
   start_time?: string;
   end_time?: string;
@@ -80,14 +80,22 @@ export interface ScheduleWithDetails extends ScheduleEntity {
   } | null;
 }
 
+export interface ScheduleEnrollmentStudent {
+  enrollment_id: string;
+  id: string;
+  first_name: string;
+  last_name: string;
+  initials: string;
+  enrolled_at: Date;
+}
+
+export interface ScheduleEndedEnrollment extends ScheduleEnrollmentStudent {
+  ended_at: Date;
+}
+
 export interface ScheduleDetails extends ScheduleWithDetails {
-  enrolledStudents: Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    initials: string;
-    enrolled_at: Date;
-  }>;
+  enrolledStudents: ScheduleEnrollmentStudent[];
+  endedEnrollments: ScheduleEndedEnrollment[];
 }
 
 export interface ConflictCheckInput {
@@ -258,27 +266,55 @@ export class SchedulesService {
 
     const r = results[0]!;
 
-    // Get enrolled students (active enrollments only)
-    const enrollments = await db
+    const enrollmentRows = await db
       .select({
+        enrollment_id: EnrollmentTable.id,
         student_id: StudentTable.id,
         first_name: StudentTable.first_name,
         last_name: StudentTable.last_name,
         initials: StudentTable.initials,
         enrolled_at: EnrollmentTable.enrolled_at,
+        ended_at: EnrollmentTable.ended_at,
       })
       .from(EnrollmentTable)
       .innerJoin(StudentTable, eq(EnrollmentTable.student_id, StudentTable.id))
-      .where(and(eq(EnrollmentTable.schedule_id, id), isNull(EnrollmentTable.ended_at)))
-      .orderBy(asc(StudentTable.last_name));
+      .where(eq(EnrollmentTable.schedule_id, id))
+      .orderBy(asc(StudentTable.last_name), desc(EnrollmentTable.enrolled_at));
 
-    const enrolledStudents = enrollments.map((e) => ({
-      id: e.student_id,
-      first_name: e.first_name,
-      last_name: e.last_name,
-      initials: e.initials,
-      enrolled_at: e.enrolled_at,
-    }));
+    const enrolledStudents = enrollmentRows
+      .filter((row) => row.ended_at === null)
+      .map((row) => ({
+        enrollment_id: row.enrollment_id,
+        id: row.student_id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        initials: row.initials,
+        enrolled_at: row.enrolled_at,
+      }));
+
+    const activeStudentIds = new Set(enrolledStudents.map((student) => student.id));
+    const latestEndedByStudent = new Map<string, ScheduleEndedEnrollment>();
+    for (const row of enrollmentRows) {
+      if (row.ended_at === null || activeStudentIds.has(row.student_id)) {
+        continue;
+      }
+      const candidate: ScheduleEndedEnrollment = {
+        enrollment_id: row.enrollment_id,
+        id: row.student_id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        initials: row.initials,
+        enrolled_at: row.enrolled_at,
+        ended_at: row.ended_at,
+      };
+      const current = latestEndedByStudent.get(row.student_id);
+      if (!current || candidate.ended_at > current.ended_at) {
+        latestEndedByStudent.set(row.student_id, candidate);
+      }
+    }
+    const endedEnrollments = [...latestEndedByStudent.values()].toSorted((a, b) =>
+      a.last_name.localeCompare(b.last_name),
+    );
 
     return {
       id: r.id,
@@ -312,6 +348,7 @@ export class SchedulesService {
           }
         : null,
       enrolledStudents,
+      endedEnrollments,
     };
   }
 
@@ -636,6 +673,113 @@ export class SchedulesService {
       .returning();
 
     return result[0] ?? null;
+  }
+
+  /**
+   * End an active enrollment on this schedule (admin only — enforced at action layer).
+   */
+  async endEnrollment(scheduleId: string, enrollmentId: string) {
+    const [existing] = await db
+      .select({
+        id: EnrollmentTable.id,
+        schedule_id: EnrollmentTable.schedule_id,
+        ended_at: EnrollmentTable.ended_at,
+      })
+      .from(EnrollmentTable)
+      .where(eq(EnrollmentTable.id, enrollmentId))
+      .limit(1);
+
+    if (!existing || existing.schedule_id !== scheduleId) {
+      throw new NotFoundError("Enrollment not found");
+    }
+    if (existing.ended_at) {
+      throw new BadRequestError("Enrollment has already ended");
+    }
+
+    const [updated] = await db
+      .update(EnrollmentTable)
+      .set({
+        ended_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(EnrollmentTable.id, enrollmentId),
+          eq(EnrollmentTable.schedule_id, scheduleId),
+          isNull(EnrollmentTable.ended_at),
+        ),
+      )
+      .returning();
+
+    if (!updated) {
+      throw new NotFoundError("Enrollment not found");
+    }
+    return updated;
+  }
+
+  /**
+   * Re-enroll a student who previously ended on this schedule.
+   * Inserts a new row; the ended row is left in place.
+   */
+  async reenrollStudent(scheduleId: string, studentId: string) {
+    const [schedule] = await db
+      .select({ id: ScheduleTable.id })
+      .from(ScheduleTable)
+      .where(eq(ScheduleTable.id, scheduleId))
+      .limit(1);
+    if (!schedule) {
+      throw new NotFoundError("Schedule not found");
+    }
+
+    const [student] = await db
+      .select({ id: StudentTable.id })
+      .from(StudentTable)
+      .where(eq(StudentTable.id, studentId))
+      .limit(1);
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    const [active] = await db
+      .select({ id: EnrollmentTable.id })
+      .from(EnrollmentTable)
+      .where(
+        and(
+          eq(EnrollmentTable.schedule_id, scheduleId),
+          eq(EnrollmentTable.student_id, studentId),
+          isNull(EnrollmentTable.ended_at),
+        ),
+      )
+      .limit(1);
+    if (active) {
+      throw new ConflictError("Student is already enrolled in this schedule");
+    }
+
+    const [ended] = await db
+      .select({ id: EnrollmentTable.id })
+      .from(EnrollmentTable)
+      .where(
+        and(
+          eq(EnrollmentTable.schedule_id, scheduleId),
+          eq(EnrollmentTable.student_id, studentId),
+          isNotNull(EnrollmentTable.ended_at),
+        ),
+      )
+      .limit(1);
+    if (!ended) {
+      throw new BadRequestError("Student has no ended enrollment on this schedule");
+    }
+
+    const [created] = await db
+      .insert(EnrollmentTable)
+      .values({
+        student_id: studentId,
+        schedule_id: scheduleId,
+        enrolled_at: new Date(),
+      })
+      .returning();
+
+    return created!;
   }
 }
 

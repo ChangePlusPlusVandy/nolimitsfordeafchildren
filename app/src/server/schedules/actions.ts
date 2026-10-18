@@ -90,3 +90,27 @@ export async function updateScheduleById(scheduleId: string, input: UpdateSchedu
   }
   return schedule;
 }
+
+const idSchema = z.string().min(1);
+
+/**
+ * End an active enrollment on a schedule (admin only).
+ */
+export async function endEnrollment(scheduleId: string, enrollmentId: string) {
+  await requireRole("administrator");
+  return await schedulesService.endEnrollment(
+    idSchema.parse(scheduleId),
+    idSchema.parse(enrollmentId),
+  );
+}
+
+/**
+ * Re-enroll a student with a prior ended enrollment on this schedule (admin only).
+ */
+export async function reenrollStudent(scheduleId: string, studentId: string) {
+  await requireRole("administrator");
+  return await schedulesService.reenrollStudent(
+    idSchema.parse(scheduleId),
+    idSchema.parse(studentId),
+  );
+}

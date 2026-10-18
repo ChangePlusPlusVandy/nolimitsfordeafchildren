@@ -64,10 +64,17 @@ export async function getSchedule(id: string) {
 
   return {
     ...schedule,
-    enrolledStudents: schedule.enrolledStudents.map((student) => ({
-      ...student,
-      first_name: student.initials,
-      last_name: "",
-    })),
+    enrolledStudents: schedule.enrolledStudents.map(redactStudentNames),
+    endedEnrollments: schedule.endedEnrollments.map(redactStudentNames),
+  };
+}
+
+function redactStudentNames<T extends { first_name: string; last_name: string; initials: string }>(
+  student: T,
+): T {
+  return {
+    ...student,
+    first_name: student.initials,
+    last_name: "",
   };
 }

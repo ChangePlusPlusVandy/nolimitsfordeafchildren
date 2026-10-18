@@ -7,6 +7,8 @@
 import {
   checkScheduleConflicts as serverCheckScheduleConflicts,
   createSchedule as serverCreateSchedule,
+  endEnrollment as serverEndEnrollment,
+  reenrollStudent as serverReenrollStudent,
   updateScheduleById as serverUpdateScheduleById,
 } from "@/server/schedules/actions";
 import {
@@ -22,6 +24,8 @@ export type {
   CreateScheduleInput,
   ListSchedulesQuery,
   ScheduleDetails,
+  ScheduleEndedEnrollment,
+  ScheduleEnrollmentStudent,
   ScheduleWithDetails,
   UpdateScheduleInput,
 } from "@/server/schedules/service";
@@ -60,4 +64,24 @@ export async function updateSchedule({
   ...data
 }: import("@/server/schedules/service").UpdateScheduleInput & { scheduleId: string }) {
   return serverUpdateScheduleById(scheduleId, data);
+}
+
+export async function endEnrollment({
+  scheduleId,
+  enrollmentId,
+}: {
+  scheduleId: string;
+  enrollmentId: string;
+}) {
+  return serverEndEnrollment(scheduleId, enrollmentId);
+}
+
+export async function reenrollStudent({
+  scheduleId,
+  studentId,
+}: {
+  scheduleId: string;
+  studentId: string;
+}) {
+  return serverReenrollStudent(scheduleId, studentId);
 }
