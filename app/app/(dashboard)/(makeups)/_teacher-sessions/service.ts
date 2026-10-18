@@ -8,12 +8,12 @@ import {
   TeacherProfileTable,
   type MakeupSessionEntity,
 } from "@/_platform/db/schema";
+import { ForbiddenError, NotFoundError } from "@/_shared/server/errors";
 import {
   buildPaginatedResponse,
   getPagination,
   type PaginatedResponse,
 } from "@/_shared/server/pagination";
-import { ForbiddenError, NotFoundError } from "@/_shared/server/errors";
 
 import type { AttendanceStatus, MakeupSessionWithDetails } from "./types";
 
