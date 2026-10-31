@@ -6,7 +6,7 @@ import {
   Cancel as CancelIcon,
   CheckCircle as CheckCircleIcon,
   Description as DescriptionIcon,
-  FamilyRestroom as FamilyRestroomIcon,
+  Edit as EditIcon,
   Help as HelpIcon,
   LocationOn as LocationIcon,
   EventBusy as MissedIcon,
@@ -30,22 +30,36 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { use, useState } from "react";
 
 import { RequestMakeupModal } from "@/(dashboard)/(makeups)/_domain/ui";
 import { listPhotos } from "@/(dashboard)/(photos)/_domain/client";
+import type { AddSiblingInput, Sibling, UpdateSiblingInput } from "@/(dashboard)/(students)/_domain/types";
+import AddSiblingModal from "@/(dashboard)/(students)/_siblings/AddSiblingModal";
+import SiblingsSection from "@/(dashboard)/(students)/_siblings/SiblingsSection";
+import ConfirmDialog from "@/_shared/ui/ConfirmDialog";
 import EmptyState from "@/_shared/ui/EmptyState";
 import ErrorAlert from "@/_shared/ui/ErrorAlert";
 import PageContainer from "@/_shared/ui/PageContainer";
 import PageHeader from "@/_shared/ui/PageHeader";
 import SectionCard from "@/_shared/ui/SectionCard";
 import DetailPageSkeleton from "@/_shared/ui/skeletons/DetailPageSkeleton";
+import { useToast } from "@/_shared/ui/ToastProvider";
 import { formatDate, formatTime } from "@/_shared/utils/formatDate";
 
 import UploadChildDocumentModal from "../_child-documents/UploadChildDocumentModal";
 import AudiogramComplianceChip from "./AudiogramComplianceChip";
-import { type ChildScheduleSession, getChildDetails } from "./client";
+import {
+  addChildSiblingToStudent,
+  type HearingInfoInput,
+  removeChildSiblingFromStudent,
+  updateChildHearingInfoForStudent,
+  updateChildSiblingOfStudent,
+  type ChildScheduleSession,
+  getChildDetails,
+} from "./client";
+import EditHearingInfoModal from "./EditHearingInfoModal";
 
 interface ChildPhoto {
   id: string;
@@ -163,6 +177,8 @@ function SessionItem({
 
 export default function ChildDetailsPage({ params }: { params: Promise<{ studentId: string }> }) {
   const { studentId } = use(params);
+  const queryClient = useQueryClient();
+  const toast = useToast();
 
   // Modal state
   const [makeupModalOpen, setMakeupModalOpen] = useState(false);
@@ -173,13 +189,23 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
     reason: string | null;
   } | null>(null);
 
+  // Sibling management state
+  const [siblingModalOpen, setSiblingModalOpen] = useState(false);
+  const [editingSibling, setEditingSibling] = useState<Sibling | null>(null);
+  const [removeSiblingId, setRemoveSiblingId] = useState<string | null>(null);
+
+  // Hearing info edit state
+  const [hearingInfoModalOpen, setHearingInfoModalOpen] = useState(false);
+
+  const childQueryKey = ["parents", "childDetails", studentId] as const;
+
   const {
     data: child,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ["parents", "childDetails", studentId],
+    queryKey: childQueryKey,
     queryFn: () => getChildDetails(studentId),
     enabled: !!studentId,
   });
@@ -189,6 +215,66 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
     queryFn: () => listPhotos({ student_id: studentId, page: 1, limit: 30 }),
     enabled: !!studentId,
   });
+
+  const addSiblingMutation = useMutation({
+    mutationFn: (data: AddSiblingInput) => addChildSiblingToStudent(studentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: childQueryKey });
+      setSiblingModalOpen(false);
+      toast.success("Sibling added successfully");
+    },
+    onError: () => {
+      toast.error("Failed to add sibling. Please try again.");
+    },
+  });
+
+  const updateSiblingMutation = useMutation({
+    mutationFn: (data: UpdateSiblingInput & { id: string }) =>
+      updateChildSiblingOfStudent(data.id, studentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: childQueryKey });
+      setEditingSibling(null);
+      toast.success("Sibling updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update sibling. Please try again.");
+    },
+  });
+
+  const removeSiblingMutation = useMutation({
+    mutationFn: (siblingId: string) => removeChildSiblingFromStudent(siblingId, studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: childQueryKey });
+      setRemoveSiblingId(null);
+      toast.success("Sibling removed");
+    },
+    onError: () => {
+      setRemoveSiblingId(null);
+      toast.error("Failed to remove sibling. Please try again.");
+    },
+  });
+
+  const updateHearingInfoMutation = useMutation({
+    mutationFn: (data: HearingInfoInput) => updateChildHearingInfoForStudent(studentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: childQueryKey });
+      setHearingInfoModalOpen(false);
+      toast.success("Hearing information updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update hearing information. Please try again.");
+    },
+  });
+
+  const handleAddSibling = (data: AddSiblingInput) => {
+    addSiblingMutation.mutate(data);
+  };
+
+  const handleUpdateSibling = (data: UpdateSiblingInput) => {
+    if (editingSibling) {
+      updateSiblingMutation.mutate({ ...data, id: editingSibling.id });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -215,6 +301,15 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
   }
 
   const attendanceRate = child.attendance_summary.attendance_rate;
+
+  // Bridge ChildDetails siblings (no photo_url/notes) to the Sibling type expected by SiblingsSection.
+  // photo_url is not a form field so it's never overwritten on edit; notes initializes empty
+  // and submits undefined if unchanged, which the partial schema omits from the DB update.
+  const displaySiblings: Sibling[] = child.siblings.map((s) => ({
+    ...s,
+    photo_url: null,
+    notes: null,
+  }));
 
   return (
     <PageContainer>
@@ -285,6 +380,15 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
                   size="small"
                 />
                 <AudiogramComplianceChip compliance={child.audiogram_compliance} />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => setHearingInfoModalOpen(true)}
+                  sx={{ whiteSpace: "nowrap" }}
+                >
+                  Edit Hearing Info
+                </Button>
               </Stack>
             </Box>
           </Stack>
@@ -447,7 +551,7 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
                   )}
                   {bulletin.publish_at && (
                     <Typography variant="caption" color="text.secondary">
-                      {formatDate(bulletin.publish_at)}
+                      {formatDate(bulletin.publish_at.toString())}
                     </Typography>
                   )}
                 </Box>
@@ -457,25 +561,13 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
         )}
 
         {/* Siblings */}
-        {child.siblings.length > 0 && (
-          <SectionCard title="Siblings" icon={<FamilyRestroomIcon />}>
-            <Stack spacing={1.5} divider={<Divider />}>
-              {child.siblings.map((sibling) => (
-                <Box key={sibling.id}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                    {sibling.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {sibling.relationship}
-                    {sibling.age !== null ? ` • Age ${sibling.age}` : ""}
-                    {` • ${sibling.is_participant ? "Participant" : "Not participant"}`}
-                    {` • ${sibling.has_hearing_loss ? "Has hearing loss" : "No hearing loss"}`}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-          </SectionCard>
-        )}
+        <SiblingsSection
+          siblings={displaySiblings}
+          canManage={true}
+          onAdd={() => setSiblingModalOpen(true)}
+          onEdit={setEditingSibling}
+          onRemove={setRemoveSiblingId}
+        />
 
         {/* Photo Gallery */}
         <SectionCard title="Photo Gallery" icon={<PhotoLibraryIcon />}>
@@ -548,7 +640,7 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
                     {doc.next_due_date ? ` • Next due: ${formatDate(doc.next_due_date)}` : ""}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
-                    {formatDate(doc.created_at)}
+                    {formatDate(doc.created_at.toString())}
                   </Typography>
                   <Button
                     size="small"
@@ -589,6 +681,48 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
             ? "audiogram"
             : undefined
         }
+      />
+
+      {/* Sibling modals */}
+      <AddSiblingModal
+        open={siblingModalOpen}
+        onClose={() => setSiblingModalOpen(false)}
+        onSave={handleAddSibling}
+        isLoading={addSiblingMutation.isPending}
+      />
+
+      {editingSibling && (
+        <AddSiblingModal
+          open={!!editingSibling}
+          onClose={() => setEditingSibling(null)}
+          onSave={handleUpdateSibling}
+          initialData={editingSibling}
+          isLoading={updateSiblingMutation.isPending}
+          title="Edit Sibling"
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!removeSiblingId}
+        title="Remove sibling?"
+        message="Are you sure you want to remove this sibling? This action cannot be undone."
+        confirmLabel="Remove"
+        confirmColor="error"
+        loading={removeSiblingMutation.isPending}
+        onConfirm={() => {
+          if (removeSiblingId) removeSiblingMutation.mutate(removeSiblingId);
+        }}
+        onCancel={() => setRemoveSiblingId(null)}
+      />
+
+      {/* Hearing info modal */}
+      <EditHearingInfoModal
+        open={hearingInfoModalOpen}
+        onClose={() => setHearingInfoModalOpen(false)}
+        onSave={(data) => updateHearingInfoMutation.mutate(data)}
+        initialDevices={child.hearing_devices}
+        initialLossType={child.hearing_loss_type}
+        isLoading={updateHearingInfoMutation.isPending}
       />
     </PageContainer>
   );

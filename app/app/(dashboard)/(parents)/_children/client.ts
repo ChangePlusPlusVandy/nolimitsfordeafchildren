@@ -1,4 +1,13 @@
 import { staffByLocation } from "@/(dashboard)/(locations)/_domain/queries";
+import type { AddSiblingInput, UpdateSiblingInput } from "@/(dashboard)/(students)/_domain/types";
+
+import {
+  addChildSibling,
+  removeChildSibling,
+  updateChildHearingInfo,
+  updateChildSibling,
+  type HearingInfoInput,
+} from "./actions";
 
 import type {
   ChildDetails,
@@ -23,4 +32,29 @@ export async function getChildDetails(studentId: string): Promise<ChildDetails> 
 
 export async function getLocationStaff(siteId: string): Promise<LocationStaffResponse> {
   return staffByLocation(siteId) as never;
+}
+
+export type { HearingInfoInput } from "./actions";
+
+export async function addChildSiblingToStudent(studentId: string, data: AddSiblingInput) {
+  return addChildSibling(studentId, data);
+}
+
+export async function updateChildSiblingOfStudent(
+  siblingId: string,
+  studentId: string,
+  data: UpdateSiblingInput,
+) {
+  return updateChildSibling(siblingId, studentId, data);
+}
+
+export async function removeChildSiblingFromStudent(siblingId: string, studentId: string) {
+  return removeChildSibling(siblingId, studentId);
+}
+
+export async function updateChildHearingInfoForStudent(
+  studentId: string,
+  input: HearingInfoInput,
+) {
+  return updateChildHearingInfo(studentId, input);
 }
