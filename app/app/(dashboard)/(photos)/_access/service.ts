@@ -15,6 +15,8 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "@/_shared/server
 
 import type { ListPhotosQuery } from "../_domain/types";
 
+type AccessUser = Pick<UserEntity, "id" | "role">;
+
 class PhotoAccess {
   private async getTeacherAllowedLocationIds(userId: string): Promise<string[]> {
     const teacherProfile = await db
@@ -111,13 +113,63 @@ class PhotoAccess {
     currentUser: UserEntity,
   ) {
     await this.validateLocationAndStudent(input.location_id, input.student_id);
+    await this.assertCanUploadToLocation(input.location_id, currentUser);
+  }
+
+  /** Administrators upload anywhere; teachers only to their assigned locations. */
+  async assertCanUploadToLocation(locationId: string, currentUser: AccessUser) {
+    if (currentUser.role === "administrator") {
+      return;
+    }
+    if (currentUser.role !== "teacher") {
+      throw new ForbiddenError("You cannot upload photos");
+    }
+    const allowedLocationIds = await this.getTeacherAllowedLocationIds(currentUser.id);
+    if (!allowedLocationIds.includes(locationId)) {
+      throw new ForbiddenError("Teacher is not assigned to this location");
+    }
+  }
+
+  /**
+   * Single-photo form of `galleryConditions`: a user may view a photo's file
+   * only if the gallery would list that photo for them. Keep the two in sync.
+   * Unknown files are denied the same way as hidden ones, so existence never leaks.
+   */
+  async assertCanViewFile(fileUrl: string, currentUser: AccessUser) {
+    if (currentUser.role === "administrator") {
+      return;
+    }
+
+    const denied = new ForbiddenError("You cannot access this photo");
+    const [photo] = await db
+      .select({ location_id: PhotoTable.location_id, student_id: PhotoTable.student_id })
+      .from(PhotoTable)
+      .where(eq(PhotoTable.file_url, fileUrl))
+      .limit(1);
+    if (!photo) {
+      throw denied;
+    }
 
     if (currentUser.role === "teacher") {
       const allowedLocationIds = await this.getTeacherAllowedLocationIds(currentUser.id);
-      if (!allowedLocationIds.includes(input.location_id)) {
-        throw new ForbiddenError("Teacher is not assigned to this location");
+      if (!allowedLocationIds.includes(photo.location_id)) {
+        throw denied;
       }
+      return;
     }
+
+    if (currentUser.role === "parent") {
+      const studentIds = await this.getParentAllowedStudentIds(currentUser.id);
+      const locationIds = await this.getParentAllowedLocationIds(currentUser.id);
+      const atChildSite = locationIds.includes(photo.location_id);
+      const ofOwnChildOrGroup = !photo.student_id || studentIds.includes(photo.student_id);
+      if (!atChildSite || !ofOwnChildOrGroup) {
+        throw denied;
+      }
+      return;
+    }
+
+    throw denied;
   }
 
   async galleryConditions(query: ListPhotosQuery, currentUser: UserEntity) {

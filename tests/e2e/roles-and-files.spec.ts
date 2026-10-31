@@ -12,6 +12,19 @@ const DENIED = "Student not found or access denied.";
 const roles = Object.keys(ROLE_CREDS) as Role[];
 let students: { mia: string; ava: string; noah: string };
 
+// Seeded photos (scripts/seed.ts) and the roles the gallery shows each one to.
+// Every other role gets 403, including `pending` (unassigned users never get files).
+const PHOTO_VIEWERS = {
+  "center-group": ["admin", "teacher", "parent"],
+  "center-mia": ["admin", "teacher", "parent"],
+  "center-owen": ["admin", "teacher"],
+  "popup-ava": ["admin", "teacher"],
+  "remote-group": ["admin"],
+} as const satisfies Record<string, readonly Role[]>;
+type PhotoName = keyof typeof PHOTO_VIEWERS;
+const photoNames = Object.keys(PHOTO_VIEWERS) as PhotoName[];
+let photoUrls: Record<PhotoName, string>;
+
 test.describe.configure({ mode: "default", timeout: TEST_TIMEOUT_MS });
 
 async function studentId(page: Page, initials: string): Promise<string> {
@@ -25,6 +38,28 @@ async function studentId(page: Page, initials: string): Promise<string> {
   return new URL(page.url()).pathname.slice("/students/".length);
 }
 
+async function seededPhotoUrls(page: Page): Promise<Record<PhotoName, string>> {
+  await page.goto("/admin/photo-gallery");
+  const urls = {} as Record<PhotoName, string>;
+  for (const name of photoNames) {
+    const src = await page.getByRole("img", { name: `Seed photo: ${name}` }).getAttribute("src");
+    if (!src) {
+      throw new Error(`Seed photo ${name} has no src; reseed with pnpm db:seed`);
+    }
+    urls[name] = src;
+  }
+  return urls;
+}
+
+/** Location ID from a `/api/files/photos/location/<locationId>/…` URL. */
+function photoLocationId(url: string): string {
+  const locationId = url.split("/")[5];
+  if (!locationId) {
+    throw new Error(`Unexpected photo URL: ${url}`);
+  }
+  return locationId;
+}
+
 test.beforeAll(async ({ browser, baseURL }) => {
   // Resolve generated seed IDs through the public UI, without DB access or saved manifests.
   const page = await browser.newPage({ baseURL });
@@ -35,6 +70,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
       ava: await studentId(page, "AP"),
       noah: await studentId(page, "NR"),
     };
+    photoUrls = await seededPhotoUrls(page);
   } finally {
     await page.close();
   }
@@ -104,6 +140,44 @@ for (const role of roles) {
       );
       expect(forbidden.status()).toBe(HTTP_FORBIDDEN);
       expect((await request.get(`/api/files/${forbiddenKey}`)).status()).toBe(HTTP_FORBIDDEN);
+    }
+  });
+
+  test(`${role}: photo download and upload authorization`, async ({ request, baseURL }) => {
+    if (!baseURL) {
+      throw new Error("Playwright baseURL is required");
+    }
+    await apiSignIn(request, role, new URL(baseURL).origin);
+
+    for (const name of photoNames) {
+      const viewers: readonly Role[] = PHOTO_VIEWERS[name];
+      const allowed = viewers.includes(role);
+      const download = await request.get(photoUrls[name]);
+      expect(download.status(), `${role} downloading ${name}`).toBe(
+        allowed ? HTTP_OK : HTTP_FORBIDDEN,
+      );
+      if (allowed) {
+        expect(download.headers()["cache-control"]).toBe("private, no-store");
+      }
+    }
+
+    if (role === "teacher") {
+      // Teachers may upload only to their assigned locations (center yes, Rosewood no).
+      const upload = (locationId: string) =>
+        request.post(
+          `/api/files/upload?key=${encodeURIComponent(
+            `photos/location/${locationId}/2026-01-01/probe-${randomUUID()}.png`,
+          )}`,
+          {
+            multipart: {
+              file: { name: "probe.png", mimeType: "image/png", buffer: Buffer.from("probe") },
+            },
+          },
+        );
+      expect((await upload(photoLocationId(photoUrls["center-group"]))).status()).toBe(HTTP_OK);
+      expect((await upload(photoLocationId(photoUrls["remote-group"]))).status()).toBe(
+        HTTP_FORBIDDEN,
+      );
     }
   });
 }
