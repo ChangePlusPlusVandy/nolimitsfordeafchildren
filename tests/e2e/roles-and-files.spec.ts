@@ -25,6 +25,22 @@ type PhotoName = keyof typeof PHOTO_VIEWERS;
 const photoNames = Object.keys(PHOTO_VIEWERS) as PhotoName[];
 let photoUrls: Record<PhotoName, string>;
 
+// Seeded bulletins (scripts/seed.ts): attachments are downloadable by exactly the
+// roles the board lists the bulletin for. `pending` never reaches files or the board.
+const BULLETINS = {
+  "global-approved": {
+    title: "Seed bulletin: welcome back",
+    viewers: ["admin", "teacher", "parent", "stranger"],
+  },
+  "global-pending": { title: "Seed bulletin: awaiting approval", viewers: ["admin"] },
+  "remote-approved": { title: "Seed bulletin: Rosewood update", viewers: ["admin"] },
+} as const satisfies Record<string, { title: string; viewers: readonly Role[] }>;
+const bulletins = Object.entries(BULLETINS).map(([name, { title, viewers }]) => ({
+  title,
+  url: `/api/files/bulletins/attachments/seed-${name}.txt`,
+  viewers: viewers as readonly Role[],
+}));
+
 test.describe.configure({ mode: "default", timeout: TEST_TIMEOUT_MS });
 
 async function studentId(page: Page, initials: string): Promise<string> {
@@ -177,6 +193,38 @@ for (const role of roles) {
       expect((await upload(photoLocationId(photoUrls["center-group"]))).status()).toBe(HTTP_OK);
       expect((await upload(photoLocationId(photoUrls["remote-group"]))).status()).toBe(
         HTTP_FORBIDDEN,
+      );
+    }
+  });
+
+  test(`${role}: bulletin attachment downloads match the board`, async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    if (!baseURL) {
+      throw new Error("Playwright baseURL is required");
+    }
+    await apiSignIn(request, role, new URL(baseURL).origin);
+
+    for (const { title, url, viewers } of bulletins) {
+      const download = await request.get(url);
+      expect(download.status(), `${role} downloading "${title}"`).toBe(
+        viewers.includes(role) ? HTTP_OK : HTTP_FORBIDDEN,
+      );
+    }
+
+    if (role === "pending") {
+      return;
+    }
+    await signIn(page, role);
+    await page.goto("/bulletin");
+    // Every board-reaching role sees the approved global bulletin; wait for it before
+    // asserting absences so the list has loaded.
+    await expect(page.getByText(BULLETINS["global-approved"].title, { exact: true })).toBeVisible();
+    for (const { title, viewers } of bulletins) {
+      await expect(page.getByText(title, { exact: true }), `${role} board`).toHaveCount(
+        viewers.includes(role) ? 1 : 0,
       );
     }
   });

@@ -1,3 +1,4 @@
+import { assertCanViewBulletinAttachmentFile } from "@/(dashboard)/(bulletins)/_domain/access";
 import {
   assertCanUploadPhotoToLocation,
   assertCanViewPhotoFile,
@@ -21,6 +22,12 @@ export async function authorizeDownload(user: FileUser, key: string): Promise<vo
   if (segments[0] === "photos") {
     // Same visibility as the photo gallery, resolved from the photo's row.
     await assertCanViewPhotoFile(getPublicUrl(key), user);
+    return;
+  }
+
+  if (segments[0] === "bulletins") {
+    // Same visibility as the bulletin board, resolved from the attachment's bulletin.
+    await assertCanViewBulletinAttachmentFile(getPublicUrl(key), user);
     return;
   }
 
@@ -59,6 +66,7 @@ async function authorizeKeyPath(user: FileUser, segments: string[]): Promise<voi
   const purpose = segments[0];
 
   if (purpose === "bulletins") {
+    // Only uploads reach here; the upload route limits bulletin uploads to administrators.
     return;
   }
 
