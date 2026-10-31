@@ -35,7 +35,11 @@ import { use, useState } from "react";
 
 import { RequestMakeupModal } from "@/(dashboard)/(makeups)/_domain/ui";
 import { listPhotos } from "@/(dashboard)/(photos)/_domain/client";
-import type { AddSiblingInput, Sibling, UpdateSiblingInput } from "@/(dashboard)/(students)/_domain/types";
+import type {
+  AddSiblingInput,
+  Sibling,
+  UpdateSiblingInput,
+} from "@/(dashboard)/(students)/_domain/types";
 import AddSiblingModal from "@/(dashboard)/(students)/_siblings/AddSiblingModal";
 import SiblingsSection from "@/(dashboard)/(students)/_siblings/SiblingsSection";
 import ConfirmDialog from "@/_shared/ui/ConfirmDialog";
