@@ -5,13 +5,25 @@ import {
 import type { UserEntity } from "@/_platform/db/schema";
 import { BadRequestError, ForbiddenError, NotFoundError } from "@/_shared/server/errors";
 
+type FileUser = Pick<UserEntity, "id" | "role">;
+
 /**
- * Authorize read/write of an R2 object key. Throws Forbidden/NotFound/BadRequest.
+ * Authorize a download of an R2 object key. Throws Forbidden/NotFound/BadRequest.
  */
-export async function authorizeObjectKey(
-  user: Pick<UserEntity, "id" | "role">,
-  key: string,
-): Promise<void> {
+export async function authorizeDownload(user: FileUser, key: string): Promise<void> {
+  await authorizeKeyPath(user, key);
+}
+
+/**
+ * Authorize an upload to an R2 object key. Kept separate from downloads because
+ * uploads run before the file's database row exists. Throws Forbidden/NotFound/BadRequest.
+ */
+export async function authorizeUpload(user: FileUser, key: string): Promise<void> {
+  await authorizeKeyPath(user, key);
+}
+
+/** Validate a key and authorize it from its path segments alone. */
+async function authorizeKeyPath(user: FileUser, key: string): Promise<void> {
   if (!key || key.includes("..") || key.startsWith("/")) {
     throw new BadRequestError("Invalid file key");
   }
