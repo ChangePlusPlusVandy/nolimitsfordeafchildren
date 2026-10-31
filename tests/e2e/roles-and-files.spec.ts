@@ -123,6 +123,14 @@ for (const role of roles) {
       expect(download.headers()["content-type"]).toContain("application/pdf");
     }
 
+    // Unapproved documents are staff-only: even Mia's own parent gets 403 until review.
+    const pendingReport = await request.get(
+      `/api/files/documents/student/${students.mia}/pre_report/seed-pre-report-pending.txt`,
+    );
+    expect(pendingReport.status(), `${role} downloading pending pre-report`).toBe(
+      role === "admin" || role === "teacher" ? HTTP_OK : HTTP_FORBIDDEN,
+    );
+
     const key = `documents/student/${students.mia}/other/probe-${randomUUID()}.txt`;
     const upload = await request.post(`/api/files/upload?key=${encodeURIComponent(key)}`, {
       multipart: {

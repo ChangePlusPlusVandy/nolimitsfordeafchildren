@@ -1,4 +1,5 @@
 import { assertCanViewBulletinAttachmentFile } from "@/(dashboard)/(bulletins)/_domain/access";
+import { assertCanViewDocumentFile } from "@/(dashboard)/(documents)/_domain/access";
 import {
   assertCanUploadPhotoToLocation,
   assertCanViewPhotoFile,
@@ -32,6 +33,11 @@ export async function authorizeDownload(user: FileUser, key: string): Promise<vo
   }
 
   await authorizeKeyPath(user, segments);
+
+  if (segments[0] === "documents") {
+    // After the link check: parents only get approved documents, as in the document lists.
+    await assertCanViewDocumentFile(getPublicUrl(key), user);
+  }
 }
 
 /**

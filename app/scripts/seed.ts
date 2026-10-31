@@ -22,6 +22,7 @@
  *     teacher's "My Day" shows sessions), past attendance (present + no_show),
  *     session notes, pre-assessments and audiogram documents (+ R2 objects)
  *     with due dates inside/outside the 30-day reminder window
+ *   - a pending pre-report for Mia (staff see it; her parent only once approved)
  *   - photos (+ R2 objects) for each file-access case: group and per-student
  *     photos at the center, Ava at the pop-up, and a Rosewood group photo
  *   - bulletins with attachments (+ R2 objects): approved global, pending
@@ -487,6 +488,24 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
     },
   ]);
 
+  // ----- pending pre-report for Mia (staff can see it; her parent cannot yet) -----
+  const preReportKey = `documents/student/${mia.id}/pre_report/seed-pre-report-pending.txt`;
+  const preReportContent = "Seed pre-report draft; not a real report.";
+  await bucket.put(preReportKey, preReportContent, {
+    httpMetadata: { contentType: "text/plain" },
+  });
+  await db.insert(DocumentTable).values({
+    entity_type: "student",
+    entity_id: mia.id,
+    document_type: "pre_report",
+    file_url: `/api/files/${preReportKey}`,
+    file_name: "seed-pre-report-pending.txt",
+    file_size: new TextEncoder().encode(preReportContent).length,
+    mime_type: "text/plain",
+    review_status: "pending",
+    uploaded_by: teacherUser.id,
+  });
+
   // ----- photos + R2 objects (one per file-access case) -----
   const photos = [
     { name: "center-group", location: center, student: null, uploader: teacherUser },
@@ -584,7 +603,11 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
     students: { mia: mia.id, leo: leo.id, ava: ava.id, noah: noah.id, owen: owen.id },
     schedules: { center: centerSchedule.id, popup: popupSchedule.id },
     attendance: { past_session_date: pastDate },
-    documents: { mia_audiogram: `/api/files/${miaKey}`, leo_audiogram: `/api/files/${leoKey}` },
+    documents: {
+      mia_audiogram: `/api/files/${miaKey}`,
+      leo_audiogram: `/api/files/${leoKey}`,
+      mia_pre_report_pending: `/api/files/${preReportKey}`,
+    },
     due_dates: { mia_next_due: miaDue, leo_next_due: leoDue },
     photos: Object.fromEntries(photos.map((photo) => [photo.name, `/api/files/${photo.key}`])),
     bulletin_attachments: Object.fromEntries(

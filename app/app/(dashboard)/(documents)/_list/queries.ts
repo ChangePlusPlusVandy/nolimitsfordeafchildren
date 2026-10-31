@@ -7,7 +7,7 @@ import {
 import { requireRole } from "@/_platform/auth/guard";
 import { BadRequestError } from "@/_shared/server/errors";
 
-import { assertCanAccessDocumentEntity } from "../_domain/access";
+import { assertCanAccessDocumentEntity, visibleReviewStatus } from "../_domain/access";
 import { documentsService } from "../_domain/server";
 import type { DocumentReviewStatus, ListDocumentsQuery } from "../_domain/types";
 
@@ -19,7 +19,10 @@ export async function listDocuments(query: ListDocumentsQuery = {}) {
     }
     await assertCanAccessDocumentEntity(user, query.entity_type, query.entity_id);
   }
-  return await documentsService.index(query);
+  return await documentsService.index({
+    ...query,
+    review_status: visibleReviewStatus(user, query.review_status),
+  });
 }
 
 export async function listDocumentsForEntity(
@@ -29,7 +32,10 @@ export async function listDocumentsForEntity(
 ) {
   const user = await requireRole();
   await assertCanAccessDocumentEntity(user, entityType, entityId);
-  return await documentsService.listForEntityPaginated(entityType, entityId, query);
+  return await documentsService.listForEntityPaginated(entityType, entityId, {
+    ...query,
+    review_status: visibleReviewStatus(user),
+  });
 }
 
 export async function listStudentDocuments(
@@ -38,14 +44,13 @@ export async function listStudentDocuments(
 ) {
   const user = await requireRole();
   await assertCanAccessStudent(user, studentId);
-  const effectiveReviewStatus = user.role === "parent" ? "approved" : query.review_status;
 
   return await documentsService.index({
     entity_type: "student",
     entity_id: studentId,
     page: query.page,
     limit: query.limit,
-    review_status: effectiveReviewStatus,
+    review_status: visibleReviewStatus(user, query.review_status),
   });
 }
 

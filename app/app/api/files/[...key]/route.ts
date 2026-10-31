@@ -13,6 +13,7 @@ import { errorResponse, filenameFromKey } from "../_shared";
  *
  * Auth-checked R2 object download. Access control:
  * - `documents/student/<studentId>/…` -> admin, or teacher/parent with an active link
+ *                                        (parents: approved documents only)
  * - `documents/teacher/<teacherId>/…` -> admin, or that teacher themself
  * - `photos/…`                        -> users the photo gallery would show that photo to
  * - `bulletins/…`                     -> users the bulletin board shows that bulletin to
