@@ -36,10 +36,7 @@ interface CreateStudentModalProps {
   onClose: () => void;
 }
 
-export default function CreateStudentModal({
-  open,
-  onClose,
-}: CreateStudentModalProps) {
+export default function CreateStudentModal({ open, onClose }: CreateStudentModalProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -84,12 +81,7 @@ export default function CreateStudentModal({
     }
   };
 
-  const hearingDeviceOptions = [
-    "BAHA",
-    "Hearing Aid",
-    "Cochlear Implant",
-    "Other",
-  ];
+  const hearingDeviceOptions = ["BAHA", "Hearing Aid", "Cochlear Implant", "Other"];
   const hearingLossOptions = [
     { value: "mild", label: "Mild" },
     { value: "moderate", label: "Moderate" },
@@ -205,14 +197,11 @@ export default function CreateStudentModal({
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Enter the student&apos;s information. Required fields are marked
-              with an asterisk (*).
+              Enter the student&apos;s information. Required fields are marked with an asterisk (*).
             </Typography>
 
             {locationsError && (
-              <Alert severity="error">
-                Failed to load sites. Please try again.
-              </Alert>
+              <Alert severity="error">Failed to load sites. Please try again.</Alert>
             )}
 
             {/* Name Fields */}
@@ -309,16 +298,11 @@ export default function CreateStudentModal({
                   </MenuItem>
                 ))}
               </Select>
-              {fieldErrors.siteId && (
-                <FormHelperText>{fieldErrors.siteId}</FormHelperText>
-              )}
+              {fieldErrors.siteId && <FormHelperText>{fieldErrors.siteId}</FormHelperText>}
             </FormControl>
 
             {/* Initial Schedule (optional) */}
-            <FormControl
-              fullWidth
-              disabled={isDisabled || !siteId || schedulesLoading}
-            >
+            <FormControl fullWidth disabled={isDisabled || !siteId || schedulesLoading}>
               <InputLabel>Initial Schedule (optional)</InputLabel>
               <Select
                 value={initialScheduleId}
@@ -418,9 +402,7 @@ export default function CreateStudentModal({
           <Button
             type="submit"
             variant="contained"
-            startIcon={
-              mutation.isPending ? <CircularProgress size={20} /> : <SaveIcon />
-            }
+            startIcon={mutation.isPending ? <CircularProgress size={20} /> : <SaveIcon />}
             disabled={!isValid || isDisabled}
           >
             {mutation.isPending ? "Creating..." : "Create Student"}

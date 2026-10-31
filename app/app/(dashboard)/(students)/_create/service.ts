@@ -7,11 +7,7 @@ import {
   StudentTable,
   ScheduleTable,
 } from "@/_platform/db/schema";
-import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from "@/_shared/server/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "@/_shared/server/errors";
 
 import type { CreateStudentInput } from "../_domain/types";
 
@@ -22,9 +18,7 @@ export class CreateStudentService {
     }
 
     return Array.from(
-      new Set(
-        input.map((value) => value.trim()).filter((value) => value.length > 0),
-      ),
+      new Set(input.map((value) => value.trim()).filter((value) => value.length > 0)),
     );
   }
 
@@ -64,10 +58,7 @@ export class CreateStudentService {
     return student;
   }
 
-  private async validateSchedule(
-    scheduleId: string,
-    siteId: string,
-  ): Promise<void> {
+  private async validateSchedule(scheduleId: string, siteId: string): Promise<void> {
     const [schedule] = await db
       .select()
       .from(ScheduleTable)
@@ -83,16 +74,11 @@ export class CreateStudentService {
     }
 
     if (schedule.site_id !== siteId) {
-      throw new BadRequestError(
-        "Schedule does not belong to the student's site",
-      );
+      throw new BadRequestError("Schedule does not belong to the student's site");
     }
   }
 
-  private async enrollStudent(
-    studentId: string,
-    scheduleId: string,
-  ): Promise<void> {
+  private async enrollStudent(studentId: string, scheduleId: string): Promise<void> {
     const existing = await db
       .select()
       .from(EnrollmentTable)
@@ -106,9 +92,7 @@ export class CreateStudentService {
       .limit(1);
 
     if (existing.length > 0) {
-      throw new ConflictError(
-        "Student is already actively enrolled in this schedule",
-      );
+      throw new ConflictError("Student is already actively enrolled in this schedule");
     }
 
     await db.insert(EnrollmentTable).values({

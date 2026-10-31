@@ -12,14 +12,7 @@ export const createStudentSchema = z
     preferred_language: z.string().max(100).nullable().optional(),
     hearing_devices: z.array(z.string()).optional(),
     hearing_loss_type: z
-      .enum([
-        "mild",
-        "moderate",
-        "moderately_severe",
-        "severe",
-        "profound",
-        "unknown",
-      ])
+      .enum(["mild", "moderate", "moderately_severe", "severe", "profound", "unknown"])
       .nullable()
       .optional(),
     guardian_summary: z.string().nullable().optional(),
