@@ -234,6 +234,11 @@ export default function AssessmentHistoryTable({
                             <Typography variant="body2">
                               <strong>Score:</strong> {cycle.pre_assessment.score}/20
                             </Typography>
+                            {cycle.pre_assessment.summary && (
+                              <Typography variant="body2">
+                                <strong>Summary:</strong> {cycle.pre_assessment.summary}
+                              </Typography>
+                            )}
                             {cycle.pre_assessment.notes && (
                               <Typography variant="body2">
                                 <strong>Notes:</strong> {cycle.pre_assessment.notes}
@@ -313,6 +318,11 @@ export default function AssessmentHistoryTable({
                             <Typography variant="body2">
                               <strong>Score:</strong> {cycle.post_assessment.score}/20
                             </Typography>
+                            {cycle.post_assessment.summary && (
+                              <Typography variant="body2">
+                                <strong>Summary:</strong> {cycle.post_assessment.summary}
+                              </Typography>
+                            )}
                             {cycle.post_assessment.notes && (
                               <Typography variant="body2">
                                 <strong>Notes:</strong> {cycle.post_assessment.notes}

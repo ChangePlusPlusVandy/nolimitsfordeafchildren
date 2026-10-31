@@ -35,6 +35,7 @@ interface AssessmentFormDialogProps {
   cycleStartDate: string;
   assessmentType: "pre" | "post";
   teachingFocus: string;
+  summary: string;
   score: number;
   notes: string;
   focuses: AssessmentFocus[];
@@ -45,6 +46,7 @@ interface AssessmentFormDialogProps {
   onCycleStartDateChange: (value: string) => void;
   onAssessmentTypeChange: (value: "pre" | "post") => void;
   onTeachingFocusChange: (value: string) => void;
+  onSummaryChange: (value: string) => void;
   onScoreChange: (value: number) => void;
   onNotesChange: (value: string) => void;
   onFocusesChange: (focuses: AssessmentFocus[]) => void;
@@ -56,6 +58,7 @@ export default function AssessmentFormDialog({
   cycleStartDate,
   assessmentType,
   teachingFocus,
+  summary,
   score,
   notes,
   focuses,
@@ -66,6 +69,7 @@ export default function AssessmentFormDialog({
   onCycleStartDateChange,
   onAssessmentTypeChange,
   onTeachingFocusChange,
+  onSummaryChange,
   onScoreChange,
   onNotesChange,
   onFocusesChange,
@@ -225,6 +229,17 @@ export default function AssessmentFormDialog({
               valueLabelDisplay="auto"
             />
           </Box>
+
+          <TextField
+            label="Summary (optional)"
+            value={summary}
+            onChange={(e) => onSummaryChange((e.target as unknown as { value: string }).value)}
+            multiline
+            rows={3}
+            fullWidth
+            slotProps={{ htmlInput: { maxLength: 2000 } }}
+            helperText={`${summary.length}/2000`}
+          />
 
           <TextField
             label="Notes (optional)"
