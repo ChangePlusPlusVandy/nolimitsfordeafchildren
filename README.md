@@ -92,7 +92,7 @@ The `send_email` binding requires the **FROM address to be verified in the Cloud
 
 ## e2e
 
-`tests/` holds 25 active Playwright checks and 47 skipped route-group specs,
+`tests/` holds 35 active Playwright checks and 47 skipped route-group specs,
 including seeded role/PII/file checks and cross-domain navigation.
 Use isolated local D1/R2 state for verification; seed replaces local data.
 See `tests/README.md`.
