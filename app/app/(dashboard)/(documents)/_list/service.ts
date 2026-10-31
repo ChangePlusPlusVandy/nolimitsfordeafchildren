@@ -4,6 +4,7 @@ import { db } from "@/_platform/db";
 import { DocumentTable } from "@/_platform/db/schema";
 
 import type {
+  DocumentReviewStatus,
   DocumentWithMetadata,
   EntityType,
   ListDocumentsQuery,
@@ -28,7 +29,7 @@ export async function listForEntity(
 export async function listForEntityPaginated(
   entityType: EntityType,
   entityId: string,
-  query: { page?: number; limit?: number },
+  query: { page?: number; limit?: number; review_status?: DocumentReviewStatus },
   addMetadata: WithMetadata,
 ): Promise<PaginatedDocumentsResult> {
   const page = Math.max(query.page || 1, 1);
@@ -38,6 +39,7 @@ export async function listForEntityPaginated(
   const whereClause = and(
     eq(DocumentTable.entity_type, entityType),
     eq(DocumentTable.entity_id, entityId),
+    query.review_status ? eq(DocumentTable.review_status, query.review_status) : undefined,
   );
 
   const countResult = await db

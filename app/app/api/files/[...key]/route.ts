@@ -5,7 +5,7 @@ import { requireRole } from "@/_platform/auth/guard";
 import { getBinding } from "@/_platform/env";
 import { NotFoundError } from "@/_shared/server/errors";
 
-import { authorizeObjectKey } from "../_services/file-access";
+import { authorizeDownload } from "../_services/file-access";
 import { errorResponse, filenameFromKey } from "../_shared";
 
 /**
@@ -13,8 +13,10 @@ import { errorResponse, filenameFromKey } from "../_shared";
  *
  * Auth-checked R2 object download. Access control:
  * - `documents/student/<studentId>/…` -> admin, or teacher/parent with an active link
+ *                                        (parents: approved documents only)
  * - `documents/teacher/<teacherId>/…` -> admin, or that teacher themself
- * - `photos/…` and `bulletins/…`      -> any authenticated (non-unassigned) user
+ * - `photos/…`                        -> users the photo gallery would show that photo to
+ * - `bulletins/…`                     -> users the bulletin board shows that bulletin to
  */
 export async function GET(
   _request: NextRequest,
@@ -24,7 +26,7 @@ export async function GET(
     const currentUser = await requireRole();
 
     const key = (await params).key.join("/");
-    await authorizeObjectKey(currentUser, key);
+    await authorizeDownload(currentUser, key);
 
     const bucket = getBinding<R2Bucket>("BUCKET");
     if (!bucket) {

@@ -12,6 +12,35 @@ const DENIED = "Student not found or access denied.";
 const roles = Object.keys(ROLE_CREDS) as Role[];
 let students: { mia: string; ava: string; noah: string };
 
+// Seeded photos (scripts/seed.ts) and the roles the gallery shows each one to.
+// Every other role gets 403, including `pending` (unassigned users never get files).
+const PHOTO_VIEWERS = {
+  "center-group": ["admin", "teacher", "parent"],
+  "center-mia": ["admin", "teacher", "parent"],
+  "center-owen": ["admin", "teacher"],
+  "popup-ava": ["admin", "teacher"],
+  "remote-group": ["admin"],
+} as const satisfies Record<string, readonly Role[]>;
+type PhotoName = keyof typeof PHOTO_VIEWERS;
+const photoNames = Object.keys(PHOTO_VIEWERS) as PhotoName[];
+let photoUrls: Record<PhotoName, string>;
+
+// Seeded bulletins (scripts/seed.ts): attachments are downloadable by exactly the
+// roles the board lists the bulletin for. `pending` never reaches files or the board.
+const BULLETINS = {
+  "global-approved": {
+    title: "Seed bulletin: welcome back",
+    viewers: ["admin", "teacher", "parent", "stranger"],
+  },
+  "global-pending": { title: "Seed bulletin: awaiting approval", viewers: ["admin"] },
+  "remote-approved": { title: "Seed bulletin: Rosewood update", viewers: ["admin"] },
+} as const satisfies Record<string, { title: string; viewers: readonly Role[] }>;
+const bulletins = Object.entries(BULLETINS).map(([name, { title, viewers }]) => ({
+  title,
+  url: `/api/files/bulletins/attachments/seed-${name}.txt`,
+  viewers: viewers as readonly Role[],
+}));
+
 test.describe.configure({ mode: "default", timeout: TEST_TIMEOUT_MS });
 
 async function studentId(page: Page, initials: string): Promise<string> {
@@ -25,6 +54,28 @@ async function studentId(page: Page, initials: string): Promise<string> {
   return new URL(page.url()).pathname.slice("/students/".length);
 }
 
+async function seededPhotoUrls(page: Page): Promise<Record<PhotoName, string>> {
+  await page.goto("/admin/photo-gallery");
+  const urls = {} as Record<PhotoName, string>;
+  for (const name of photoNames) {
+    const src = await page.getByRole("img", { name: `Seed photo: ${name}` }).getAttribute("src");
+    if (!src) {
+      throw new Error(`Seed photo ${name} has no src; reseed with pnpm db:seed`);
+    }
+    urls[name] = src;
+  }
+  return urls;
+}
+
+/** Location ID from a `/api/files/photos/location/<locationId>/…` URL. */
+function photoLocationId(url: string): string {
+  const locationId = url.split("/")[5];
+  if (!locationId) {
+    throw new Error(`Unexpected photo URL: ${url}`);
+  }
+  return locationId;
+}
+
 test.beforeAll(async ({ browser, baseURL }) => {
   // Resolve generated seed IDs through the public UI, without DB access or saved manifests.
   const page = await browser.newPage({ baseURL });
@@ -35,6 +86,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
       ava: await studentId(page, "AP"),
       noah: await studentId(page, "NR"),
     };
+    photoUrls = await seededPhotoUrls(page);
   } finally {
     await page.close();
   }
@@ -71,6 +123,14 @@ for (const role of roles) {
       expect(download.headers()["content-type"]).toContain("application/pdf");
     }
 
+    // Unapproved documents are staff-only: even Mia's own parent gets 403 until review.
+    const pendingReport = await request.get(
+      `/api/files/documents/student/${students.mia}/pre_report/seed-pre-report-pending.txt`,
+    );
+    expect(pendingReport.status(), `${role} downloading pending pre-report`).toBe(
+      role === "admin" || role === "teacher" ? HTTP_OK : HTTP_FORBIDDEN,
+    );
+
     const key = `documents/student/${students.mia}/other/probe-${randomUUID()}.txt`;
     const upload = await request.post(`/api/files/upload?key=${encodeURIComponent(key)}`, {
       multipart: {
@@ -104,6 +164,76 @@ for (const role of roles) {
       );
       expect(forbidden.status()).toBe(HTTP_FORBIDDEN);
       expect((await request.get(`/api/files/${forbiddenKey}`)).status()).toBe(HTTP_FORBIDDEN);
+    }
+  });
+
+  test(`${role}: photo download and upload authorization`, async ({ request, baseURL }) => {
+    if (!baseURL) {
+      throw new Error("Playwright baseURL is required");
+    }
+    await apiSignIn(request, role, new URL(baseURL).origin);
+
+    for (const name of photoNames) {
+      const viewers: readonly Role[] = PHOTO_VIEWERS[name];
+      const allowed = viewers.includes(role);
+      const download = await request.get(photoUrls[name]);
+      expect(download.status(), `${role} downloading ${name}`).toBe(
+        allowed ? HTTP_OK : HTTP_FORBIDDEN,
+      );
+      if (allowed) {
+        expect(download.headers()["cache-control"]).toBe("private, no-store");
+      }
+    }
+
+    if (role === "teacher") {
+      // Teachers may upload only to their assigned locations (center yes, Rosewood no).
+      const upload = (locationId: string) =>
+        request.post(
+          `/api/files/upload?key=${encodeURIComponent(
+            `photos/location/${locationId}/2026-01-01/probe-${randomUUID()}.png`,
+          )}`,
+          {
+            multipart: {
+              file: { name: "probe.png", mimeType: "image/png", buffer: Buffer.from("probe") },
+            },
+          },
+        );
+      expect((await upload(photoLocationId(photoUrls["center-group"]))).status()).toBe(HTTP_OK);
+      expect((await upload(photoLocationId(photoUrls["remote-group"]))).status()).toBe(
+        HTTP_FORBIDDEN,
+      );
+    }
+  });
+
+  test(`${role}: bulletin attachment downloads match the board`, async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    if (!baseURL) {
+      throw new Error("Playwright baseURL is required");
+    }
+    await apiSignIn(request, role, new URL(baseURL).origin);
+
+    for (const { title, url, viewers } of bulletins) {
+      const download = await request.get(url);
+      expect(download.status(), `${role} downloading "${title}"`).toBe(
+        viewers.includes(role) ? HTTP_OK : HTTP_FORBIDDEN,
+      );
+    }
+
+    if (role === "pending") {
+      return;
+    }
+    await signIn(page, role);
+    await page.goto("/bulletin");
+    // Every board-reaching role sees the approved global bulletin; wait for it before
+    // asserting absences so the list has loaded.
+    await expect(page.getByText(BULLETINS["global-approved"].title, { exact: true })).toBeVisible();
+    for (const { title, viewers } of bulletins) {
+      await expect(page.getByText(title, { exact: true }), `${role} board`).toHaveCount(
+        viewers.includes(role) ? 1 : 0,
+      );
     }
   });
 }

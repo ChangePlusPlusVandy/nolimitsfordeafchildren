@@ -1,6 +1,36 @@
+import { eq } from "drizzle-orm";
+
+import { db } from "@/_platform/db";
+import { DocumentTable, type UserEntity } from "@/_platform/db/schema";
 import { extractKeyFromUrl, getPublicUrl } from "@/_platform/storage/r2";
+import { ForbiddenError } from "@/_shared/server/errors";
 
 import type { DocumentWithMetadata } from "../_domain/types";
+
+/**
+ * File-route counterpart of the parent "approved only" list rule. The caller has
+ * already checked the student/teacher link from the key; this only adds the
+ * review-status rule. Files without a row yet (uploaded, not confirmed) stay
+ * reachable so a linked parent can use what they just uploaded.
+ */
+export async function assertCanViewDocumentFile(
+  fileUrl: string,
+  user: Pick<UserEntity, "role">,
+): Promise<void> {
+  if (user.role !== "parent") {
+    return;
+  }
+
+  const [document] = await db
+    .select({ review_status: DocumentTable.review_status })
+    .from(DocumentTable)
+    .where(eq(DocumentTable.file_url, fileUrl))
+    .limit(1);
+
+  if (document && document.review_status !== "approved") {
+    throw new ForbiddenError("You cannot access this document");
+  }
+}
 
 export async function getDownloadUrl(
   id: string,

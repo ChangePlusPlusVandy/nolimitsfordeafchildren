@@ -1,6 +1,6 @@
 # End-to-end tests
 
-Playwright tests for `../app`: 25 active checks (login, API, roles, files, PII, navigation)
+Playwright tests for `../app`: 35 active checks (login, API, roles, files, PII, navigation)
 and 47 skipped route-group specs awaiting implementation. Chromium only.
 
 ## Prerequisites
@@ -49,8 +49,10 @@ test target only, not the server command. Keep it pointed at isolated local data
 - Assert student initials in lists, full PII only in authorized details, and
   parent/teacher access limited to linked/assigned students. Files stay behind
   authenticated `/api/files/*` routes.
-- `roles-and-files.spec.ts` resolves generated seed IDs through the admin UI.
-  It checks five roles, linked/assigned access, private file round trips, denied
+- `roles-and-files.spec.ts` resolves generated seed IDs and photo URLs through the
+  admin UI. It checks five roles, linked/assigned access, private file round trips,
+  per-role download access for every seeded photo, bulletin attachment, and the
+  pending pre-report (bulletin downloads must match what the board lists), denied
   details, and a restored student edit. Run only against disposable seeded state.
 - Add a `Pixel 7` project when implementing parent flows; keep mobile layouts
   usable for smartphone-only families.
