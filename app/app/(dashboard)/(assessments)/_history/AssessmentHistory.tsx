@@ -48,6 +48,7 @@ export default function AssessmentHistory({
   const [cycleStartDate, setCycleStartDate] = useState("");
   const [assessmentType, setAssessmentType] = useState<"pre" | "post">("pre");
   const [teachingFocus, setTeachingFocus] = useState("");
+  const [summary, setSummary] = useState("");
   const [score, setScore] = useState(10);
   const [notes, setNotes] = useState("");
   const [focuses, setFocuses] = useState<AssessmentFocus[]>([
@@ -120,18 +121,23 @@ export default function AssessmentHistory({
     setCycleStartDate("");
     setAssessmentType("pre");
     setTeachingFocus("");
+    setSummary("");
     setScore(10);
     setNotes("");
     setFocuses([{ goal: "", score: 0, max_score: 10 }]);
   };
 
-  const handleOpenDialog = (assessment?: Assessment) => {
+  const handleOpenDialog = (
+    assessment?: Assessment,
+    opts?: { cycleStartDate?: string; assessmentType?: "pre" | "post" },
+  ) => {
     if (assessment) {
       setEditingAssessment(assessment);
       setCloningAssessmentId(null);
       setCycleStartDate(assessment.cycle_start_date);
       setAssessmentType(assessment.assessment_type);
       setTeachingFocus(assessment.teaching_focus);
+      setSummary(assessment.summary || "");
       setScore(assessment.score);
       setNotes(assessment.notes || "");
       setFocuses(
@@ -152,12 +158,13 @@ export default function AssessmentHistory({
       const today = new Date();
       const monday = new Date(today);
       monday.setDate(today.getDate() - today.getDay() + 1);
-      setAssessmentType("pre");
+      setAssessmentType(opts?.assessmentType ?? "pre");
       setTeachingFocus("");
+      setSummary("");
       setScore(10);
       setNotes("");
       setFocuses([{ goal: "", score: 0, max_score: 10 }]);
-      setCycleStartDate(monday.toISOString().split("T")[0] ?? "");
+      setCycleStartDate(opts?.cycleStartDate ?? monday.toISOString().split("T")[0] ?? "");
     }
     setDialogOpen(true);
   };
@@ -168,6 +175,7 @@ export default function AssessmentHistory({
     setCycleStartDate(assessment.cycle_start_date);
     setAssessmentType(assessment.assessment_type === "pre" ? "post" : "pre");
     setTeachingFocus(assessment.teaching_focus);
+    setSummary(assessment.summary || "");
     setScore(assessment.score);
     setNotes(assessment.notes || "");
     setFocuses(
@@ -223,6 +231,7 @@ export default function AssessmentHistory({
         id: editingAssessment.id,
         data: {
           teaching_focus: legacyTeachingFocus,
+          summary: summary || undefined,
           focuses: sanitizedFocuses,
           score: legacyScore,
           notes: notes || undefined,
@@ -235,6 +244,7 @@ export default function AssessmentHistory({
           cycle_start_date: cycleStartDate,
           assessment_type: assessmentType,
           teaching_focus: legacyTeachingFocus,
+          summary: summary || undefined,
           focuses: sanitizedFocuses,
           score: legacyScore,
           notes: notes || undefined,
@@ -245,6 +255,7 @@ export default function AssessmentHistory({
         cycle_start_date: cycleStartDate,
         assessment_type: assessmentType,
         teaching_focus: legacyTeachingFocus,
+        summary: summary || undefined,
         focuses: sanitizedFocuses,
         score: legacyScore,
         notes: notes || undefined,
@@ -299,14 +310,10 @@ export default function AssessmentHistory({
             onClone={handleCloneDialog}
             onDelete={setDeleteTarget}
             onAddPre={(cycleStartDate) => {
-              setCycleStartDate(cycleStartDate);
-              setAssessmentType("pre");
-              handleOpenDialog();
+              handleOpenDialog(undefined, { cycleStartDate, assessmentType: "pre" });
             }}
             onAddPost={(cycleStartDate) => {
-              setCycleStartDate(cycleStartDate);
-              setAssessmentType("post");
-              handleOpenDialog();
+              handleOpenDialog(undefined, { cycleStartDate, assessmentType: "post" });
             }}
             onPageChange={setPage}
             onRowsPerPageChange={setRowsPerPage}
@@ -320,6 +327,7 @@ export default function AssessmentHistory({
         cycleStartDate={cycleStartDate}
         assessmentType={assessmentType}
         teachingFocus={teachingFocus}
+        summary={summary}
         score={score}
         notes={notes}
         focuses={focuses}
@@ -330,6 +338,7 @@ export default function AssessmentHistory({
         onCycleStartDateChange={setCycleStartDate}
         onAssessmentTypeChange={setAssessmentType}
         onTeachingFocusChange={setTeachingFocus}
+        onSummaryChange={setSummary}
         onScoreChange={setScore}
         onNotesChange={setNotes}
         onFocusesChange={setFocuses}
