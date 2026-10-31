@@ -1,6 +1,12 @@
 import { staffByLocation } from "@/(dashboard)/(locations)/_domain/queries";
 import type { AddSiblingInput, UpdateSiblingInput } from "@/(dashboard)/(students)/_domain/types";
 
+import type {
+  ChildDetails,
+  LinkedChild,
+  LocationStaffResponse,
+  PaginatedResponse,
+} from "../_domain/types";
 import {
   addChildSibling,
   removeChildSibling,
@@ -8,13 +14,6 @@ import {
   updateChildSibling,
   type HearingInfoInput,
 } from "./actions";
-
-import type {
-  ChildDetails,
-  LinkedChild,
-  LocationStaffResponse,
-  PaginatedResponse,
-} from "../_domain/types";
 import { childDetail, myChildren } from "./queries";
 
 export type { ChildScheduleSession, LinkedChild, LocationStaffMember } from "../_domain/types";
@@ -52,9 +51,6 @@ export async function removeChildSiblingFromStudent(siblingId: string, studentId
   return removeChildSibling(siblingId, studentId);
 }
 
-export async function updateChildHearingInfoForStudent(
-  studentId: string,
-  input: HearingInfoInput,
-) {
+export async function updateChildHearingInfoForStudent(studentId: string, input: HearingInfoInput) {
   return updateChildHearingInfo(studentId, input);
 }
