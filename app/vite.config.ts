@@ -16,6 +16,10 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    port: 3000,
+    strictPort: true, // Prevents Vite from falling back to 5173 if 3000 is occupied
+  },
   optimizeDeps: {
     // Pre-bundle CJS-only transitives default/named-imported by MUI
     // component modules. Served raw in dev, their ESM named/default imports
@@ -23,6 +27,7 @@ export default defineConfig({
     // navigation. Bundled, esbuild provides proper interop. Plain JS, so
     // the rsc/ssr environments handle them safely.
     include: ["prop-types", "react-is"],
+    exclude: ["wrangler"],
   },
   resolve: {
     // `@emotion/react` default-imports the CJS-only
