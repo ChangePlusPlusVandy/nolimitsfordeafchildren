@@ -24,6 +24,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { listAllLocations } from "@/(dashboard)/(locations)/_domain/client";
+import { getAvailableSchedules } from "@/(dashboard)/(schedules)/_available/client";
+import { decodeDayMask } from "@/(dashboard)/(schedules)/_patterns/days";
 import { useToast } from "@/_shared/ui/ToastProvider";
 
 import type { CreateStudentInput } from "../_domain/types";
@@ -50,6 +52,7 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
   const [otherHearingDevice, setOtherHearingDevice] = useState("");
   const [hearingLossType, setHearingLossType] = useState<string>("");
   const [guardianSummary, setGuardianSummary] = useState("");
+  const [initialScheduleId, setInitialScheduleId] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const validateField = (field: string, value: string): string => {
@@ -88,6 +91,11 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
     { value: "unknown", label: "Unknown" },
   ];
 
+  // Reset schedule when site changes
+  useEffect(() => {
+    setInitialScheduleId("");
+  }, [siteId]);
+
   // Auto-generate initials from first and last name
   useEffect(() => {
     const firstInitial = firstName.trim().charAt(0);
@@ -109,6 +117,12 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
     queryKey: ["locations", "all"],
     queryFn: () => listAllLocations(),
     enabled: open, // Only fetch when modal is open
+  });
+
+  const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
+    queryKey: ["schedules", "available", siteId],
+    queryFn: () => getAvailableSchedules({ site_id: siteId, limit: 100 }),
+    enabled: open && !!siteId,
   });
 
   const mutation = useMutation({
@@ -137,6 +151,7 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
       setOtherHearingDevice("");
       setHearingLossType("");
       setGuardianSummary("");
+      setInitialScheduleId("");
       setFieldErrors({});
       onClose();
     }
@@ -168,6 +183,7 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
       ],
       hearing_loss_type: hearingLossType ? (hearingLossType as never) : null,
       guardian_summary: guardianSummary.trim() || undefined,
+      initial_schedule_id: initialScheduleId || undefined,
     });
   };
 
@@ -283,6 +299,30 @@ export default function CreateStudentModal({ open, onClose }: CreateStudentModal
                 ))}
               </Select>
               {fieldErrors.siteId && <FormHelperText>{fieldErrors.siteId}</FormHelperText>}
+            </FormControl>
+
+            {/* Initial Schedule (optional) */}
+            <FormControl fullWidth disabled={isDisabled || !siteId || schedulesLoading}>
+              <InputLabel>Initial Schedule (optional)</InputLabel>
+              <Select
+                value={initialScheduleId}
+                label="Initial Schedule (optional)"
+                onChange={(e) => setInitialScheduleId(e.target.value)}
+              >
+                <MenuItem value="">
+                  <em>None — enroll later</em>
+                </MenuItem>
+                {(schedulesData?.items ?? []).map((schedule) => (
+                  <MenuItem key={schedule.id} value={schedule.id}>
+                    {`${schedule.teacher.user.name} · ${decodeDayMask(schedule.day_of_week_mask).join("/")} ${schedule.start_time}–${schedule.end_time}`}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                {siteId
+                  ? "Optionally enroll this student in an active schedule at the selected site."
+                  : "Select a site first to see available schedules."}
+              </FormHelperText>
             </FormControl>
 
             {/* Current School */}

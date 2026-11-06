@@ -29,6 +29,7 @@ export interface CreateStudentInput {
     | "unknown"
     | null;
   guardian_summary?: string;
+  initial_schedule_id?: string;
 }
 
 export interface UpdateStudentInput {
