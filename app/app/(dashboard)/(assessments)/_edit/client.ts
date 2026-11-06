@@ -5,7 +5,7 @@ export async function updateAssessment(
   id: string,
   data: {
     teaching_focus?: string;
-    summary?: string;
+    summary?: string | null;
     focuses?: AssessmentFocus[];
     score?: number;
     notes?: string;
