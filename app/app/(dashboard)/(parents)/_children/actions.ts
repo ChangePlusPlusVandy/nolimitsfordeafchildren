@@ -2,13 +2,19 @@
 
 import type { AddSiblingInput, UpdateSiblingInput } from "@/(dashboard)/(students)/_domain/types";
 import { UpdateStudentService } from "@/(dashboard)/(students)/_edit/service";
-import { updateStudentSchema } from "@/(dashboard)/(students)/_edit/validation";
 import * as siblings from "@/(dashboard)/(students)/_siblings/service";
-import { siblingSchema } from "@/(dashboard)/(students)/_siblings/validation";
 import { requireRole } from "@/_platform/auth/guard";
 import { ForbiddenError, NotFoundError } from "@/_shared/server/errors";
 
 import { isParentLinkedToStudent } from "../_access/service";
+import {
+  parentHearingInfoSchema,
+  parentSiblingAddSchema,
+  parentSiblingUpdateSchema,
+  type HearingInfoInput,
+} from "./validation";
+
+export type { HearingInfoInput };
 
 async function assertParentOwnsChild(parentUserId: string, studentId: string): Promise<void> {
   const linked = await isParentLinkedToStudent(parentUserId, studentId);
@@ -20,7 +26,7 @@ async function assertParentOwnsChild(parentUserId: string, studentId: string): P
 export async function addChildSibling(studentId: string, input: AddSiblingInput) {
   const user = await requireRole("parent");
   await assertParentOwnsChild(user.id, studentId);
-  const parsed = siblingSchema.parse(input) as AddSiblingInput;
+  const parsed = parentSiblingAddSchema.parse(input) as AddSiblingInput;
   return await siblings.addSibling(studentId, parsed);
 }
 
@@ -31,7 +37,15 @@ export async function updateChildSibling(
 ) {
   const user = await requireRole("parent");
   await assertParentOwnsChild(user.id, studentId);
-  const parsed = siblingSchema.partial().parse(input) as UpdateSiblingInput;
+
+  // Verify the target sibling actually belongs to the authorized student so a
+  // parent cannot pass their own child's ID alongside another family's siblingId.
+  const existing = await siblings.getSiblingById(siblingId);
+  if (!existing || existing.student_id !== studentId) {
+    throw new ForbiddenError("Sibling does not belong to your linked child");
+  }
+
+  const parsed = parentSiblingUpdateSchema.parse(input) as UpdateSiblingInput;
   const sibling = await siblings.updateSibling(siblingId, parsed);
   if (!sibling) {
     throw new NotFoundError("Sibling not found");
@@ -42,30 +56,20 @@ export async function updateChildSibling(
 export async function removeChildSibling(siblingId: string, studentId: string) {
   const user = await requireRole("parent");
   await assertParentOwnsChild(user.id, studentId);
+
+  // Same cross-family guard as updateChildSibling.
+  const existing = await siblings.getSiblingById(siblingId);
+  if (!existing || existing.student_id !== studentId) {
+    throw new ForbiddenError("Sibling does not belong to your linked child");
+  }
+
   return await siblings.removeSibling(siblingId);
 }
-
-const hearingInfoSchema = updateStudentSchema.pick({
-  hearing_devices: true,
-  hearing_loss_type: true,
-});
-
-export type HearingInfoInput = {
-  hearing_devices: string[];
-  hearing_loss_type:
-    | "mild"
-    | "moderate"
-    | "moderately_severe"
-    | "severe"
-    | "profound"
-    | "unknown"
-    | null;
-};
 
 export async function updateChildHearingInfo(studentId: string, input: HearingInfoInput) {
   const user = await requireRole("parent");
   await assertParentOwnsChild(user.id, studentId);
-  const parsed = hearingInfoSchema.parse(input);
+  const parsed = parentHearingInfoSchema.parse(input);
   const student = await new UpdateStudentService().update(studentId, parsed);
   if (!student) {
     throw new NotFoundError("Student not found");
