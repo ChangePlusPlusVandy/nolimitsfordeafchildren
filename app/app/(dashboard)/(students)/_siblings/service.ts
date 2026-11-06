@@ -44,3 +44,12 @@ export async function removeSibling(siblingId: string): Promise<{ ok: boolean }>
   await db.delete(SiblingTable).where(eq(SiblingTable.id, siblingId));
   return { ok: true };
 }
+
+export async function getSiblingById(siblingId: string): Promise<SiblingEntity | null> {
+  const [sibling] = await db
+    .select()
+    .from(SiblingTable)
+    .where(eq(SiblingTable.id, siblingId))
+    .limit(1);
+  return sibling ?? null;
+}
