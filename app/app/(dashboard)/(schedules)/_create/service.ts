@@ -18,6 +18,7 @@ import {
   NotFoundError,
 } from "@/_shared/server/errors";
 
+import { formatConflictMessage } from "../_conflicts/message";
 import { checkConflicts } from "../_conflicts/service";
 import type { CreateScheduleInput } from "../_domain/types";
 
@@ -58,9 +59,7 @@ export async function createSchedule(
   });
 
   if (conflictResult.hasConflict) {
-    throw new ConflictError(
-      `Schedule conflicts with existing schedules: ${conflictResult.conflicts.map((c) => c.id).join(", ")}`,
-    );
+    throw new ConflictError(formatConflictMessage(conflictResult.conflicts));
   }
 
   const newSchedule: ScheduleInsert = {

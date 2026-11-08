@@ -12,7 +12,7 @@ export interface CreateScheduleInput {
 
 export interface UpdateScheduleInput {
   site_id?: string;
-  session_id?: string;
+  session_id?: string | null;
   day_of_week_mask?: number;
   start_time?: string;
   end_time?: string;
@@ -47,14 +47,22 @@ export interface ScheduleWithDetails extends ScheduleEntity {
   session?: { id: string; name: string } | null;
 }
 
+export interface ScheduleEnrollmentStudent {
+  enrollment_id: string;
+  id: string;
+  first_name: string;
+  last_name: string;
+  initials: string;
+  enrolled_at: Date;
+}
+
+export interface ScheduleEndedEnrollment extends ScheduleEnrollmentStudent {
+  ended_at: Date;
+}
+
 export interface ScheduleDetails extends ScheduleWithDetails {
-  enrolledStudents: Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    initials: string;
-    enrolled_at: Date;
-  }>;
+  enrolledStudents: ScheduleEnrollmentStudent[];
+  endedEnrollments: ScheduleEndedEnrollment[];
 }
 
 export interface ConflictCheckInput {
