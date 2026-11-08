@@ -19,12 +19,15 @@ export type {
   CreateScheduleInput,
   ListSchedulesQuery,
   ScheduleDetails,
+  ScheduleEndedEnrollment,
+  ScheduleEnrollmentStudent,
   ScheduleWithDetails,
   UpdateScheduleInput,
 } from "./types";
 export { checkScheduleConflicts } from "../_conflicts/actions";
 export { createSchedule, createTeacherSchedule } from "../_create/actions";
 export { updateScheduleById, updateSchedule } from "../_update/actions";
+export { endEnrollment, reenrollStudent } from "../_enrollments/actions";
 
 export class SchedulesService {
   async index(query: ListSchedulesQuery) {
