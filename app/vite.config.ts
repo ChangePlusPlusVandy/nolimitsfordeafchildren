@@ -23,6 +23,7 @@ export default defineConfig({
     // navigation. Bundled, esbuild provides proper interop. Plain JS, so
     // the rsc/ssr environments handle them safely.
     include: ["prop-types", "react-is"],
+    exclude: ["wrangler", "blake3-wasm"],
   },
   resolve: {
     // `@emotion/react` default-imports the CJS-only
