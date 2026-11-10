@@ -306,13 +306,10 @@ export default function ChildDetailsPage({ params }: { params: Promise<{ student
 
   const attendanceRate = child.attendance_summary.attendance_rate;
 
-  // Bridge ChildDetails siblings (no photo_url/notes) to the Sibling type expected by SiblingsSection.
-  // photo_url is not a form field so it's never overwritten on edit; notes initializes empty
-  // and submits undefined if unchanged, which the partial schema omits from the DB update.
+  // Child details omit sibling photos; retain the editable fields returned by the server.
   const displaySiblings: Sibling[] = child.siblings.map((s) => ({
     ...s,
     photo_url: null,
-    notes: null,
   }));
 
   return (

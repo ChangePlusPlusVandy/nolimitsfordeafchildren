@@ -74,7 +74,7 @@ export default function AddSiblingModal({
       relationship,
       is_participant: isParticipant,
       has_hearing_loss: hasHearingLoss,
-      notes: notes.trim() || undefined,
+      notes: notes.trim(),
     });
   };
 

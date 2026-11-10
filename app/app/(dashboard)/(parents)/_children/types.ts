@@ -113,6 +113,7 @@ export interface ChildDetails {
     relationship: string;
     is_participant: boolean;
     has_hearing_loss: boolean;
+    notes: string | null;
   }>;
 }
 

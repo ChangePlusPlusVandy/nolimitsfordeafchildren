@@ -255,6 +255,7 @@ export async function childDetail(
       relationship: SiblingTable.relationship,
       is_participant: SiblingTable.is_participant,
       has_hearing_loss: SiblingTable.has_hearing_loss,
+      notes: SiblingTable.notes,
     })
     .from(SiblingTable)
     .where(eq(SiblingTable.student_id, studentId))
