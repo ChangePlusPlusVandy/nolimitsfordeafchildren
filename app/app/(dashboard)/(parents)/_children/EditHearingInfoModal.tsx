@@ -1,8 +1,8 @@
 "use client";
 
 import {
+  Autocomplete,
   Button,
-  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -10,10 +10,10 @@ import {
   DialogTitle,
   FormControl,
   InputLabel,
-  ListItemText,
   MenuItem,
   Select,
   Stack,
+  TextField,
 } from "@mui/material";
 import { useEffect, useState } from "react";
 
@@ -70,27 +70,21 @@ export default function EditHearingInfoModal({
         <DialogTitle>Edit Hearing Information</DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <FormControl fullWidth>
-              <InputLabel>Hearing Devices</InputLabel>
-              <Select
-                multiple
-                value={hearingDevices}
-                label="Hearing Devices"
-                onChange={(e) => setHearingDevices(e.target.value as string[])}
-                renderValue={(selected) =>
-                  (selected as string[]).length > 0
-                    ? (selected as string[]).join(", ")
-                    : "None selected"
-                }
-              >
-                {HEARING_DEVICE_OPTIONS.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    <Checkbox checked={hearingDevices.includes(option)} />
-                    <ListItemText primary={option} />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              multiple
+              freeSolo
+              autoSelect
+              options={HEARING_DEVICE_OPTIONS}
+              value={hearingDevices}
+              onChange={(_, devices) => setHearingDevices(devices)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Hearing Devices"
+                  helperText="Type a device and press Enter."
+                />
+              )}
+            />
 
             <FormControl fullWidth>
               <InputLabel>Hearing Loss Type</InputLabel>
