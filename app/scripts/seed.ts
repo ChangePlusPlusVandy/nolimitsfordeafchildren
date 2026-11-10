@@ -16,11 +16,17 @@
  *     pending@nolimits.test (unassigned),
  *     michelle + jeannette on both nolimitsfordeafchildren.org and
  *     kidswithnolimits.org (administrator, one account per domain)
- *   - 3 locations, 4 students (linked/unlinked/unassigned mixes)
+ *   - 3 locations, 5 students (linked/unlinked/unassigned mixes; Owen shares
+ *     Mia's site without a parent link)
  *   - a 10-week teaching cycle with schedules that include TODAY (so the
  *     teacher's "My Day" shows sessions), past attendance (present + no_show),
  *     session notes, pre-assessments and audiogram documents (+ R2 objects)
  *     with due dates inside/outside the 30-day reminder window
+ *   - a pending pre-report for Mia (staff see it; her parent only once approved)
+ *   - photos (+ R2 objects) for each file-access case: group and per-student
+ *     photos at the center, Ava at the pop-up, and a Rosewood group photo
+ *   - bulletins with attachments (+ R2 objects): approved global, pending
+ *     global, and approved Rosewood-only
  *
  * Secrets: all passwords are the same deterministic test password. The
  * *.nolimits.test accounts are fake. Michelle and Jeannette are local
@@ -38,11 +44,14 @@ import {
   AssessmentFocusTable,
   AssessmentTable,
   AttendanceTable,
+  BulletinAttachmentTable,
+  BulletinTable,
   DocumentTable,
   EnrollmentTable,
   LocationTable,
   ParentProfileTable,
   ParentStudentLinkTable,
+  PhotoTable,
   ScheduleTable,
   SessionNoteTable,
   SessionTable,
@@ -95,6 +104,14 @@ trailer<</Root 1 0 R>>
 %%EOF
 `;
 const AUDIOGRAM_SIZE = new TextEncoder().encode(AUDIOGRAM_CONTENT).length;
+
+// 1x1 transparent PNG; seed photos only need a real image body.
+const PHOTO_MIME_TYPE = "image/png";
+const PHOTO_CONTENT = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64",
+);
+const BULLETIN_ATTACHMENT_MIME_TYPE = "text/plain";
 
 /** Full-table wipe in FK-safe dependency order (children first). */
 async function wipeAllTables(d1: D1Database): Promise<void> {
@@ -259,7 +276,7 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
   ]);
 
   // ----- students -----
-  const [mia, leo, ava, noah] = await insertReturning(
+  const [mia, leo, ava, noah, owen] = await insertReturning(
     StudentTable,
     (
       [
@@ -300,6 +317,15 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
           hearing_loss_type: "unknown",
           current_school: "Capitol Elementary",
         },
+        {
+          site_id: center.id,
+          first_name: "Owen",
+          last_name: "Diaz",
+          initials: "OD",
+          dob: "2017-09-14",
+          hearing_loss_type: "moderate",
+          current_school: "Lincoln Elementary",
+        },
       ] as const
     ).map((student) => ({ ...student, guardian_summary: SEED_GUARDIAN_SUMMARY })),
     "initials",
@@ -320,12 +346,14 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
     { teacher_id: teacherProfile.id, student_id: mia.id },
     { teacher_id: teacherProfile.id, student_id: leo.id },
     { teacher_id: teacherProfile.id, student_id: ava.id },
+    { teacher_id: teacherProfile.id, student_id: owen.id },
   ]);
   await db.insert(ParentStudentLinkTable).values([
     { parent_id: parentProfile.id, student_id: mia.id, relationship: "mother", is_primary: true },
     { parent_id: parentProfile.id, student_id: leo.id, relationship: "mother" },
   ]);
   // Noah is intentionally unlinked (no teacher, no parent).
+  // Owen shares Mia's site but has no parent link (another family at the same site).
 
   // ----- 10-week cycle including today, with today's weekday in the mask -----
   // Use the same America/Los_Angeles calendar as My Day (not UTC).
@@ -460,6 +488,110 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
     },
   ]);
 
+  // ----- pending pre-report for Mia (staff can see it; her parent cannot yet) -----
+  const preReportKey = `documents/student/${mia.id}/pre_report/seed-pre-report-pending.txt`;
+  const preReportContent = "Seed pre-report draft; not a real report.";
+  await bucket.put(preReportKey, preReportContent, {
+    httpMetadata: { contentType: "text/plain" },
+  });
+  await db.insert(DocumentTable).values({
+    entity_type: "student",
+    entity_id: mia.id,
+    document_type: "pre_report",
+    file_url: `/api/files/${preReportKey}`,
+    file_name: "seed-pre-report-pending.txt",
+    file_size: new TextEncoder().encode(preReportContent).length,
+    mime_type: "text/plain",
+    review_status: "pending",
+    uploaded_by: teacherUser.id,
+  });
+
+  // ----- photos + R2 objects (one per file-access case) -----
+  const photos = [
+    { name: "center-group", location: center, student: null, uploader: teacherUser },
+    { name: "center-mia", location: center, student: mia, uploader: teacherUser },
+    { name: "center-owen", location: center, student: owen, uploader: teacherUser },
+    { name: "popup-ava", location: popup, student: ava, uploader: teacherUser },
+    { name: "remote-group", location: remote, student: null, uploader: adminUser },
+  ].map((photo) => ({
+    ...photo,
+    key: `photos/location/${photo.location.id}/${pastDate}/seed-${photo.name}.png`,
+  }));
+  for (const { key } of photos) {
+    await bucket.put(key, PHOTO_CONTENT, { httpMetadata: { contentType: PHOTO_MIME_TYPE } });
+  }
+  await db.insert(PhotoTable).values(
+    photos.map((photo) => ({
+      location_id: photo.location.id,
+      student_id: photo.student?.id ?? null,
+      session_date: pastDate,
+      caption: `Seed photo: ${photo.name}`,
+      file_url: `/api/files/${photo.key}`,
+      file_name: `seed-${photo.name}.png`,
+      file_size: PHOTO_CONTENT.length,
+      mime_type: PHOTO_MIME_TYPE,
+      uploaded_by: photo.uploader.id,
+    })),
+  );
+
+  // ----- bulletins with attachments + R2 objects (approved / pending / other site) -----
+  const bulletinSeeds = [
+    {
+      name: "global-approved",
+      title: "Seed bulletin: welcome back",
+      scope: "global" as const,
+      site_id: null,
+      approval_status: "approved",
+    },
+    {
+      name: "global-pending",
+      title: "Seed bulletin: awaiting approval",
+      scope: "global" as const,
+      site_id: null,
+      approval_status: "pending",
+    },
+    {
+      name: "remote-approved",
+      title: "Seed bulletin: Rosewood update",
+      scope: "site" as const,
+      site_id: remote.id,
+      approval_status: "approved",
+    },
+  ];
+  const bulletins = await insertReturning(
+    BulletinTable,
+    bulletinSeeds.map((bulletin) => ({
+      title: bulletin.title,
+      body: "Seed data; not a real announcement.",
+      scope: bulletin.scope,
+      site_id: bulletin.site_id,
+      role_target: "all" as const,
+      requires_approval: bulletin.approval_status !== "approved",
+      approval_status: bulletin.approval_status,
+      created_by: adminUser.id,
+    })),
+    "title",
+  );
+  const bulletinAttachments = bulletinSeeds.map((bulletin, index) => ({
+    bulletin_id: bulletins[index]!.id,
+    key: `bulletins/attachments/seed-${bulletin.name}.txt`,
+    content: `Seed attachment for "${bulletin.title}".`,
+  }));
+  for (const { key, content } of bulletinAttachments) {
+    await bucket.put(key, content, {
+      httpMetadata: { contentType: BULLETIN_ATTACHMENT_MIME_TYPE },
+    });
+  }
+  await db.insert(BulletinAttachmentTable).values(
+    bulletinAttachments.map((attachment) => ({
+      bulletin_id: attachment.bulletin_id,
+      file_url: `/api/files/${attachment.key}`,
+      file_name: attachment.key.split("/").pop()!,
+      file_size: new TextEncoder().encode(attachment.content).length,
+      mime_type: BULLETIN_ATTACHMENT_MIME_TYPE,
+    })),
+  );
+
   const summary = {
     password: SEED_PASSWORD,
     users: Object.fromEntries(
@@ -468,11 +600,22 @@ async function seed(d1: D1Database, bucket: R2Bucket): Promise<void> {
     teacher_profile_id: teacherProfile.id,
     parent_profile_id: parentProfile.id,
     locations: { center: center.id, popup: popup.id, remote: remote.id },
-    students: { mia: mia.id, leo: leo.id, ava: ava.id, noah: noah.id },
+    students: { mia: mia.id, leo: leo.id, ava: ava.id, noah: noah.id, owen: owen.id },
     schedules: { center: centerSchedule.id, popup: popupSchedule.id },
     attendance: { past_session_date: pastDate },
-    documents: { mia_audiogram: `/api/files/${miaKey}`, leo_audiogram: `/api/files/${leoKey}` },
+    documents: {
+      mia_audiogram: `/api/files/${miaKey}`,
+      leo_audiogram: `/api/files/${leoKey}`,
+      mia_pre_report_pending: `/api/files/${preReportKey}`,
+    },
     due_dates: { mia_next_due: miaDue, leo_next_due: leoDue },
+    photos: Object.fromEntries(photos.map((photo) => [photo.name, `/api/files/${photo.key}`])),
+    bulletin_attachments: Object.fromEntries(
+      bulletinAttachments.map((attachment, index) => [
+        bulletinSeeds[index]!.name,
+        `/api/files/${attachment.key}`,
+      ]),
+    ),
   };
 
   console.log("[seed] reseeded:", JSON.stringify(summary, null, 2));
