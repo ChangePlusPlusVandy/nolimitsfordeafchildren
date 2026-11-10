@@ -8,7 +8,7 @@ export async function createAssessment(
     assessment_type: "pre" | "post";
     teaching_focus: string;
     focuses?: AssessmentFocus[];
-    summary?: string;
+    summary?: string | null;
     score: number;
     notes?: string;
   },

@@ -7,6 +7,7 @@ export async function cloneAssessment(
     cycle_start_date?: string;
     assessment_type?: "pre" | "post";
     teaching_focus?: string;
+    summary?: string | null;
     focuses?: AssessmentFocus[];
     score?: number;
     notes?: string;
