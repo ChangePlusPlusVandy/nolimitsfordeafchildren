@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { authClient } from "@/(auth)/_domain/client";
+import { passwordResetEmailConfigured } from "@/(auth)/_password-reset/actions";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -28,21 +29,22 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     try {
+      // better-auth reports success even when the delivery callback fails, so
+      // refuse to submit until an administrator configures email delivery.
+      if (!(await passwordResetEmailConfigured())) {
+        throw new Error(
+          "Email delivery is not configured on this server. " +
+            "An administrator must set EMAIL_FROM_ADDRESS and the Cloudflare send_email binding.",
+        );
+      }
+
       const result = await authClient.requestPasswordReset({
         email: email.trim().toLowerCase(),
         redirectTo: "/reset-password",
       });
 
       if (result.error) {
-        // Surface a clear admin-facing message when email isn't configured.
-        const msg = result.error.message ?? "";
-        if (msg.toLowerCase().includes("email") && msg.toLowerCase().includes("disabled")) {
-          throw new Error(
-            "Email delivery is not configured on this server. " +
-              "An administrator must set EMAIL_FROM_ADDRESS and the Cloudflare send_email binding.",
-          );
-        }
-        throw new Error(msg || "Unable to send reset email");
+        throw new Error(result.error.message || "Unable to send reset email");
       }
 
       setSubmitted(true);
