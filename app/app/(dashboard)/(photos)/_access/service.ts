@@ -11,6 +11,7 @@ import {
   TeacherProfileTable,
   type UserEntity,
 } from "@/_platform/db/schema";
+import { getFileUrlAliases } from "@/_platform/storage/r2";
 import { BadRequestError, ForbiddenError, NotFoundError } from "@/_shared/server/errors";
 
 import type { ListPhotosQuery } from "../_domain/types";
@@ -144,7 +145,7 @@ class PhotoAccess {
     const [photo] = await db
       .select({ location_id: PhotoTable.location_id, student_id: PhotoTable.student_id })
       .from(PhotoTable)
-      .where(eq(PhotoTable.file_url, fileUrl))
+      .where(inArray(PhotoTable.file_url, getFileUrlAliases(fileUrl)))
       .limit(1);
     if (!photo) {
       throw denied;

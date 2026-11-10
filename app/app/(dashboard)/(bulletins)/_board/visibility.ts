@@ -1,7 +1,8 @@
-import { and, eq, gte, isNull, lte, or, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/_platform/db";
 import { BulletinAttachmentTable, BulletinTable, type UserEntity } from "@/_platform/db/schema";
+import { getFileUrlAliases } from "@/_platform/storage/r2";
 import { ForbiddenError } from "@/_shared/server/errors";
 
 import type { UserRole } from "../_domain/types";
@@ -59,7 +60,7 @@ export async function assertCanViewAttachmentFile(
     .innerJoin(BulletinTable, eq(BulletinAttachmentTable.bulletin_id, BulletinTable.id))
     .where(
       and(
-        eq(BulletinAttachmentTable.file_url, fileUrl),
+        inArray(BulletinAttachmentTable.file_url, getFileUrlAliases(fileUrl)),
         ...(await memberVisibilityConditions(currentUser.role, currentUser.id)),
         publishedCondition(now),
         unexpiredCondition(now),

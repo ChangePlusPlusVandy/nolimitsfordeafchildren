@@ -146,9 +146,13 @@ for (const role of roles) {
       const result = await upload.json();
       expect(result.file_url).toBe(`/api/files/${key}`);
       const stored = await request.get(result.file_url);
-      expect(stored.status()).toBe(HTTP_OK);
-      expect(stored.headers()["cache-control"]).toBe("private, no-store");
-      expect(await stored.text()).toBe("isolated regression probe");
+      if (role === "parent") {
+        expect(stored.status()).toBe(HTTP_FORBIDDEN);
+      } else {
+        expect(stored.status()).toBe(HTTP_OK);
+        expect(stored.headers()["cache-control"]).toBe("private, no-store");
+        expect(await stored.text()).toBe("isolated regression probe");
+      }
     }
 
     if (role === "teacher" || role === "parent") {
