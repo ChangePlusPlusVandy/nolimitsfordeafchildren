@@ -14,9 +14,9 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { useAuth } from "@/client/auth";
-import MobileBottomNav from "@/client/components/MobileBottomNav";
-import { DRAWER_WIDTH, Sidebar } from "@/client/components/Sidebar";
+import { useAuth } from "@/(auth)/_domain/client";
+import MobileBottomNav from "@/_shared/ui/MobileBottomNav";
+import { DRAWER_WIDTH, Sidebar } from "@/_shared/ui/Sidebar";
 
 const TRANSITION = "margin 0.2s ease, width 0.2s ease";
 const STORAGE_KEY = "sidebar-open";

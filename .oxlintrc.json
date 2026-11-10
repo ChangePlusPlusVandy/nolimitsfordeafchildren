@@ -27,7 +27,19 @@
   },
   "overrides": [
     {
-      "files": ["app/src/server/**/*.ts"],
+      "files": [
+        "app/app/(dashboard)/**/{server,service,data,queries,actions,access,job}.ts",
+        "app/app/(dashboard)/(attendance)/_mark/{alerts,siblings}.ts",
+        "app/app/(dashboard)/(bulletins)/**/siteAccess.ts",
+        "app/app/(dashboard)/(documents)/_upload/entity.ts",
+        "app/app/(dashboard)/(parents)/_children/{audiogram-compliance,missed-sessions,schedule-sessions}.ts",
+        "app/app/(dashboard)/(teachers)/_sick-day/list.ts",
+        "app/app/(auth)/_session/**/*.ts",
+        "app/app/_platform/auth/guard.ts",
+        "app/app/_shared/server/**/*.ts",
+        "app/app/_jobs/**/*.ts",
+        "app/app/api/files/_services/**/*.ts"
+      ],
       "rules": {
         "typescript/no-non-null-assertion": "off"
       }

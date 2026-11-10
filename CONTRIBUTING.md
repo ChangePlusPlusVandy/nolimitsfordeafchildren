@@ -1,7 +1,7 @@
 # Contributing
 
 Condensed from the former `AGENTS.md` (removed in the monorepo migration).
-App code lives in `app/`; e2e in `tests/`.
+Runtime source lives in `app/app/`; workspace tooling in `app/`; e2e in `tests/`.
 
 ## Business context
 
@@ -23,47 +23,63 @@ authenticated `/api/files/*` routes — never public URLs.
 
 ## Architecture (vertical slices + DDD in App Router)
 
-Each domain is a self-contained slice with a service plus thin adapters:
+Route groups own domain code without changing URLs. Keep use-case handlers,
+validation, types, UI, and tests together; route adapters stay thin.
 
 ```
-app/src/server/{domain}/service.ts   # business logic + DTOs
-app/src/server/{domain}/queries.ts   # "use server" reads for RSC
-app/src/server/{domain}/actions.ts   # "use server" mutations (zod-validated)
-app/src/client/{domain}.ts           # re-exports for client components/hooks
-app/app/(dashboard)/{feature}/...    # RSC pages + client components
+app/app/(dashboard)/({domain})/     # domain routes and private use cases
+  _domain/client.ts                # browser-safe domain entry
+  _domain/server.ts                # server-only domain entry
+  _domain/queries.ts               # server reads for RSC
+  _domain/types.ts                 # domain DTOs
+  _domain/ui/                      # UI shared within this domain
+app/app/(auth)/                    # authentication routes and session use cases
+app/app/api/                       # HTTP adapters and API-private services
+app/app/_platform/                 # auth, D1, schema, bindings, email, R2
+app/app/_shared/                   # cross-domain UI, hooks, utils, server helpers
+app/app/_jobs/cron/                # Worker scheduling, dispatch, and tests
 ```
 
-Shared: `app/src/client/components/`, `app/src/client/hooks/`,
-`app/src/server/shared/auth-guard.ts` (`requireRole` / `getCurrentUser`),
-`app/src/server/shared/errors.ts`, `app/src/server/cron/`.
+Private folders (`_domain`, `_platform`, `_shared`, `_jobs`) are not routes.
+Server-action adapters live with their use cases; domain entry modules expose
+only the operations needed by routes or other domains. Browser imports must
+retain the `"use server"` boundary, not pull server implementation into bundles.
+Birthday and audiogram jobs belong to students and documents respectively;
+scheduling imports their narrow `_domain/jobs` entries, never action barrels.
 
-Adding a domain: `service.ts` → `queries.ts` → `actions.ts` →
-`src/client/{domain}.ts` → `app/(dashboard)/{feature}/` pages →
-schema change (`app/src/db/schema.ts` + `pnpm db:generate`) if needed.
+Add a domain under `app/app/(dashboard)/({domain})/`, keeping its routes and
+private implementation together. Change `app/app/_platform/db/schema.ts` and
+run `pnpm db:generate` only when the database schema changes.
 
 ## Conventions
 
-1. **Slices**: domain code in `app/src/server/{domain}/` + `app/src/client/{domain}.ts`.
-   Shared components in `app/src/client/components/`; shared server helpers in
-   `app/src/server/shared/`. Do NOT create top-level `components/` or `utils/`.
+1. **Slices**: domain code stays under its route group, not global client/server
+   trees. Use `app/app/_shared/ui/` and `app/app/_shared/server/` only for genuinely
+   cross-domain code; domain-specific components stay with their domain.
 2. **RSC vs React Query**: RSC calls `queries.ts` for first paint; interactive
-   mutations/polling use `useMutation`/`useQuery` over `app/src/client/{domain}.ts`.
-   Mutations are `"use server"` functions in `actions.ts` — never raw DB writes.
+   mutations/polling use `useMutation`/`useQuery` over `_domain/client.ts`.
+   Mutations use `"use server"` adapters, never raw DB writes from UI.
 3. **Authz**: gate every protected query/action with
    `requireRole("administrator", ...)` (or `getCurrentUser()` for explicit public
    exemptions). Role checks run server-side only.
-4. **Validation**: zod schemas in `actions.ts` before any service call.
-5. **Bindings**: `getBinding()` / `getEnvValue()` from `app/src/lib/env.ts`
+4. **Validation**: keep zod schemas with each use case; validate before service calls.
+5. **Bindings**: `getBinding()` / `getEnvValue()` from `app/app/_platform/env.ts`
    inside handlers/components only, never
-   module top-level (`app/src/lib/db.ts`, `app/src/lib/auth.ts` use lazy access).
+   module top-level (`@/_platform/db` and `@/_platform/auth/server` use lazy access).
    Cron injects D1 via `setDb(env.DB)` (no request context).
 6. **Naming**: `PascalCase.tsx` components, `camelCase.ts` logic, lowercase
    domain files (`service.ts`, `actions.ts`, `queries.ts`).
-7. **Pathing**: `@/*` alias maps to `app/src/*`.
+7. **Pathing**: `@/*` maps to `app/app/*`. Config, public assets, migrations, scripts,
+   and thin framework entry points remain at workspace level; do not recreate `app/src/`.
 8. **Lint/format**: `oxlint` + `oxfmt` from repo root (`pnpm check`).
    Suppress with `eslint-disable-next-line <rule> -- <reason>`.
 
 ## Verification
+
+Unit discovery includes every `app/app/**/*.test.ts`, including private folders
+and route groups. Node 22 runs explicit paths through `tsx`, not shell globs.
+Scheduled tests need migrated local D1. Run stateful checks in a disposable
+checkout if existing `.wrangler` data matters; seed replaces local data.
 
 ```bash
 pnpm typecheck

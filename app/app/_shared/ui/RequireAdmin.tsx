@@ -1,0 +1,22 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+import RequireRole from "@/_shared/ui/RequireRole";
+
+/**
+ * Renders children only for administrators; others are redirected away.
+ */
+export default function RequireAdmin({
+  children,
+  redirectTo = "/",
+}: {
+  children: ReactNode;
+  redirectTo?: string;
+}) {
+  return (
+    <RequireRole roles={["administrator"]} redirectTo={redirectTo}>
+      {children}
+    </RequireRole>
+  );
+}

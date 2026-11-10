@@ -2,7 +2,7 @@ import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   out: "./migrations",
-  schema: "./src/db/schema.ts",
+  schema: "./app/_platform/db/schema.ts",
   dialect: "sqlite",
   dbCredentials: {
     // Local file used by drizzle-kit to generate/verify migrations.

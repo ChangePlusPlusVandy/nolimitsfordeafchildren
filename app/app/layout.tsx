@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import EmotionCacheProvider from "@/client/components/EmotionCacheProvider";
+import EmotionCacheProvider from "@/_shared/ui/EmotionCacheProvider";
 
 import Providers from "./providers";
 

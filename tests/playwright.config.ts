@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * Playwright config for the No Limits monorepo.
  *
- * - App under test lives in ../app (Next.js 16 + OpenNext/Cloudflare).
+ * - App under test lives in ../app (Next.js 16 + Vinext/Cloudflare).
  * - webServer boots `pnpm --filter nolimits-app dev` so `pnpm test:e2e`
  *   works from a clean checkout with no manual server.
  * - CI runs chromium only; locally use --project=chromium/firefox/webkit.

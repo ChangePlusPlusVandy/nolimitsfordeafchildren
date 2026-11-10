@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isHttpError } from "@/server/shared/errors";
+import { isHttpError } from "@/_shared/server/errors";
 
 /**
  * Shared helpers for the /api/files/* route handlers (private file — the

@@ -44,4 +44,26 @@ test.describe("authenticated navigation", () => {
 
     expect(moduleErrors).toEqual([]);
   });
+
+  test("admin navigates across domain groups and reloads", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await signInAsAdmin(page);
+
+    for (const [name, path] of [
+      ["Students", "/students"],
+      ["Site Map", "/locations"],
+      ["Staff Chat", "/chat"],
+      ["Bulletin", "/bulletin"],
+      ["Users", "/users"],
+    ]) {
+      await page.getByRole("link", { name, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+      await expect(page.getByRole("main").getByRole("heading").first()).toBeVisible();
+    }
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: /manage users/i })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
 });

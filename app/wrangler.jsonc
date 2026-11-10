@@ -37,7 +37,7 @@
       // Email stays EXPLICITLY DISABLED until EMAIL_FROM_ADDRESS is set
       // to a from-address VERIFIED in the Cloudflare dashboard
       // (Workers & Pages -> Email -> Settings); until then
-      // `src/lib/email.ts` returns failure loudly (never fakes success).
+      // `app/_platform/email.ts` returns failure loudly (never fakes success).
       "name": "EMAIL",
     },
   ],

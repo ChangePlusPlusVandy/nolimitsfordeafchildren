@@ -15,7 +15,7 @@ BETTER_AUTH_URL=http://localhost:3000
 
 # Email FROM address — REQUIRED for email to be enabled. Must be VERIFIED in
 # the Cloudflare dashboard (Workers & Pages -> Email -> Settings -> Destination
-# addresses). Until this is set, src/lib/email.ts keeps email DISABLED: every
+# addresses). Until this is set, app/_platform/email.ts keeps email DISABLED: every
 # send returns { success: false } with a console.warn and never fakes success.
 # Leave unset while email is not connected.
 EMAIL_FROM_ADDRESS=
