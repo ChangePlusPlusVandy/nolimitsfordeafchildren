@@ -158,6 +158,8 @@ function createAuth() {
     emailAndPassword: {
       enabled: true,
       sendResetPassword: async ({ user, url }) => {
+        // better-auth swallows callback errors, so the request page checks
+        // `isEmailConfigured()` before calling requestPasswordReset.
         const result = await sendPasswordResetEmail(user.email, url);
         if (!result.success) {
           console.error("[Auth] Password reset email failed:", result.error);

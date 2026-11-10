@@ -125,6 +125,11 @@ export async function sendPasswordResetEmail(
   });
 }
 
+/** Whether reset links can be delivered (binding + verified from address). */
+export function isEmailConfigured(): boolean {
+  return Boolean(getEmailBinding() && getFromAddress());
+}
+
 /**
  * Send missed session alert to admin
  * Called immediately when attendance is marked as "no_show"
