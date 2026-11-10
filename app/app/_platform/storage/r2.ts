@@ -99,6 +99,20 @@ export function extractKeyFromUrl(url: string): string | null {
   return null;
 }
 
+/** Stored URL forms for one object, including URLs written before private file routes. */
+export function getFileUrlAliases(fileUrl: string): string[] {
+  const key = extractKeyFromUrl(fileUrl);
+  if (!key) {
+    throw new Error("Unsupported file URL");
+  }
+
+  return [
+    getPublicUrl(key),
+    `https://${getBucketName()}.r2.dev/${key}`,
+    `https://pub-${getBucketName()}.r2.dev/${key}`,
+  ];
+}
+
 function getBucketName(): string {
   // R2Bucket does not expose its name at runtime; read it from the wrangler
   // config convention until a public domain is configured.
