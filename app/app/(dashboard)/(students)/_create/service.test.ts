@@ -43,41 +43,35 @@ before(async () => {
     persist: true,
   });
   setDb(proxy.env.DB);
-  await db
-    .insert(LocationTable)
-    .values({
-      id: siteId,
-      name: "Enrollment test",
-      type: "education_center",
-      address_line1: "1 Test St",
-      city: "Test",
-      state: "CA",
-      postal_code: "90001",
-    });
-  await db
-    .insert(UserTable)
-    .values({
-      id: userId,
-      email: `${userId}@nolimits.test`,
-      name: "Enrollment teacher",
-      role: "teacher",
-    });
+  await db.insert(LocationTable).values({
+    id: siteId,
+    name: "Enrollment test",
+    type: "education_center",
+    address_line1: "1 Test St",
+    city: "Test",
+    state: "CA",
+    postal_code: "90001",
+  });
+  await db.insert(UserTable).values({
+    id: userId,
+    email: `${userId}@nolimits.test`,
+    name: "Enrollment teacher",
+    role: "teacher",
+  });
   await db.insert(TeacherProfileTable).values({ id: teacherId, user_id: userId });
   await db
     .insert(TeacherLocationTable)
     .values({ teacher_profile_id: teacherId, location_id: siteId });
-  await db
-    .insert(ScheduleTable)
-    .values({
-      id: scheduleId,
-      teacher_id: teacherId,
-      site_id: siteId,
-      day_of_week_mask: 127,
-      start_time: "09:00",
-      end_time: "10:00",
-      cycle_start_date: date,
-      cycle_end_date: date,
-    });
+  await db.insert(ScheduleTable).values({
+    id: scheduleId,
+    teacher_id: teacherId,
+    site_id: siteId,
+    day_of_week_mask: 127,
+    start_time: "09:00",
+    end_time: "10:00",
+    cycle_start_date: date,
+    cycle_end_date: date,
+  });
 });
 
 after(async () => {
