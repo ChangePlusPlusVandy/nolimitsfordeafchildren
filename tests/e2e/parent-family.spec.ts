@@ -6,6 +6,8 @@ test("linked parent manages siblings and opens hearing information", async ({ pa
   test.setTimeout(60_000);
   const name = `Family test ${Date.now()}`;
   const editedName = `${name} edited`;
+  const notes = "Joins Wednesday activities.";
+  const editedNotes = "Joins Friday activities.";
   await signIn(page, "parent");
   await page.getByText("MC", { exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Mia Chen", exact: true })).toBeVisible();
@@ -14,12 +16,15 @@ test("linked parent manages siblings and opens hearing information", async ({ pa
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await dialog.getByLabel("Age", { exact: true }).fill("6");
+    await dialog.getByRole("textbox", { name: "Notes", exact: true }).fill(notes);
     await dialog.getByRole("button", { name: "Add Sibling", exact: true }).click();
     await expect(
       page.getByRole("button", { name: `Edit sibling ${name}`, exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: `Edit sibling ${name}`, exact: true }).click();
+    await expect(dialog.getByRole("textbox", { name: "Notes", exact: true })).toHaveValue(notes);
     await dialog.getByRole("textbox", { name: "Name", exact: true }).fill(editedName);
+    await dialog.getByRole("textbox", { name: "Notes", exact: true }).fill(editedNotes);
     await dialog.getByRole("button", { name: "Save Changes", exact: true }).click();
     await expect(
       page.getByRole("button", { name: `Edit sibling ${editedName}`, exact: true }),
@@ -28,6 +33,18 @@ test("linked parent manages siblings and opens hearing information", async ({ pa
     await expect(
       page.getByRole("button", { name: `Edit sibling ${editedName}`, exact: true }),
     ).toBeVisible();
+    await page.getByRole("button", { name: `Edit sibling ${editedName}`, exact: true }).click();
+    await expect(dialog.getByRole("textbox", { name: "Notes", exact: true })).toHaveValue(
+      editedNotes,
+    );
+    await dialog.getByRole("textbox", { name: "Notes", exact: true }).fill("");
+    await dialog.getByRole("button", { name: "Save Changes", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await page.reload();
+    await page.getByRole("button", { name: `Edit sibling ${editedName}`, exact: true }).click();
+    await expect(dialog.getByRole("textbox", { name: "Notes", exact: true })).toHaveValue("");
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(dialog).toBeHidden();
     await page.getByRole("button", { name: "Edit Hearing Info", exact: true }).click();
     await expect(dialog.getByRole("heading", { name: "Edit Hearing Information" })).toBeVisible();
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
