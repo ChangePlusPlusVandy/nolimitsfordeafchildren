@@ -16,5 +16,6 @@ export const createStudentSchema = z
       .nullable()
       .optional(),
     guardian_summary: z.string().nullable().optional(),
+    initial_schedule_id: z.string().optional(),
   })
   .passthrough();

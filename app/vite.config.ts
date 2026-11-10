@@ -16,6 +16,10 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    port: 3000,
+    strictPort: true, // Prevents Vite from automatically picking another port if 3000 is busy
+  },
   optimizeDeps: {
     // Pre-bundle CJS-only transitives default/named-imported by MUI
     // component modules. Served raw in dev, their ESM named/default imports

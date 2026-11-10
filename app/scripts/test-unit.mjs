@@ -16,10 +16,14 @@ if (tests.length === 0) {
   throw new Error("No colocated unit tests found under app/");
 }
 
-const result = spawnSync(process.execPath, ["--import", "tsx", "--test", ...tests], {
-  cwd: workspaceDir,
-  stdio: "inherit",
-});
+const result = spawnSync(
+  process.execPath,
+  ["--import", "tsx", "--test", "--test-concurrency=1", ...tests],
+  {
+    cwd: workspaceDir,
+    stdio: "inherit",
+  },
+);
 
 if (result.error) {
   throw result.error;
