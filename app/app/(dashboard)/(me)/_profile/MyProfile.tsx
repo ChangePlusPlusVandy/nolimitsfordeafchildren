@@ -2,10 +2,15 @@
 
 import SaveIcon from "@mui/icons-material/Save";
 import {
+  Alert,
   Avatar,
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   InputLabel,
@@ -18,7 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/(auth)/_domain/client";
+import { authClient, useAuth } from "@/(auth)/_domain/client";
 import ErrorAlert from "@/_shared/ui/ErrorAlert";
 import PageContainer from "@/_shared/ui/PageContainer";
 import PageHeader from "@/_shared/ui/PageHeader";
@@ -63,6 +68,12 @@ export default function MyProfilePage() {
   const [postalCode, setPostalCode] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const {
     data: profile,
@@ -121,6 +132,47 @@ export default function MyProfilePage() {
           }
         : {}),
     });
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      setChangePasswordError("New passwords do not match");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setChangePasswordError("Password must be at least 8 characters");
+      return;
+    }
+    setChangingPassword(true);
+    setChangePasswordError(null);
+    try {
+      const result = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: false,
+      });
+      if (result.error) {
+        setChangePasswordError(result.error.message || "Failed to change password");
+      } else {
+        toast.success("Password changed successfully");
+        setChangePasswordOpen(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch {
+      setChangePasswordError("Failed to change password. Please try again.");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleCloseChangePassword = () => {
+    setChangePasswordOpen(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setChangePasswordError(null);
   };
 
   const handleCancel = () => {
@@ -324,11 +376,63 @@ export default function MyProfilePage() {
             Contact an administrator to change your role.
           </Typography>
           <Divider sx={{ my: 1.5 }} />
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
             Member since {formatDate(displayProfile.created_at)}
           </Typography>
+          <Divider sx={{ my: 1.5 }} />
+          <Button variant="outlined" size="small" onClick={() => setChangePasswordOpen(true)}>
+            Change password
+          </Button>
         </SectionCard>
       </Stack>
+
+      <Dialog open={changePasswordOpen} onClose={handleCloseChangePassword} maxWidth="xs" fullWidth>
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {changePasswordError && <Alert severity="error">{changePasswordError}</Alert>}
+            <TextField
+              label="Current password"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              disabled={changingPassword}
+              fullWidth
+            />
+            <TextField
+              label="New password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={changingPassword}
+              fullWidth
+            />
+            <TextField
+              label="Confirm new password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={changingPassword}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseChangePassword} disabled={changingPassword}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleChangePassword}
+            disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+          >
+            {changingPassword ? "Saving..." : "Change Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PageContainer>
   );
 }

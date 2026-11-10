@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/_platform/db";
 import * as schema from "@/_platform/db/schema";
 import { ParentProfileTable, TeacherProfileTable, UserTable } from "@/_platform/db/schema";
+import { sendPasswordResetEmail } from "@/_platform/email";
 import { getEnvValue } from "@/_platform/env";
 
 /**
@@ -156,6 +157,14 @@ function createAuth() {
     }),
     emailAndPassword: {
       enabled: true,
+      sendResetPassword: async ({ user, url }) => {
+        // better-auth swallows callback errors, so the request page checks
+        // `isEmailConfigured()` before calling requestPasswordReset.
+        const result = await sendPasswordResetEmail(user.email, url);
+        if (!result.success) {
+          console.error("[Auth] Password reset email failed:", result.error);
+        }
+      },
     },
     plugins: [bearer()],
     user: {

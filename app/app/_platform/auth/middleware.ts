@@ -19,7 +19,12 @@ const SESSION_COOKIE = "better-auth.session_token";
 // and the home page redirects unassigned users to `/pending-approval`.
 // Bouncing authenticated users off `/pending-approval` here would create an
 // infinite redirect loop for unassigned accounts (page -> `/` -> page).
-const PUBLIC_PATHS = new Set(["/login", "/pending-approval"]);
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/pending-approval",
+  "/forgot-password",
+  "/reset-password",
+]);
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) {
@@ -46,9 +51,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authenticated = hasSessionCookie(request);
 
-  // Signed-in users shouldn't see the login screen. (Pending-approval is
-  // left alone: the page component applies the role-aware redirect.)
-  if (authenticated && pathname === "/login") {
+  // Signed-in users shouldn't see the login or password-reset screens.
+  // (Pending-approval is left alone: the page component applies the
+  // role-aware redirect.)
+  const AUTH_ONLY_PUBLIC = new Set(["/login", "/forgot-password", "/reset-password"]);
+  if (authenticated && AUTH_ONLY_PUBLIC.has(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";
