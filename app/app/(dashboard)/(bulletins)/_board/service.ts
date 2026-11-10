@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "@/_platform/db";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/_platform/db/schema";
 
 import type { BulletinWithDetails, ListBulletinsQuery, UserRole } from "../_domain/types";
-import { getUserSiteId } from "./siteAccess";
+import { memberVisibilityConditions, publishedCondition, unexpiredCondition } from "./visibility";
 
 export async function listBulletins(
   query: ListBulletinsQuery,
@@ -45,34 +45,15 @@ export async function listBulletins(
       conditions.push(eq(BulletinTable.role_target, query.roleTarget));
     }
   } else {
-    const userSiteId = await getUserSiteId(userId, userRole);
-
-    if (userSiteId) {
-      conditions.push(
-        or(
-          eq(BulletinTable.scope, "global"),
-          and(eq(BulletinTable.scope, "site"), eq(BulletinTable.site_id, userSiteId)),
-        ),
-      );
-    } else {
-      conditions.push(eq(BulletinTable.scope, "global"));
-    }
-
-    conditions.push(
-      userRole === "unassigned"
-        ? eq(BulletinTable.role_target, "all")
-        : or(eq(BulletinTable.role_target, "all"), eq(BulletinTable.role_target, userRole)),
-    );
-
-    conditions.push(eq(BulletinTable.approval_status, "approved"));
+    conditions.push(...(await memberVisibilityConditions(userRole, userId)));
   }
 
   if (!query.includeScheduled) {
-    conditions.push(or(isNull(BulletinTable.publish_at), lte(BulletinTable.publish_at, now)));
+    conditions.push(publishedCondition(now));
   }
 
   if (!query.includeExpired) {
-    conditions.push(or(isNull(BulletinTable.expire_at), gte(BulletinTable.expire_at, now)));
+    conditions.push(unexpiredCondition(now));
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
