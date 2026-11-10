@@ -93,6 +93,44 @@ const FOOTER = `
   </p>`;
 
 /**
+ * Send password reset link to a user.
+ * Called by better-auth when a password reset is requested.
+ * If email is not configured, returns { success: false } with admin guidance.
+ */
+export async function sendPasswordResetEmail(
+  recipientEmail: string,
+  resetUrl: string,
+): Promise<EmailResult> {
+  return sendEmail({
+    to: recipientEmail,
+    subject: "Reset your No Limits password",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1976d2;">Reset Your Password</h2>
+        <p>We received a request to reset your password for the No Limits for Deaf Children portal.</p>
+        <p>Click the button below to set a new password. This link expires in 1 hour and can only be used once.</p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${resetUrl}"
+             style="background: #1976d2; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 4px; font-size: 16px; display: inline-block;">
+            Reset Password
+          </a>
+        </div>
+        <p style="color: #666; font-size: 13px;">
+          If you did not request a password reset, you can safely ignore this email.
+          Your password will not change unless you click the link above.
+        </p>
+        ${FOOTER}
+      </div>
+    `,
+  });
+}
+
+/** Whether reset links can be delivered (binding + verified from address). */
+export function isEmailConfigured(): boolean {
+  return Boolean(getEmailBinding() && getFromAddress());
+}
+
+/**
  * Send missed session alert to admin
  * Called immediately when attendance is marked as "no_show"
  */

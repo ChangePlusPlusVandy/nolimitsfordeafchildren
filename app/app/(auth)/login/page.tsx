@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -185,6 +186,20 @@ export default function LoginPage() {
                 </Button>
               </Stack>
             </Box>
+
+            {mode === "login" && (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
+                <Button
+                  component={Link}
+                  href="/forgot-password"
+                  variant="text"
+                  size="small"
+                  sx={{ p: 0, minWidth: "auto", verticalAlign: "baseline" }}
+                >
+                  Forgot password?
+                </Button>
+              </Typography>
+            )}
 
             <Typography variant="body2" color="text.secondary">
               {mode === "login" ? "Need an account? " : "Already have an account? "}
