@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/_platform/db";
 import {
@@ -11,7 +11,11 @@ import {
   UserTable,
 } from "@/_platform/db/schema";
 
-import type { ScheduleDetails } from "../_domain/types";
+import type {
+  ScheduleDetails,
+  ScheduleEndedEnrollment,
+  ScheduleEnrollmentStudent,
+} from "../_domain/types";
 
 export async function getSchedule(id: string): Promise<ScheduleDetails | null> {
   const results = await db
@@ -50,26 +54,54 @@ export async function getSchedule(id: string): Promise<ScheduleDetails | null> {
 
   const r = results[0]!;
 
-  const enrollments = await db
+  const enrollmentRows = await db
     .select({
+      enrollment_id: EnrollmentTable.id,
       student_id: StudentTable.id,
       first_name: StudentTable.first_name,
       last_name: StudentTable.last_name,
       initials: StudentTable.initials,
       enrolled_at: EnrollmentTable.enrolled_at,
+      ended_at: EnrollmentTable.ended_at,
     })
     .from(EnrollmentTable)
     .innerJoin(StudentTable, eq(EnrollmentTable.student_id, StudentTable.id))
-    .where(and(eq(EnrollmentTable.schedule_id, id), isNull(EnrollmentTable.ended_at)))
-    .orderBy(asc(StudentTable.last_name));
+    .where(eq(EnrollmentTable.schedule_id, id))
+    .orderBy(asc(StudentTable.last_name), desc(EnrollmentTable.enrolled_at));
 
-  const enrolledStudents = enrollments.map((e) => ({
-    id: e.student_id,
-    first_name: e.first_name,
-    last_name: e.last_name,
-    initials: e.initials,
-    enrolled_at: e.enrolled_at,
-  }));
+  const enrolledStudents: ScheduleEnrollmentStudent[] = enrollmentRows
+    .filter((row) => row.ended_at === null)
+    .map((row) => ({
+      enrollment_id: row.enrollment_id,
+      id: row.student_id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      initials: row.initials,
+      enrolled_at: row.enrolled_at,
+    }));
+
+  const activeStudentIds = new Set(enrolledStudents.map((student) => student.id));
+  const latestEndedByStudent = new Map<string, ScheduleEndedEnrollment>();
+  for (const row of enrollmentRows) {
+    if (row.ended_at === null || activeStudentIds.has(row.student_id)) {
+      continue;
+    }
+    const current = latestEndedByStudent.get(row.student_id);
+    if (!current || row.ended_at > current.ended_at) {
+      latestEndedByStudent.set(row.student_id, {
+        enrollment_id: row.enrollment_id,
+        id: row.student_id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        initials: row.initials,
+        enrolled_at: row.enrolled_at,
+        ended_at: row.ended_at,
+      });
+    }
+  }
+  const endedEnrollments = [...latestEndedByStudent.values()].toSorted((a, b) =>
+    a.last_name.localeCompare(b.last_name),
+  );
 
   return {
     id: r.id,
@@ -91,5 +123,6 @@ export async function getSchedule(id: string): Promise<ScheduleDetails | null> {
     site: { id: r.location_id, name: r.location_name },
     session: r.session_id ? { id: r.session_id, name: r.session_name || "Session" } : null,
     enrolledStudents,
+    endedEnrollments,
   };
 }

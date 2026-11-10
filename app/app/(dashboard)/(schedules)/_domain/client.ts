@@ -5,6 +5,8 @@ export type {
   CreateScheduleInput,
   ListSchedulesQuery,
   ScheduleDetails,
+  ScheduleEndedEnrollment,
+  ScheduleEnrollmentStudent,
   ScheduleWithDetails,
   UpdateScheduleInput,
 } from "./types";
@@ -14,4 +16,5 @@ export { getAvailableSchedules } from "../_available/client";
 export { checkScheduleConflicts } from "../_conflicts/client";
 export { createSchedule, createTeacherSchedule } from "../_create/client";
 export { updateSchedule, updateTeacherSchedule } from "../_update/client";
+export { endEnrollment, reenrollStudent } from "../_enrollments/client";
 export { decodeDayMask, encodeDayMask, SCHEDULE_PATTERNS } from "../_patterns/days";
