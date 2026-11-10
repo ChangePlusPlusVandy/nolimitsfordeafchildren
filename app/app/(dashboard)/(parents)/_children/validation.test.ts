@@ -62,23 +62,3 @@ test("parentHearingInfoSchema rejects sensitive student fields", () => {
     "first_name must be rejected",
   );
 });
-
-test("cross-family ownership guard: sibling.student_id must match authorized studentId", () => {
-  // Documents the invariant checked in updateChildSibling / removeChildSibling.
-  // DB-bound path is covered by the assertParentOwnsChild + getSiblingById guard;
-  // this test pins the logical condition.
-  function isOwnedByStudent(siblingStudentId: string, authorizedStudentId: string): boolean {
-    return siblingStudentId === authorizedStudentId;
-  }
-
-  assert.equal(
-    isOwnedByStudent("student-B", "student-A"),
-    false,
-    "sibling from another family must not pass",
-  );
-  assert.equal(
-    isOwnedByStudent("student-A", "student-A"),
-    true,
-    "sibling from own family must pass",
-  );
-});
