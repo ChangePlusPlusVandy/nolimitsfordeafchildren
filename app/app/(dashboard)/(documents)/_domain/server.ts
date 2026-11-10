@@ -11,6 +11,7 @@ import { validateEntity } from "../_upload/entity";
 import { getUploadUrl, confirmUpload } from "../_upload/service";
 import type {
   ConfirmUploadInput,
+  DocumentReviewStatus,
   DocumentWithMetadata,
   EntityType,
   GetUploadUrlInput,
@@ -36,7 +37,7 @@ export class DocumentsService {
   async listForEntityPaginated(
     entityType: EntityType,
     entityId: string,
-    query: { page?: number; limit?: number },
+    query: { page?: number; limit?: number; review_status?: DocumentReviewStatus },
   ) {
     return listForEntityPaginated(entityType, entityId, query, (doc) => this.addMetadata(doc));
   }

@@ -23,10 +23,7 @@ export default defineConfig({
     // navigation. Bundled, esbuild provides proper interop. Plain JS, so
     // the rsc/ssr environments handle them safely.
     include: ["prop-types", "react-is"],
-    // wrangler (pulled in by @cloudflare/vite-plugin) depends on blake3-wasm
-    // which loads a Node.js-only './node.js' file. The browser optimizer can't
-    // resolve it, crashing vite dev on startup. Exclude wrangler entirely.
-    exclude: ["wrangler"],
+    exclude: ["wrangler", "blake3-wasm"],
   },
   resolve: {
     // `@emotion/react` default-imports the CJS-only
