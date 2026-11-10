@@ -18,7 +18,7 @@ export default defineConfig({
   ],
   server: {
     port: 3000,
-    strictPort: true, // Prevents Vite from automatically picking another port if 3000 is busy
+    strictPort: true, // Fail instead of silently starting on another port
   },
   optimizeDeps: {
     // Pre-bundle CJS-only transitives default/named-imported by MUI
