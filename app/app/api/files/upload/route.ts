@@ -6,7 +6,7 @@ import type { UserEntity } from "@/_platform/db/schema";
 import { getBinding } from "@/_platform/env";
 import { BadRequestError, PayloadTooLargeError } from "@/_shared/server/errors";
 
-import { authorizeObjectKey } from "../_services/file-access";
+import { authorizeUpload } from "../_services/file-access";
 import { errorResponse, purposeFromKey } from "../_shared";
 
 /**
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     } else {
       user = await requireRole("administrator");
     }
-    await authorizeObjectKey(user, key);
+    await authorizeUpload(user, key);
 
     const formData = await request.formData();
     const file = formData.get("file");
