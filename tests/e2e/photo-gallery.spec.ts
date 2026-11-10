@@ -6,6 +6,7 @@ import { signIn } from "./fixtures";
 
 const PHOTO_FIXTURE = path.join(__dirname, "fixtures", "photo.png");
 const MIA_CHEN = "Mia Chen (MC)";
+const HTTP_NOT_FOUND = 404;
 
 function todayInOrgTimezone(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -111,10 +112,15 @@ test.describe("photo gallery", () => {
       await uploadSessionPhoto(teacherPage, caption);
 
       const card = await openAdminPhoto(adminPage, caption);
+      const fileUrl = await card.getByRole("img", { name: caption }).getAttribute("src");
+      if (!fileUrl) {
+        throw new Error("Uploaded photo has no file URL");
+      }
       await confirmDelete(adminPage, card);
 
       await expect(adminPage).toHaveURL(/\/admin\/photo-gallery/);
       await expect(adminPage.getByText(caption)).toHaveCount(0);
+      expect((await adminPage.request.get(fileUrl)).status()).toBe(HTTP_NOT_FOUND);
 
       await teacherPage.reload();
       await expect(teacherPage.getByRole("heading", { name: "Session Photos" })).toBeVisible({
